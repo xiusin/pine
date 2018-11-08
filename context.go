@@ -1,6 +1,7 @@
 package router
 
 import (
+	context2 "golang.org/x/net/context"
 	"net/http"
 )
 
@@ -13,7 +14,8 @@ type Context interface {
 	Stop()
 }
 
-type baseContext struct {
+type context struct {
+	cancel          context2.CancelFunc
 	req             *http.Request
 	res             http.ResponseWriter
 	stopped         bool
@@ -21,25 +23,25 @@ type baseContext struct {
 	middlewareIndex int
 }
 
-func (c *baseContext) Request() *http.Request {
+func (c *context) Request() *http.Request {
 	return c.req
 }
 
-func (c *baseContext) Writer() http.ResponseWriter {
+func (c *context) Writer() http.ResponseWriter {
 	return c.res
 }
 
-func (c *baseContext) handlerIndex() {
+func (c *context) handlerIndex() {
 	c.middlewareIndex++
 }
 
-func (c *baseContext) Next() Handler {
+func (c *context) Next() Handler {
 	if c.IsStopped() == true {
 		return nil
 	}
 	c.middlewareIndex++
 	if len(c.route.Middleware) > c.middlewareIndex {
-		c.route.Middleware[c.middlewareIndex](c)	//递归执行
+		c.route.Middleware[c.middlewareIndex](c) //递归执行
 		if len(c.route.Middleware) == c.middlewareIndex {
 			return c.route.Handle
 		}
@@ -47,18 +49,18 @@ func (c *baseContext) Next() Handler {
 	return nil
 }
 
-func (c *baseContext) setRoute(route *Route) {
+func (c *context) setRoute(route *Route) {
 	c.route = route
 }
 
-func (c *baseContext) IsStopped() bool {
+func (c *context) IsStopped() bool {
 	return c.stopped
 }
 
-func (c *baseContext) Stop()  {
+func (c *context) Stop() {
 	c.stopped = true
 }
 
-func (c *baseContext) getRoute() *Route {
+func (c *context) getRoute() *Route {
 	return c.route
 }

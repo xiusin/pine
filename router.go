@@ -2,16 +2,18 @@ package router
 
 import (
 	"fmt"
+	context2 "golang.org/x/net/context"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Router struct {
 	groups          map[string]*Group
 	routes          map[string]*Route
-	middlewares     [] Handler
+	middlewares     []Handler
 	NotFoundHandler Handler
 	locker          sync.Mutex
 }
@@ -23,7 +25,7 @@ func NewRouter() *Router {
 		groups: map[string]*Group{},
 		routes: map[string]*Route{},
 		NotFoundHandler: func(context Context) {
-			fmt.Fprint(context.Writer(), "无法匹配到路由")
+			fmt.Fprint(context.Writer(), "The Route Not Found")
 		},
 	}
 }
@@ -33,7 +35,7 @@ func (r *Router) HandleStatic(path, dir string) {
 
 }
 
-func (r *Router) Group(prefix string, middlewares ... Handler) *Group {
+func (r *Router) Group(prefix string, middlewares ...Handler) *Group {
 	r.locker.Lock()
 	defer r.locker.Unlock()
 	g := &Group{Prefix: prefix}
@@ -43,15 +45,16 @@ func (r *Router) Group(prefix string, middlewares ... Handler) *Group {
 	r.groups[prefix] = g
 	return g
 }
+
 //针对全局的router
-func (r *Router) Use(middlewares ... Handler) *Router {
+func (r *Router) Use(middlewares ...Handler) *Router {
 	r.locker.Lock()
 	defer r.locker.Unlock()
 	r.middlewares = append(r.middlewares, middlewares...)
 	return r
 }
 
-func (r *Router) addRoute(method, path string, handle Handler, middlewares ... Handler) *Route {
+func (r *Router) addRoute(method, path string, handle Handler, middlewares ...Handler) *Route {
 	r.locker.Lock()
 	defer r.locker.Unlock()
 	route := &Route{
@@ -63,11 +66,11 @@ func (r *Router) addRoute(method, path string, handle Handler, middlewares ... H
 	return route
 }
 
-func (r *Router) GET(path string, handle Handler, middlewares ... Handler) {
+func (r *Router) GET(path string, handle Handler, middlewares ...Handler) {
 	r.addRoute("GET", path, handle, middlewares...)
 }
 
-func (r *Router) POST(path string, handle Handler, middlewares ... Handler) {
+func (r *Router) POST(path string, handle Handler, middlewares ...Handler) {
 	r.addRoute("POST", path, handle, middlewares...)
 }
 
@@ -76,10 +79,13 @@ func (r *Router) Serve(addr string) {
 }
 
 func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	c := &baseContext{
-		res: res,
-		req: req,
+	ctx, cancel := context2.WithTimeout(context2.Background(), 30*time.Second)
+	req.WithContext(ctx)
+	c := &context{
+		res:             res,
+		req:             req,
 		middlewareIndex: -1,
+		cancel:          cancel,
 	}
 	urlParsed, err := url.ParseRequestURI(req.RequestURI)
 	if err != nil {

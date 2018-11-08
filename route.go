@@ -1,7 +1,7 @@
 package router
 
 type Route struct {
-	Method string
+	Method     string
 	Middleware []Handler
-	Handle Handler
+	Handle     Handler
 }
