@@ -2,9 +2,13 @@ package router
 
 import (
 	"fmt"
+	"github.com/fatih/color"
+	"github.com/rodaine/table"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -24,6 +28,8 @@ type Router struct {
 
 // 定义路由处理函数类型
 type Handler func(Context)
+
+const DS = "/"
 
 var DefaultApplication = NewRouter()
 
@@ -51,7 +57,20 @@ func NewRouter() *Router {
 
 // 打印所有的路由列表
 func (r *Router) List() {
+	headerFmt := color.New(color.FgGreen, color.Underline).SprintfFunc()
+	columnFmt := color.New(color.FgRed).SprintfFunc()
+	tbl := table.New("Method", "Path", "Func")
+	tbl.WithHeaderFormatter(headerFmt).WithFirstColumnFormatter(columnFmt)
+	for path, v := range r.routes {
+		tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
+	}
 
+	for prefix, routes := range r.groups {
+		for path, v := range routes.routes {
+			tbl.AddRow(v.Method, prefix+path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
+		}
+	}
+	tbl.Print()
 }
 
 // 添加路由, 内部函数
@@ -63,7 +82,7 @@ func (r *Router) addRoute(method, path string, handle Handler, middlewares ...Ha
 	var pattern string
 	var params []string
 	if matched {
-		uriPartals := strings.Split(path, "/")[1:]
+		uriPartals := strings.Split(path, DS)[1:]
 		for _, v := range uriPartals {
 			if strings.Contains(v, ":") || strings.Contains(v, "*") {
 				params = append(params, strings.TrimLeftFunc(v, func(r rune) bool {
@@ -98,10 +117,10 @@ func (r *Router) addRoute(method, path string, handle Handler, middlewares ...Ha
 }
 
 func (r *Router) matchURL(ctx Context, urlParsed *url.URL) Handler {
-	pathInfos := strings.Split(urlParsed.Path, "/")
+	pathInfos := strings.Split(urlParsed.Path, DS)
 	l := len(pathInfos)
 	for i := 1; i <= l; i++ {
-		p := strings.Join(pathInfos[:i], "/")
+		p := strings.Join(pathInfos[:i], DS)
 		route, ok := r.routes[p]
 		if ok { // 直接匹配到路由
 			if route.Method != ctx.Request().Method {
@@ -113,7 +132,7 @@ func (r *Router) matchURL(ctx Context, urlParsed *url.URL) Handler {
 		// 在路由分组内查找
 		group, ok := r.groups[p]
 		if ok {
-			path := "/" + strings.Join(pathInfos[i:], "/")
+			path := "/" + strings.Join(pathInfos[i:], DS)
 			for routePath, r := range group.routes {
 				if routePath != path || r.Method != ctx.Request().Method {
 					continue
@@ -178,6 +197,26 @@ func (r *Router) POST(path string, handle Handler, middlewares ...Handler) {
 	r.addRoute("POST", path, handle, middlewares...)
 }
 
+func (r *Router) PUT(path string, handle Handler, middlewares ...Handler) {
+	r.addRoute("PUT", path, handle, middlewares...)
+}
+
+func (r *Router) HEAD(path string, handle Handler, middlewares ...Handler) {
+	r.addRoute("HEAD", path, handle, middlewares...)
+}
+
+func (r *Router) DELETE(path string, handle Handler, middlewares ...Handler) {
+	r.addRoute("DELETE", path, handle, middlewares...)
+}
+
+func (r *Router) ANY(path string, handle Handler, middlewares ...Handler) {
+	r.GET(path, handle, middlewares...)
+	r.POST(path, handle, middlewares...)
+	r.HEAD(path, handle, middlewares...)
+	r.PUT(path, handle, middlewares...)
+	r.DELETE(path, handle, middlewares...)
+}
+
 //针对全局的router引入中间件
 func (r *Router) Use(middlewares ...Handler) *Router {
 	r.locker.Lock()
@@ -187,6 +226,7 @@ func (r *Router) Use(middlewares ...Handler) *Router {
 }
 
 func (r *Router) Serve(addr string) {
+	r.List()
 	_ = http.ListenAndServe(addr, r)
 }
 

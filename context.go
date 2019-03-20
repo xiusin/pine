@@ -12,6 +12,7 @@ type Context interface {
 	Next() Handler
 	IsStopped() bool
 	GetParam(string) string
+	GetParamDefault(string, string) string
 	SetParam(string, string)
 	setRoute(*Route)
 	Stop()
@@ -44,6 +45,15 @@ func (c *application) SetParam(key, value string) {
 func (c *application) GetParam(key string) string {
 	value, _ := c.params[key]
 	return value
+}
+
+// 获取路由参数,如果为空字符串则返回 defaultVal
+func (c *application) GetParamDefault(key, defaultVal string) string {
+	val := c.GetParam(key)
+	if val != "" {
+		return val
+	}
+	return defaultVal
 }
 
 // 获取响应
