@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"github.com/fatih/color"
 	"github.com/rodaine/table"
@@ -12,8 +13,6 @@ import (
 	"runtime"
 	"strings"
 	"time"
-
-	"context"
 )
 
 type Router struct {
@@ -187,8 +186,15 @@ func (r *Router) Use(middlewares ...Handler) *Router {
 
 // 启动服务
 func (r *Router) Serve(addr string) {
-	r.List()
-	_ = http.ListenAndServe(addr, r)
+	//r.List()
+	srv := &http.Server{
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
+		Handler:      r,
+		Addr:         addr,
+	}
+	fmt.Println("server run on: http://" + addr)
+	_ = srv.ListenAndServe()
 }
 
 // 处理总线
@@ -201,8 +207,8 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		middlewareIndex: -1,                  // 初始化中间件索引. 默认从0开始索引.
 		render:          r.renderer,
 	}
-	ctx, cancel := context.WithTimeout(c, 30*time.Second)
-	c.cancel = cancel
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	//c.cancel = cancel
 	req.WithContext(ctx)
 	// 解析地址参数
 	urlParsed, err := url.ParseRequestURI(req.RequestURI)
@@ -215,13 +221,7 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	// 有可处理函数
 	if route != nil {
 		c.setRoute(route)
-		go c.Next()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			}
-		}
+		c.Next()
 	} else {
 		r.NotFoundHandler(c)
 	}
