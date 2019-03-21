@@ -1,16 +1,23 @@
 package main
 
-import "router"
+import (
+	"github.com/unrolled/render"
+	"router/core"
+	"router/middlewares"
+	"time"
+)
 
 func main() {
-	router.DefaultApplication.GET("/hello/:name/*action", func(context router.Context) {
-		context.Writer().Write([]byte(context.GetParam("name")))
+	handler := core.NewRouter()
+	handler.Use(middlewares.Recovery(), middlewares.Logger())
+	handler.SetRender(render.New())
+	handler.GET("/hello/:name/*action", func(c *core.Context) {
+		//time.Sleep(time.Second * 40)
+		for true {
+			c.Writer()
+			time.Sleep(2 * time.Second)
+		}
+		c.Text("sadads")
 	})
-	g := router.DefaultApplication.Group("/api")
-	g.ANY("/user/login", func(context router.Context) {
-
-	})
-	router.DefaultApplication.Static("/css", "./public/css")
-	router.DefaultApplication.StaticFile("/main.js", "./public/js/a.js")
-	router.DefaultApplication.Serve("0.0.0.0:9999")
+	handler.Serve("0.0.0.0:9999")
 }
