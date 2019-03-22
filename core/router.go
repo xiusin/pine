@@ -188,10 +188,8 @@ func (r *Router) Use(middlewares ...Handler) *Router {
 func (r *Router) Serve(addr string) {
 	//r.List()
 	srv := &http.Server{
-		ReadTimeout:  3 * time.Second,
-		WriteTimeout: 3 * time.Second,
-		Handler:      r,
-		Addr:         addr,
+		Addr:    addr,
+		Handler: r, //http.TimeoutHandler(r, time.Second*2, "服务端操作超时"), // 超时函数, 但是无法阻止服务器端停止
 	}
 	fmt.Println("server run on: http://" + addr)
 	_ = srv.ListenAndServe()
@@ -199,17 +197,34 @@ func (r *Router) Serve(addr string) {
 
 // 处理总线
 func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	// 实例化一个context用来管理超时
 	c := &Context{
 		res:             res,                 // 响应对象
 		params:          map[string]string{}, //保存路由参数
 		req:             req,                 //请求对象
 		middlewareIndex: -1,                  // 初始化中间件索引. 默认从0开始索引.
 		render:          r.renderer,
+		ended:           make(chan struct{}),
 	}
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
-	//c.cancel = cancel
-	req.WithContext(ctx)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	go func() {
+		fmt.Println("before")
+		r.dispatch(ctx, c, res, req)
+		fmt.Println("after")
+	}()
+	select {
+	case <-ctx.Done():
+		runtime.Goexit()
+		fmt.Println(ctx.Err())
+	case <-c.ended:
+		cancel()
+		fmt.Println("end")
+	}
+}
+
+func (r *Router) dispatch(ctx context.Context, c *Context, res http.ResponseWriter, req *http.Request) {
+
 	// 解析地址参数
 	urlParsed, err := url.ParseRequestURI(req.RequestURI)
 	if err != nil {

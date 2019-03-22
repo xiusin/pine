@@ -3,13 +3,10 @@ package core
 import (
 	"github.com/unrolled/render"
 	"net/http"
-	"time"
-
-	"context"
 )
 
 type Context struct {
-	cancel          context.CancelFunc
+	ended           chan struct{}
 	req             *http.Request
 	params          map[string]string
 	values          map[string]interface{}
@@ -18,22 +15,6 @@ type Context struct {
 	route           *Route
 	middlewareIndex int
 	render          *render.Render
-}
-
-func (c *Context) Deadline() (deadline time.Time, ok bool) {
-	return
-}
-
-func (c *Context) Done() <-chan struct{} {
-	return nil
-}
-
-func (c *Context) Err() error {
-	return nil
-}
-
-func (c *Context) Value(key interface{}) interface{} {
-	return c.Get(key.(string))
 }
 
 // 获取请求
@@ -84,10 +65,12 @@ func (c *Context) Next() {
 		middlewares[c.middlewareIndex](c) //递归执行
 		if length == c.middlewareIndex {
 			c.route.Handle(c)
+			c.ended <- struct{}{}
 			return
 		}
 	} else {
 		c.route.Handle(c)
+		c.ended <- struct{}{}
 	}
 }
 
