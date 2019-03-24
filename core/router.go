@@ -1,7 +1,6 @@
 package core
 
 import (
-	"context"
 	"fmt"
 	"github.com/fatih/color"
 	"github.com/rodaine/table"
@@ -45,7 +44,7 @@ func NewRouter() *Router {
 }
 
 // 创建一个静态资源处理函数
-func (*Router) createStaticHandler(path, dir string) Handler {
+func (*Router) staticHandler(path, dir string) Handler {
 	return func(c *Context) {
 		// 去除前缀启动文件服务
 		fileServer := http.StripPrefix(path, http.FileServer(http.Dir(dir)))
@@ -116,7 +115,7 @@ func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *Route {
 					if routePath != path || route.Method != ctx.Request().Method {
 						continue
 					}
-					route.ExtendsMiddleWare = group.middlewares
+					route.ExtendsMiddleWare = group.middleWares
 					return route
 				}
 			}
@@ -135,7 +134,7 @@ func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *Route {
 			for k, param := range route.Param {
 				ctx.SetParam(param, subMatched[k])
 			}
-			route.ExtendsMiddleWare = r.middlewares
+			route.ExtendsMiddleWare = r.middleWares
 			return route
 		}
 	}
@@ -144,7 +143,7 @@ func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *Route {
 
 // 处理静态文件夹
 func (r *Router) Static(path, dir string) {
-	r.GET(path, r.createStaticHandler(path, dir))
+	r.GET(path, r.staticHandler(path, dir))
 }
 
 // 处理静态文件
@@ -160,9 +159,7 @@ func (r *Router) SetRender(render *render.Render) {
 }
 
 // 路由分组
-func (r *Router) Group(prefix string, middlewares ...Handler) *RouteGroup {
-	r.locker.Lock()
-	defer r.locker.Unlock()
+func (r *Router) Group(prefix string, middleWares ...Handler) *RouteGroup {
 	g := &RouteGroup{Prefix: prefix, namedRoutes: map[string]*Route{}}
 	g.methodRoutes = map[string]map[string]*Route{
 		METHOD_GET:    {},
@@ -171,25 +168,22 @@ func (r *Router) Group(prefix string, middlewares ...Handler) *RouteGroup {
 		METHOD_HEAD:   {},
 		METHOD_DELETE: {},
 	}
-	g.middlewares = append(g.middlewares, middlewares...)
+	g.middleWares = append(g.middleWares, middleWares...)
 	r.groups[prefix] = g
 	return g
 }
 
 // 针对全局的router引入中间件
-func (r *Router) Use(middlewares ...Handler) *Router {
-	r.locker.Lock()
-	defer r.locker.Unlock()
-	r.middlewares = append(r.middlewares, middlewares...)
+func (r *Router) Use(middleWares ...Handler) *Router {
+	r.middleWares = append(r.middleWares, middleWares...)
 	return r
 }
 
 // 启动服务
 func (r *Router) Serve(addr string) {
-	//r.List()
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: r, //http.TimeoutHandler(r, time.Second*2, "服务端操作超时"), // 超时函数, 但是无法阻止服务器端停止
+		Handler: http.TimeoutHandler(r, time.Second*2, "服务端操作超时"), // 超时函数, 但是无法阻止服务器端停止
 	}
 	fmt.Println("server run on: http://" + addr)
 	_ = srv.ListenAndServe()
@@ -203,32 +197,15 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 		req:             req,                 //请求对象
 		middlewareIndex: -1,                  // 初始化中间件索引. 默认从0开始索引.
 		render:          r.renderer,
-		ended:           make(chan struct{}),
 	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
-	defer cancel()
-	go func() {
-		fmt.Println("before")
-		r.dispatch(ctx, c, res, req)
-		fmt.Println("after")
-	}()
-	select {
-	case <-ctx.Done():
-		runtime.Goexit()
-		fmt.Println(ctx.Err())
-	case <-c.ended:
-		cancel()
-		fmt.Println("end")
-	}
+	r.dispatch(c, res, req)
 }
 
-func (r *Router) dispatch(ctx context.Context, c *Context, res http.ResponseWriter, req *http.Request) {
-
+func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request) {
 	// 解析地址参数
 	urlParsed, err := url.ParseRequestURI(req.RequestURI)
 	if err != nil {
-		_, _ = fmt.Fprintf(res, "%s", err.Error())
+		_ = c.Text(err.Error())
 		return
 	}
 	// 匹配路由

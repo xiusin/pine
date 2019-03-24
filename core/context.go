@@ -6,7 +6,6 @@ import (
 )
 
 type Context struct {
-	ended           chan struct{}
 	req             *http.Request
 	params          map[string]string
 	values          map[string]interface{}
@@ -15,6 +14,10 @@ type Context struct {
 	route           *Route
 	middlewareIndex int
 	render          *render.Render
+}
+
+func (c *Context) getMiddleWares() {
+
 }
 
 // 获取请求
@@ -65,12 +68,10 @@ func (c *Context) Next() {
 		middlewares[c.middlewareIndex](c) //递归执行
 		if length == c.middlewareIndex {
 			c.route.Handle(c)
-			c.ended <- struct{}{}
 			return
 		}
 	} else {
 		c.route.Handle(c)
-		c.ended <- struct{}{}
 	}
 }
 

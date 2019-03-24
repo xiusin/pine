@@ -3,7 +3,6 @@ package core
 import (
 	"regexp"
 	"strings"
-	"sync"
 )
 
 var patternRoutes = map[string][]*Route{}
@@ -20,10 +19,9 @@ const (
 type RouteGroup struct {
 	Prefix          string
 	NotFoundHandler Handler                      //NotFound的默认处理函数
-	locker          sync.Mutex                   //锁
 	namedRoutes     map[string]*Route            // 命名路由保存
 	methodRoutes    map[string]map[string]*Route //分类命令规则
-	middlewares     []Handler                    // 中间件列表
+	middleWares     []Handler                    // 中间件列表
 }
 
 // 添加路由, 内部函数
