@@ -36,10 +36,10 @@ func (r *RouteGroup) addRoute(method, path string, handle Handler, middlewares .
 			if strings.Contains(v, ":") || strings.Contains(v, "*") {
 				params = append(params, strings.TrimLeftFunc(v, func(r rune) bool {
 					if string(r) == ":" {
-						pattern += "/(\\w+)"
+						pattern += "/([\\w0-9\\_\\-]+)"
 						return true
 					} else if string(r) == "*" {
-						pattern += "/?(\\w+)?"
+						pattern += "/?([\\w0-9\\_\\-]+)?"
 						return true
 					}
 					return false
