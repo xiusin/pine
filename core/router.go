@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -18,6 +19,7 @@ type Router struct {
 	RouteGroup
 	renderer *render.Render
 	groups   map[string]*RouteGroup // 分组路由保存
+	pool     *sync.Pool
 }
 
 // 定义路由处理函数类型
@@ -27,6 +29,15 @@ type Handler func(*Context)
 func NewRouter() *Router {
 	return &Router{
 		groups: map[string]*RouteGroup{},
+		pool: &sync.Pool{
+			New: func() interface{} {
+				ctx := &Context{
+					params:          map[string]string{}, //保存路由参数
+					middlewareIndex: -1,                  // 初始化中间件索引. 默认从0开始索引.
+				}
+				return ctx
+			},
+		},
 		RouteGroup: RouteGroup{
 			namedRoutes: map[string]*Route{},
 			methodRoutes: map[string]map[string]*Route{
@@ -83,7 +94,7 @@ func (r *Router) List() {
 			for _, param := range v.Param {
 				repPath := strings.Replace(path, "(\\w+)", ":"+param, 1)
 				if path == repPath {
-					path = strings.Replace(path, "(/\\w+)?", "/*"+param, 1)
+					path = strings.Replace(path, "/?(\\w+)?", "/*"+param, 1)
 				} else {
 					path = repPath
 				}
@@ -183,24 +194,29 @@ func (r *Router) Use(middleWares ...Handler) *Router {
 func (r *Router) Serve(addr string) {
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: http.TimeoutHandler(r, time.Second*2, "服务端操作超时"), // 超时函数, 但是无法阻止服务器端停止
+		Handler: http.TimeoutHandler(r, time.Second*60, "Server Time Out"), // 超时函数, 但是无法阻止服务器端停止
 	}
+
+	srv.RegisterOnShutdown(func() {
+		fmt.Println("Server is Shutdown")
+	})
+
 	fmt.Println("server run on: http://" + addr)
 	_ = srv.ListenAndServe()
 }
 
 // 处理总线
 func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	c := &Context{
-		res:             res,                 // 响应对象
-		params:          map[string]string{}, //保存路由参数
-		req:             req,                 //请求对象
-		middlewareIndex: -1,                  // 初始化中间件索引. 默认从0开始索引.
-		render:          r.renderer,
+	c := r.pool.Get().(*Context)
+	defer r.pool.Put(c)
+	c.Reset(res, req)
+	if c.render == nil {
+		c.setRenderer(r.renderer)
 	}
 	r.dispatch(c, res, req)
 }
 
+// 调度路由
 func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request) {
 	// 解析地址参数
 	urlParsed, err := url.ParseRequestURI(req.RequestURI)

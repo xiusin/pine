@@ -1,23 +1,33 @@
 package core
 
 import (
+	"context"
+	"github.com/mholt/binding"
 	"github.com/unrolled/render"
 	"net/http"
 )
 
 type Context struct {
-	req             *http.Request
-	params          map[string]string
-	values          map[string]interface{}
-	res             http.ResponseWriter
-	stopped         bool
-	route           *Route
+	req             *http.Request       // 请求对象
+	params          map[string]string   // 路由参数
+	res             http.ResponseWriter // 响应对象
+	stopped         bool                //是否停止传播中间件
+	route           *Route              //当前context匹配到的路由
 	middlewareIndex int
 	render          *render.Render
 }
 
-func (c *Context) getMiddleWares() {
+func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
+	c.req = req
+	c.res = res
+	c.middlewareIndex = -1
+	c.route = nil
+	c.stopped = false
+	c.params = map[string]string{}
+}
 
+func (c *Context) setRenderer(r *render.Render) {
+	c.render = r
 }
 
 // 获取请求
@@ -95,16 +105,14 @@ func (c *Context) getRoute() *Route {
 	return c.route
 }
 
-// 设置全局组件
-// 作用, 注入公共组件以及中间件自己注入相关组件
+// 附加数据的context (可以装载附加组件)
 func (c *Context) Set(key string, value interface{}) {
-	c.values[key] = value
+	c.req.WithContext(context.WithValue(c.req.Context(), key, value))
 }
 
 // 获取附带数据
 func (c *Context) Get(key string) interface{} {
-	val, _ := c.values[key]
-	return val
+	return c.req.Context().Value(key)
 }
 
 // 获取模板渲染对象
@@ -164,4 +172,9 @@ func (c *Context) SetCookie(name, value string, maxAge int) {
 		MaxAge: maxAge,
 	}
 	c.req.AddCookie(cookie)
+}
+
+// 绑定表单数据
+func (c *Context) Bind(req *http.Request, formData binding.FieldMapper) error {
+	return binding.Bind(req, formData)
 }

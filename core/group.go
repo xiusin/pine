@@ -39,7 +39,7 @@ func (r *RouteGroup) addRoute(method, path string, handle Handler, middlewares .
 						pattern += "/(\\w+)"
 						return true
 					} else if string(r) == "*" {
-						pattern += "(/\\w+)?"
+						pattern += "/?(\\w+)?"
 						return true
 					}
 					return false
