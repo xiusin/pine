@@ -2,8 +2,8 @@ package main
 
 import (
 	httpSwagger "github.com/swaggo/http-swagger"
-	"router/core"
-	"router/examples/docs"
+	"github.com/xiusin/router/core"
+	"github.com/xiusin/router/examples/docs"
 )
 
 // @title Swagger Example API
@@ -35,7 +35,7 @@ func main() {
 		httpSwagger.WrapHandler(context.Writer(), context.Request())
 	})
 
-	handler.Serve("0.0.0.0:9999")
+	handler.Serve()
 
 }
 

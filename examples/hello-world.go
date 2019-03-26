@@ -1,10 +1,10 @@
 package main
 
 import (
+	"github.com/xiusin/router/core"
 	"log"
 	"net/http"
 	_ "net/http/pprof"
-	"router/core"
 )
 
 func main() {

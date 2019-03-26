@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"router/core"
+	"github.com/xiusin/router/core"
 	"runtime"
 	"time"
 )
@@ -30,5 +30,5 @@ func main() {
 		})
 	}
 	runtime.GOMAXPROCS(runtime.NumCPU())
-	handler.Serve("0.0.0.0:9999")
+	handler.Serve()
 }

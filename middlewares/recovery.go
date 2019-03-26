@@ -3,8 +3,8 @@ package middlewares
 import (
 	"github.com/sirupsen/logrus"
 	formatter "github.com/x-cray/logrus-prefixed-formatter"
+	"github.com/xiusin/router/core"
 	"os"
-	"router/core"
 )
 
 func Recovery() core.Handler {
