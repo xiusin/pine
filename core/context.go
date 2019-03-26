@@ -11,12 +11,13 @@ type Context struct {
 	req             *http.Request       // 请求对象
 	params          map[string]string   // 路由参数
 	res             http.ResponseWriter // 响应对象
-	stopped         bool                //是否停止传播中间件
-	route           *Route              //当前context匹配到的路由
-	middlewareIndex int
-	render          *render.Render
+	stopped         bool                // 是否停止传播中间件
+	route           *Route              // 当前context匹配到的路由
+	middlewareIndex int                 // 中间件起始索引
+	render          *render.Render      // 模板渲染
 }
 
+// 重置Context对象
 func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
 	c.req = req
 	c.res = res
@@ -26,6 +27,7 @@ func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
 	c.params = map[string]string{}
 }
 
+// 设置模板渲染 (后期改为interface)
 func (c *Context) setRenderer(r *render.Render) {
 	c.render = r
 }
@@ -176,5 +178,10 @@ func (c *Context) SetCookie(name, value string, maxAge int) {
 
 // 绑定表单数据
 func (c *Context) Bind(req *http.Request, formData binding.FieldMapper) error {
+	return binding.Bind(req, formData)
+}
+
+// 绑定表单数据
+func (c *Context) Vail(req *http.Request, formData binding.FieldMapper) error {
 	return binding.Bind(req, formData)
 }

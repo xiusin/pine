@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-var patternRoutes = map[string][]*Route{}
+var patternRoutes = map[string][]*Route{} // 记录匹配路由映射
 
 const (
 	DS            = "/"
@@ -36,10 +36,10 @@ func (r *RouteGroup) addRoute(method, path string, handle Handler, middlewares .
 			if strings.Contains(v, ":") || strings.Contains(v, "*") {
 				params = append(params, strings.TrimLeftFunc(v, func(r rune) bool {
 					if string(r) == ":" {
-						pattern += "/([\\w0-9\\_\\-]+)"
+						pattern += "/([\\w0-9\\_\\.\\+\\-]+)"
 						return true
 					} else if string(r) == "*" {
-						pattern += "/?([\\w0-9\\_\\-]+)?"
+						pattern += "/?([\\w0-9\\_\\.\\+\\-]+)?"
 						return true
 					}
 					return false
@@ -54,7 +54,7 @@ func (r *RouteGroup) addRoute(method, path string, handle Handler, middlewares .
 		Method:     method,
 		Handle:     handle,
 		Middleware: middlewares,
-		IsReg:      matched,
+		IsPattern:  matched,
 		Param:      params,
 		Pattern:    pattern,
 	}

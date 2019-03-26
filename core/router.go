@@ -5,14 +5,15 @@ import (
 	"github.com/fatih/color"
 	"github.com/rodaine/table"
 	"github.com/unrolled/render"
+	"log"
 	"net/http"
 	"net/url"
 	"reflect"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
-	"time"
 )
 
 type Router struct {
@@ -191,18 +192,23 @@ func (r *Router) Use(middleWares ...Handler) *Router {
 }
 
 // 启动服务
-func (r *Router) Serve(addr string) {
+func (r *Router) Serve() {
+	addr := DefaultOptions.Host + ":" + strconv.Itoa(DefaultOptions.Port)
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: http.TimeoutHandler(r, time.Second*60, "Server Time Out"), // 超时函数, 但是无法阻止服务器端停止
+		Handler: http.TimeoutHandler(r, DefaultOptions.TimeOut, "Server Time Out"), // 超时函数, 但是无法阻止服务器端停止
 	}
-
 	srv.RegisterOnShutdown(func() {
 		fmt.Println("Server is Shutdown")
 	})
-
+	if DefaultOptions.ShowRouteList {
+		r.List()
+	}
 	fmt.Println("server run on: http://" + addr)
-	_ = srv.ListenAndServe()
+	err := srv.ListenAndServe()
+	if err != nil {
+		log.Fatalf("start server was error: %s", err.Error())
+	}
 }
 
 // 处理总线

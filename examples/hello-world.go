@@ -12,10 +12,10 @@ func main() {
 	handler.GET("/hello/:name", func(c *core.Context) {
 		_, _ = c.Writer().Write([]byte("Hello " + c.GetParamDefault("name", "world")))
 	})
-	//core.EnablePprof(handler)
+	core.EnablePprof(handler)
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
-	handler.Serve("0.0.0.0:9999")
+	handler.Serve()
 
 }
