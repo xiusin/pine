@@ -8,7 +8,6 @@ import (
 var patternRoutes = map[string][]*Route{} // 记录匹配路由映射
 
 const (
-	DS           = "/"
 	MethodGet    = "GET"
 	MethodPost   = "POST"
 	MethodHead   = "HEAD"
@@ -31,7 +30,7 @@ func (r *RouteGroup) addRoute(method, path string, handle Handler, middlewares .
 	var pattern string
 	var params []string
 	if matched {
-		uriPartials := strings.Split(r.Prefix+path, DS)[1:]
+		uriPartials := strings.Split(r.Prefix+path, "/")[1:]
 		for _, v := range uriPartials {
 			if strings.Contains(v, ":") || strings.Contains(v, "*") {
 				params = append(params, strings.TrimLeftFunc(v, func(r rune) bool {

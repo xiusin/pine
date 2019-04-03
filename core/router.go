@@ -109,10 +109,10 @@ func (r *Router) List() {
 }
 
 func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *Route {
-	pathInfos := strings.Split(urlParsed.Path, DS)
+	pathInfos := strings.Split(urlParsed.Path, "/")
 	l := len(pathInfos)
 	for i := 1; i <= l; i++ {
-		p := strings.Join(pathInfos[:i], DS)
+		p := strings.Join(pathInfos[:i], "/")
 		route, ok := r.methodRoutes[ctx.Request().Method][p]
 		if ok { // 直接匹配到路由
 			if route.Method != ctx.Request().Method {
@@ -123,7 +123,7 @@ func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *Route {
 		// 在路由分组内查找
 		group, ok := r.groups[p]
 		if ok {
-			path := "/" + strings.Join(pathInfos[i:], DS)
+			path := "/" + strings.Join(pathInfos[i:], "/")
 			for routePath, route := range group.methodRoutes[ctx.Request().Method] {
 				for {
 					if routePath != path || route.Method != ctx.Request().Method {
