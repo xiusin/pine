@@ -10,7 +10,7 @@ const (
 	ProdMode
 )
 
-type Options struct {
+type Option struct {
 	TimeOut       time.Duration
 	Port          int
 	Host          string
@@ -18,7 +18,7 @@ type Options struct {
 	Env           int
 }
 
-var DefaultOptions = Options{
+var DefaultOptions = Option{
 	Port:          9528,
 	Host:          "127.0.0.1",
 	ShowRouteList: true,

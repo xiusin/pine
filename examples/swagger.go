@@ -21,7 +21,7 @@ import (
 // @host petstore.swagger.io
 // @BasePath /v2
 func main() {
-	handler := core.NewRouter()
+	handler := core.NewRouter(nil)
 
 	docs.SwaggerInfo.Title = "Swagger Example API"
 	docs.SwaggerInfo.Description = "This is a sample server Petstore server."

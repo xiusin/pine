@@ -8,12 +8,12 @@ import (
 var patternRoutes = map[string][]*Route{} // 记录匹配路由映射
 
 const (
-	DS            = "/"
-	METHOD_GET    = "GET"
-	METHOD_POST   = "POST"
-	METHOD_HEAD   = "HEAD"
-	METHOD_PUT    = "PUT"
-	METHOD_DELETE = "DELETE"
+	DS           = "/"
+	MethodGet    = "GET"
+	MethodPost   = "POST"
+	MethodHead   = "HEAD"
+	MethodPut    = "PUT"
+	MethodDelete = "DELETE"
 )
 
 type RouteGroup struct {
@@ -66,24 +66,24 @@ func (r *RouteGroup) addRoute(method, path string, handle Handler, middlewares .
 	return route
 }
 
-func (r *RouteGroup) GET(path string, handle Handler, middlewares ...Handler) {
-	r.addRoute(METHOD_GET, path, handle, middlewares...)
+func (r *RouteGroup) GET(path string, handle Handler, middlewares ...Handler) *Route {
+	return r.addRoute(MethodGet, path, handle, middlewares...)
 }
 
-func (r *RouteGroup) POST(path string, handle Handler, middlewares ...Handler) {
-	r.addRoute(METHOD_POST, path, handle, middlewares...)
+func (r *RouteGroup) POST(path string, handle Handler, middlewares ...Handler) *Route {
+	return r.addRoute(MethodPost, path, handle, middlewares...)
 }
 
-func (r *RouteGroup) PUT(path string, handle Handler, middlewares ...Handler) {
-	r.addRoute(METHOD_PUT, path, handle, middlewares...)
+func (r *RouteGroup) PUT(path string, handle Handler, middlewares ...Handler) *Route {
+	return r.addRoute(MethodPut, path, handle, middlewares...)
 }
 
-func (r *RouteGroup) HEAD(path string, handle Handler, middlewares ...Handler) {
-	r.addRoute(METHOD_HEAD, path, handle, middlewares...)
+func (r *RouteGroup) HEAD(path string, handle Handler, middlewares ...Handler) *Route {
+	return r.addRoute(MethodHead, path, handle, middlewares...)
 }
 
-func (r *RouteGroup) DELETE(path string, handle Handler, middlewares ...Handler) {
-	r.addRoute(METHOD_DELETE, path, handle, middlewares...)
+func (r *RouteGroup) DELETE(path string, handle Handler, middlewares ...Handler) *Route {
+	return r.addRoute(MethodDelete, path, handle, middlewares...)
 }
 
 func (r *RouteGroup) ANY(path string, handle Handler, middlewares ...Handler) {

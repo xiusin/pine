@@ -5,6 +5,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/rodaine/table"
 	"github.com/unrolled/render"
+	"github.com/xiusin/router/core/components"
 	"log"
 	"net/http"
 	"net/url"
@@ -21,14 +22,17 @@ type Router struct {
 	renderer *render.Render
 	groups   map[string]*RouteGroup // 分组路由保存
 	pool     *sync.Pool
+	option   *Option
+	session  *components.Sessions // session存储
 }
 
 // 定义路由处理函数类型
 type Handler func(*Context)
 
 // 实例化路由
-func NewRouter() *Router {
-	return &Router{
+func NewRouter(option *Option) *Router {
+	r := &Router{
+		option: option,
 		groups: map[string]*RouteGroup{},
 		pool: &sync.Pool{
 			New: func() interface{} {
@@ -40,19 +44,17 @@ func NewRouter() *Router {
 			},
 		},
 		RouteGroup: RouteGroup{
-			namedRoutes: map[string]*Route{},
-			methodRoutes: map[string]map[string]*Route{
-				METHOD_GET:    {},
-				METHOD_POST:   {},
-				METHOD_PUT:    {},
-				METHOD_HEAD:   {},
-				METHOD_DELETE: {},
-			},
+			namedRoutes:  map[string]*Route{},
+			methodRoutes: defaultRouteMap(),
 			NotFoundHandler: func(ctx *Context) {
 				_, _ = ctx.Writer().Write([]byte("Not Found"))
 			},
 		},
 	}
+	if r.option == nil {
+		r.option = &DefaultOptions
+	}
+	return r
 }
 
 // 创建一个静态资源处理函数
@@ -170,16 +172,14 @@ func (r *Router) SetRender(render *render.Render) {
 	r.renderer = render
 }
 
+func (c *Router) SetSessionManager(s *components.Sessions) {
+	c.session = s
+}
+
 // 路由分组
 func (r *Router) Group(prefix string, middleWares ...Handler) *RouteGroup {
 	g := &RouteGroup{Prefix: prefix, namedRoutes: map[string]*Route{}}
-	g.methodRoutes = map[string]map[string]*Route{
-		METHOD_GET:    {},
-		METHOD_POST:   {},
-		METHOD_PUT:    {},
-		METHOD_HEAD:   {},
-		METHOD_DELETE: {},
-	}
+	g.methodRoutes = defaultRouteMap()
 	g.middleWares = append(g.middleWares, middleWares...)
 	r.groups[prefix] = g
 	return g
@@ -193,15 +193,15 @@ func (r *Router) Use(middleWares ...Handler) *Router {
 
 // 启动服务
 func (r *Router) Serve() {
-	addr := DefaultOptions.Host + ":" + strconv.Itoa(DefaultOptions.Port)
+	addr := r.option.Host + ":" + strconv.Itoa(r.option.Port)
 	srv := &http.Server{
 		Addr:    addr,
-		Handler: http.TimeoutHandler(r, DefaultOptions.TimeOut, "Server Time Out"), // 超时函数, 但是无法阻止服务器端停止
+		Handler: http.TimeoutHandler(r, r.option.TimeOut, "Server Time Out"), // 超时函数, 但是无法阻止服务器端停止
 	}
 	srv.RegisterOnShutdown(func() {
 		fmt.Println("Server is Shutdown")
 	})
-	if DefaultOptions.ShowRouteList {
+	if r.option.ShowRouteList {
 		r.List()
 	}
 	fmt.Println("server run on: http://" + addr)
@@ -218,6 +218,9 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	c.Reset(res, req)
 	if c.render == nil {
 		c.setRenderer(r.renderer)
+	}
+	if r.session != nil {
+		c.session = r.session.Manager()
 	}
 	r.dispatch(c, res, req)
 }
@@ -238,5 +241,15 @@ func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request
 		c.Next()
 	} else {
 		r.NotFoundHandler(c)
+	}
+}
+
+func defaultRouteMap() map[string]map[string]*Route {
+	return map[string]map[string]*Route{
+		MethodGet:    {},
+		MethodPost:   {},
+		MethodPut:    {},
+		MethodHead:   {},
+		MethodDelete: {},
 	}
 }

@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"github.com/gorilla/sessions"
 	"github.com/mholt/binding"
 	"github.com/unrolled/render"
 	"net/http"
@@ -15,6 +16,7 @@ type Context struct {
 	route           *Route              // 当前context匹配到的路由
 	middlewareIndex int                 // 中间件起始索引
 	render          *render.Render      // 模板渲染
+	session         sessions.Store
 }
 
 // 重置Context对象
@@ -60,6 +62,20 @@ func (c *Context) GetParamDefault(key, defaultVal string) string {
 // 获取响应
 func (c *Context) Writer() http.ResponseWriter {
 	return c.res
+}
+
+// 重定向
+func (c *Context) Redirect(url string, statusHeader ...int) {
+	if len(statusHeader) == 0 {
+		statusHeader[0] = http.StatusFound
+	}
+	http.Redirect(c.res, c.req, url, statusHeader[0])
+}
+
+// 获取命名参数内容
+func (c *Context) GetRoute(name string) *Route {
+	r, _ := namedRoutes[name]
+	return r
 }
 
 // 记录中间件索引位置
