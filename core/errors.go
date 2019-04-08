@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"github.com/sirupsen/logrus"
 	"runtime/debug"
 )
@@ -28,7 +27,6 @@ func (e *ErrHandler) Error50x(c *Context, msg string) {
 
 func (e *ErrHandler) Recover(c *Context) func() {
 	return func() {
-		fmt.Println("Header", c.res.Header())
 		if err := recover(); err != nil {
 			logrus.Errorf(
 				"msg: %s  Method: %s    Path: %s    Query: %v    POST: %v\nStack: %s",
