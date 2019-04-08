@@ -18,6 +18,7 @@ type Context struct {
 	middlewareIndex int                 // 中间件起始索引
 	render          *render.Render      // 模板渲染
 	session         sessions.Store
+	app             *Router
 }
 
 // 重置Context对象
@@ -214,12 +215,18 @@ func (c *Context) IsPost() bool {
 }
 
 func (c *Context) Abort(statusCode int, msg string) {
-	c.stopped = true // 设置暂停执行程序为true
 	c.SetStatus(statusCode)
-	panic(msg)
+	if c.app.option.ErrorHandler != nil {
+		if statusCode >= 400 && statusCode < 500 {
+			c.app.option.ErrorHandler.Error40x(c, msg)
+		} else if statusCode >= 500 {
+			c.app.option.ErrorHandler.Error50x(c, msg)
+			panic(msg)
+		}
+	}
 }
 
 // 设置状态码
 func (c *Context) SetStatus(statusCode int) {
-	c.res.Header().Set("Status Code", string(statusCode))
+	c.res.WriteHeader(statusCode)
 }

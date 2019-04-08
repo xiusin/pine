@@ -25,7 +25,3 @@ func (r *Route) SetName(name string) {
 func (r *Route) String() string {
 	return fmt.Sprintf("%v", r)
 }
-
-func (r *Route) CreateURL(Param map[string]string, query ...string) string {
-	return "返回格式内容"
-}

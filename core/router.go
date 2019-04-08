@@ -60,7 +60,7 @@ func NewRouter(option *Option) *Router {
 		RouteGroup: RouteGroup{
 			namedRoutes:  map[string]*Route{},
 			methodRoutes: defaultRouteMap(),
-			NotFoundHandler: func(ctx *Context) {
+			RouteNotFoundHandler: func(ctx *Context) {
 				_, _ = ctx.Writer().Write([]byte("Not Found"))
 			},
 		},
@@ -231,6 +231,7 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	c := r.pool.Get().(*Context)
 	defer r.pool.Put(c)
 	c.Reset(res, req)
+	c.app = r
 	if c.render == nil {
 		c.setRenderer(r.renderer)
 	}
@@ -259,11 +260,7 @@ func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request
 		c.setRoute(route)
 		c.Next()
 	} else {
-		if r.option.ErrorHandler != nil {
-			r.option.ErrorHandler.Error40x(c)
-		} else {
-			r.NotFoundHandler(c)
-		}
+		r.RouteNotFoundHandler(c)
 	}
 }
 
