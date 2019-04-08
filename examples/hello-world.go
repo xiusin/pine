@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	handler := core.NewRouter()
+	handler := core.NewRouter(nil)
 	handler.GET("/hello/:name", func(c *core.Context) {
 		_, _ = c.Writer().Write([]byte("Hello " + c.GetParamDefault("name", "world")))
 	})
