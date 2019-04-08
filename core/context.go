@@ -2,10 +2,11 @@ package core
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/gorilla/sessions"
 	"github.com/mholt/binding"
 	"github.com/unrolled/render"
-	"net/http"
 )
 
 type Context struct {
@@ -93,7 +94,7 @@ func (c *Context) Next() {
 	middlewares = append(middlewares, c.route.Middleware...)
 	length := len(middlewares)
 	if length > c.middlewareIndex {
-		middlewares[c.middlewareIndex](c) //递归执行
+		middlewares[c.middlewareIndex](c)
 		if length == c.middlewareIndex {
 			c.route.Handle(c)
 			return
@@ -197,7 +198,28 @@ func (c *Context) Bind(req *http.Request, formData binding.FieldMapper) error {
 	return binding.Bind(req, formData)
 }
 
-// 绑定表单数据
-func (c *Context) Vail(req *http.Request, formData binding.FieldMapper) error {
-	return binding.Bind(req, formData)
+// 判断是不是ajax请求
+func (c *Context) IsAjax() bool {
+	return c.req.Header.Get("X-Requested-With") == "XMLHttpRequest"
+}
+
+// 判断是不是Get请求
+func (c *Context) IsGet() bool {
+	return c.req.Method == MethodGet
+}
+
+// 判断是不是Post请求
+func (c *Context) IsPost() bool {
+	return c.req.Method == MethodPost
+}
+
+func (c *Context) Abort(statusCode int, msg string) {
+	c.stopped = true // 设置暂停执行程序为true
+	c.SetStatus(statusCode)
+	panic(msg)
+}
+
+// 设置状态码
+func (c *Context) SetStatus(statusCode int) {
+	c.res.Header().Set("Status Code", string(statusCode))
 }

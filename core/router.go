@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"github.com/fatih/color"
 	"github.com/rodaine/table"
+	"github.com/sirupsen/logrus"
 	"github.com/unrolled/render"
+	formatter "github.com/x-cray/logrus-prefixed-formatter"
 	"github.com/xiusin/router/core/components"
 	"log"
 	"net/http"
 	"net/url"
+	"os"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -26,8 +29,19 @@ type Router struct {
 	session  *components.Sessions // session存储
 }
 
+const Version = "dev"
+
 // 定义路由处理函数类型
 type Handler func(*Context)
+
+func init() {
+	logrus.SetFormatter(&formatter.TextFormatter{
+		TimestampFormat: "2006-01-02 15:04:05",
+		FullTimestamp:   true,
+	})
+	logrus.SetLevel(logrus.DebugLevel)
+	logrus.SetOutput(os.Stdout)
+}
 
 // 实例化路由
 func NewRouter(option *Option) *Router {
@@ -108,6 +122,7 @@ func (r *Router) List() {
 	tbl.Print()
 }
 
+// 匹配路由
 func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *Route {
 	pathInfos := strings.Split(urlParsed.Path, "/")
 	l := len(pathInfos)
@@ -172,8 +187,9 @@ func (r *Router) SetRender(render *render.Render) {
 	r.renderer = render
 }
 
-func (c *Router) SetSessionManager(s *components.Sessions) {
-	c.session = s
+// 设置session管理器
+func (r *Router) SetSessionManager(s *components.Sessions) {
+	r.session = s
 }
 
 // 路由分组
@@ -195,15 +211,14 @@ func (r *Router) Use(middleWares ...Handler) *Router {
 func (r *Router) Serve() {
 	addr := r.option.Host + ":" + strconv.Itoa(r.option.Port)
 	srv := &http.Server{
-		Addr:    addr,
-		Handler: http.TimeoutHandler(r, r.option.TimeOut, "Server Time Out"), // 超时函数, 但是无法阻止服务器端停止
+		ReadHeaderTimeout: r.option.TimeOut,
+		WriteTimeout:      r.option.TimeOut,
+		ReadTimeout:       r.option.TimeOut,
+		Addr:              addr,
+		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Time Out"), // 超时函数, 但是无法阻止服务器端停止
 	}
-	srv.RegisterOnShutdown(func() {
-		fmt.Println("Server is Shutdown")
-	})
-	if r.option.ShowRouteList {
-		r.List()
-	}
+	//srv.ErrorLog //错误日志
+	r.List()
 	fmt.Println("server run on: http://" + addr)
 	err := srv.ListenAndServe()
 	if err != nil {
@@ -222,6 +237,10 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	if r.session != nil {
 		c.session = r.session.Manager()
 	}
+	if r.option.ErrorHandler != nil {
+		defer r.option.ErrorHandler.Recover(c)()
+	}
+	res.Header().Set("Server", "xiusin/router")
 	r.dispatch(c, res, req)
 }
 
@@ -240,10 +259,15 @@ func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request
 		c.setRoute(route)
 		c.Next()
 	} else {
-		r.NotFoundHandler(c)
+		if r.option.ErrorHandler != nil {
+			r.option.ErrorHandler.Error40x(c)
+		} else {
+			r.NotFoundHandler(c)
+		}
 	}
 }
 
+// 初始化RouteMap todo tree替代
 func defaultRouteMap() map[string]map[string]*Route {
 	return map[string]map[string]*Route{
 		MethodGet:    {},

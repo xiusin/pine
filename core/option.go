@@ -6,7 +6,6 @@ import (
 
 const (
 	DevMode = iota
-	TestMode
 	ProdMode
 )
 
@@ -16,6 +15,7 @@ type Option struct {
 	Host          string
 	ShowRouteList bool
 	Env           int
+	ErrorHandler  Errors
 }
 
 var DefaultOptions = Option{
@@ -24,4 +24,5 @@ var DefaultOptions = Option{
 	ShowRouteList: true,
 	TimeOut:       time.Second * 60,
 	Env:           DevMode,
+	ErrorHandler:  DefaultErrorHandler,
 }
