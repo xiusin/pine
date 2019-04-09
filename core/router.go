@@ -1,23 +1,24 @@
 package core
 
 import (
-	"fmt"
+	"context"
 	"github.com/fatih/color"
 	"github.com/rodaine/table"
 	"github.com/sirupsen/logrus"
 	"github.com/unrolled/render"
 	formatter "github.com/x-cray/logrus-prefixed-formatter"
 	"github.com/xiusin/router/core/components"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"reflect"
 	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 type Router struct {
@@ -67,7 +68,6 @@ func NewRouter(option *Option) *Router {
 			},
 		},
 		RouteGroup: RouteGroup{
-			namedRoutes:  map[string]*Route{},
 			methodRoutes: defaultRouteMap(),
 			RouteNotFoundHandler: func(ctx *Context) {
 				_, _ = ctx.Writer().Write([]byte("Not Found"))
@@ -203,7 +203,7 @@ func (r *Router) SetSessionManager(s *components.Sessions) {
 
 // 路由分组
 func (r *Router) Group(prefix string, middleWares ...Handler) *RouteGroup {
-	g := &RouteGroup{Prefix: prefix, namedRoutes: map[string]*Route{}}
+	g := &RouteGroup{Prefix: prefix}
 	g.methodRoutes = defaultRouteMap()
 	g.middleWares = append(g.middleWares, middleWares...)
 	r.groups[prefix] = g
@@ -216,24 +216,48 @@ func (r *Router) Use(middleWares ...Handler) *Router {
 	return r
 }
 
+func (_ *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal, done chan<- bool) {
+	<-quit
+	logrus.Println("Server is shutting down...")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	srv.SetKeepAlivesEnabled(false)
+	if err := srv.Shutdown(ctx); err != nil {
+		logrus.Fatalf("Could not gracefully shutdown the server: %v\n", err)
+	}
+	close(done)
+}
+
 // 启动服务
 func (r *Router) Serve() {
+	r.List()
+	done := make(chan bool, 1)
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt)
 	addr := r.option.Host + ":" + strconv.Itoa(r.option.Port)
 	srv := &http.Server{
 		ReadHeaderTimeout: r.option.TimeOut,
 		WriteTimeout:      r.option.TimeOut,
 		ReadTimeout:       r.option.TimeOut,
+		IdleTimeout:       r.option.TimeOut,
 		Addr:              addr,
 		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Time Out"), // 超时函数, 但是无法阻止服务器端停止
 	}
+<<<<<<< HEAD
 	//srv.ErrorLog //错误日志
 	fmt.Println(Logo)
 	r.List()
 	fmt.Println("server run on: http://" + addr)
+=======
+	go r.gracefulShutdown(srv, quit, done)
+	logrus.Println("Server run on: http://" + addr)
+>>>>>>> d981001945197c0f1c42e89e3b49e90c237bae42
 	err := srv.ListenAndServe()
-	if err != nil {
-		log.Fatalf("start server was error: %s", err.Error())
+	if err != nil && err != http.ErrServerClosed {
+		logrus.Fatalf("Server was error: %s", err.Error())
 	}
+	logrus.Println("Server stopped")
+	<-done
 }
 
 // 处理总线
