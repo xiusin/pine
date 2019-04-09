@@ -6,6 +6,7 @@ import (
 )
 
 var patternRoutes = map[string][]*Route{} // 记录匹配路由映射
+var namedRoutes = map[string]*Route{}     // 命名路由保存
 
 const (
 	MethodGet    = "GET"
@@ -18,7 +19,6 @@ const (
 type RouteGroup struct {
 	Prefix               string
 	RouteNotFoundHandler Handler                      //NotFound的默认处理函数
-	namedRoutes          map[string]*Route            // 命名路由保存
 	methodRoutes         map[string]map[string]*Route //分类命令规则
 	middleWares          []Handler                    // 中间件列表
 }

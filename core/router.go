@@ -59,7 +59,6 @@ func NewRouter(option *Option) *Router {
 			},
 		},
 		RouteGroup: RouteGroup{
-			namedRoutes:  map[string]*Route{},
 			methodRoutes: defaultRouteMap(),
 			RouteNotFoundHandler: func(ctx *Context) {
 				_, _ = ctx.Writer().Write([]byte("Not Found"))
@@ -195,7 +194,7 @@ func (r *Router) SetSessionManager(s *components.Sessions) {
 
 // 路由分组
 func (r *Router) Group(prefix string, middleWares ...Handler) *RouteGroup {
-	g := &RouteGroup{Prefix: prefix, namedRoutes: map[string]*Route{}}
+	g := &RouteGroup{Prefix: prefix}
 	g.methodRoutes = defaultRouteMap()
 	g.middleWares = append(g.middleWares, middleWares...)
 	r.groups[prefix] = g

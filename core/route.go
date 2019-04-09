@@ -15,8 +15,6 @@ type Route struct {
 	name              string
 }
 
-var namedRoutes = map[string]*Route{}
-
 func (r *Route) SetName(name string) {
 	r.name = name
 	namedRoutes[name] = r
