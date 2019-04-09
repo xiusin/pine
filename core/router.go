@@ -31,6 +31,15 @@ type Router struct {
 
 const Version = "dev"
 
+//from http://patorjk.com/software/taag/#p=display&h=3&v=0&f=Graffiti&t=XiusinRouter
+const Logo  = `
+____  __.__            .__      __________               __                
+\   \/  |__|__ __ _____|__| ____\______   \ ____  __ ___/  |_  ___________ 
+ \     /|  |  |  /  ___|  |/    \|       _//  _ \|  |  \   ___/ __ \_  __ \
+ /     \|  |  |  \___ \|  |   |  |    |   (  <_> |  |  /|  | \  ___/|  | \/
+/___/\  |__|____/____  |__|___|  |____|_  /\____/|____/ |__|  \___  |__|   
+      \_/            \/        \/       \/                        \/   version:`+Version+`
+`
 // 定义路由处理函数类型
 type Handler func(*Context)
 
@@ -84,7 +93,7 @@ func (*Router) staticHandler(path, dir string) Handler {
 func (r *Router) List() {
 	headerFmt := color.New(color.FgGreen, color.Underline).SprintfFunc()
 	columnFmt := color.New(color.FgRed).SprintfFunc()
-	tbl := table.New("Method", "Path", "Func", "Pattern")
+	tbl := table.New("Method     ", "Path    ", "Func    ")
 	tbl.WithHeaderFormatter(headerFmt).WithFirstColumnFormatter(columnFmt)
 	for _, routes := range r.methodRoutes {
 		for path, v := range routes {
@@ -116,7 +125,7 @@ func (r *Router) List() {
 					path = repPath
 				}
 			}
-			tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name(), v.Pattern)
+			tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
 		}
 	}
 	tbl.Print()
@@ -218,6 +227,7 @@ func (r *Router) Serve() {
 		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Time Out"), // 超时函数, 但是无法阻止服务器端停止
 	}
 	//srv.ErrorLog //错误日志
+	fmt.Println(Logo)
 	r.List()
 	fmt.Println("server run on: http://" + addr)
 	err := srv.ListenAndServe()
