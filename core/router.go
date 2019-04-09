@@ -208,7 +208,7 @@ func (r *Router) Use(middleWares ...Handler) *Router {
 	return r
 }
 
-func (r *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal, done chan<- bool) {
+func (_ *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal, done chan<- bool) {
 	<-quit
 	logrus.Println("Server is shutting down...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
