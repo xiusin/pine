@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"fmt"
 	"github.com/fatih/color"
 	"github.com/rodaine/table"
 	"github.com/sirupsen/logrus"
@@ -39,7 +40,7 @@ ____  __.__            .__      __________               __
  \     /|  |  |  /  ___|  |/    \|       _//  _ \|  |  \   ___/ __ \_  __ \
  /     \|  |  |  \___ \|  |   |  |    |   (  <_> |  |  /|  | \  ___/|  | \/
 /___/\  |__|____/____  |__|___|  |____|_  /\____/|____/ |__|  \___  |__|   
-      \_/            \/        \/       \/                        \/   version:`+Version+`
+      \_/            \/        \/       \/                        \/   Version: `+Version+`
 `
 // 定义路由处理函数类型
 type Handler func(*Context)
@@ -243,15 +244,9 @@ func (r *Router) Serve() {
 		Addr:              addr,
 		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Time Out"), // 超时函数, 但是无法阻止服务器端停止
 	}
-<<<<<<< HEAD
-	//srv.ErrorLog //错误日志
 	fmt.Println(Logo)
-	r.List()
-	fmt.Println("server run on: http://" + addr)
-=======
 	go r.gracefulShutdown(srv, quit, done)
 	logrus.Println("Server run on: http://" + addr)
->>>>>>> d981001945197c0f1c42e89e3b49e90c237bae42
 	err := srv.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		logrus.Fatalf("Server was error: %s", err.Error())
@@ -275,7 +270,7 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	if r.option.ErrorHandler != nil {
 		defer r.option.ErrorHandler.Recover(c)()
 	}
-	res.Header().Set("Server", "xiusin/router")
+	res.Header().Set("Server", r.option.ServerName)
 	r.dispatch(c, res, req)
 }
 

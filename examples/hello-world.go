@@ -10,5 +10,4 @@ func main() {
 		_, _ = c.Writer().Write([]byte("Hello " + c.GetParamDefault("name", "world")))
 	})
 	handler.Serve()
-
 }

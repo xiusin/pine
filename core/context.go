@@ -21,6 +21,12 @@ type Context struct {
 	app             *Router
 }
 
+// 开放几个API 获取 app 的只读行为
+
+//func (c *Context) GetApp() *Router {
+//	return c.app
+//}
+
 // 重置Context对象
 func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
 	c.req = req

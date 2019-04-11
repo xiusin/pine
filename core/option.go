@@ -16,6 +16,7 @@ type Option struct {
 	ShowRouteList bool
 	Env           int
 	ErrorHandler  Errors
+	ServerName		string
 }
 
 var DefaultOptions = Option{
@@ -25,4 +26,5 @@ var DefaultOptions = Option{
 	TimeOut:       time.Second * 60,
 	Env:           DevMode,
 	ErrorHandler:  DefaultErrorHandler,
+	ServerName: "xiusin/router",
 }
