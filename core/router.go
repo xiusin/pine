@@ -34,14 +34,15 @@ type Router struct {
 const Version = "dev"
 
 //from http://patorjk.com/software/taag/#p=display&h=3&v=0&f=Graffiti&t=XiusinRouter
-const Logo  = `
+const Logo = `
 ____  __.__            .__      __________               __                
 \   \/  |__|__ __ _____|__| ____\______   \ ____  __ ___/  |_  ___________ 
  \     /|  |  |  /  ___|  |/    \|       _//  _ \|  |  \   ___/ __ \_  __ \
  /     \|  |  |  \___ \|  |   |  |    |   (  <_> |  |  /|  | \  ___/|  | \/
 /___/\  |__|____/____  |__|___|  |____|_  /\____/|____/ |__|  \___  |__|   
-      \_/            \/        \/       \/                        \/   Version: `+Version+`
+      \_/            \/        \/       \/                        \/   Version: ` + Version + `
 `
+
 // 定义路由处理函数类型
 type Handler func(*Context)
 
@@ -298,10 +299,13 @@ func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request
 // 初始化RouteMap todo tree替代
 func defaultRouteMap() map[string]map[string]*Route {
 	return map[string]map[string]*Route{
-		MethodGet:    {},
-		MethodPost:   {},
-		MethodPut:    {},
-		MethodHead:   {},
-		MethodDelete: {},
+		http.MethodGet:     {},
+		http.MethodPost:    {},
+		http.MethodPut:     {},
+		http.MethodHead:    {},
+		http.MethodDelete:  {},
+		http.MethodTrace:   {},
+		http.MethodConnect: {},
+		http.MethodPatch:   {},
 	}
 }

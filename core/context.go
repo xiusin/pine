@@ -215,12 +215,12 @@ func (c *Context) IsAjax() bool {
 
 // 判断是不是Get请求
 func (c *Context) IsGet() bool {
-	return c.req.Method == MethodGet
+	return c.req.Method == http.MethodGet
 }
 
 // 判断是不是Post请求
 func (c *Context) IsPost() bool {
-	return c.req.Method == MethodPost
+	return c.req.Method == http.MethodPost
 }
 
 func (c *Context) Abort(statusCode int, msg string) {

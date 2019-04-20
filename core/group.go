@@ -1,20 +1,13 @@
 package core
 
 import (
+	"net/http"
 	"regexp"
 	"strings"
 )
 
 var patternRoutes = map[string][]*Route{} // 记录匹配路由映射
 var namedRoutes = map[string]*Route{}     // 命名路由保存
-
-const (
-	MethodGet    = "GET"
-	MethodPost   = "POST"
-	MethodHead   = "HEAD"
-	MethodPut    = "PUT"
-	MethodDelete = "DELETE"
-)
 
 type RouteGroup struct {
 	Prefix               string
@@ -24,7 +17,7 @@ type RouteGroup struct {
 }
 
 // 添加路由, 内部函数
-func (r *RouteGroup) addRoute(method, path string, handle Handler, middlewares ...Handler) *Route {
+func (r *RouteGroup) AddRoute(method, path string, handle Handler, middlewares ...Handler) *Route {
 	// 特殊正则表达式的路由保存一下
 	matched, _ := regexp.MatchString("/[:*]+", r.Prefix+path)
 	var pattern string
@@ -66,23 +59,23 @@ func (r *RouteGroup) addRoute(method, path string, handle Handler, middlewares .
 }
 
 func (r *RouteGroup) GET(path string, handle Handler, middlewares ...Handler) *Route {
-	return r.addRoute(MethodGet, path, handle, middlewares...)
+	return r.AddRoute(http.MethodGet, path, handle, middlewares...)
 }
 
 func (r *RouteGroup) POST(path string, handle Handler, middlewares ...Handler) *Route {
-	return r.addRoute(MethodPost, path, handle, middlewares...)
+	return r.AddRoute(http.MethodPost, path, handle, middlewares...)
 }
 
 func (r *RouteGroup) PUT(path string, handle Handler, middlewares ...Handler) *Route {
-	return r.addRoute(MethodPut, path, handle, middlewares...)
+	return r.AddRoute(http.MethodPut, path, handle, middlewares...)
 }
 
 func (r *RouteGroup) HEAD(path string, handle Handler, middlewares ...Handler) *Route {
-	return r.addRoute(MethodHead, path, handle, middlewares...)
+	return r.AddRoute(http.MethodHead, path, handle, middlewares...)
 }
 
 func (r *RouteGroup) DELETE(path string, handle Handler, middlewares ...Handler) *Route {
-	return r.addRoute(MethodDelete, path, handle, middlewares...)
+	return r.AddRoute(http.MethodDelete, path, handle, middlewares...)
 }
 
 func (r *RouteGroup) ANY(path string, handle Handler, middlewares ...Handler) {
@@ -91,4 +84,7 @@ func (r *RouteGroup) ANY(path string, handle Handler, middlewares ...Handler) {
 	r.HEAD(path, handle, middlewares...)
 	r.PUT(path, handle, middlewares...)
 	r.DELETE(path, handle, middlewares...)
+	r.AddRoute(http.MethodPatch, path, handle, middlewares...)
+	r.AddRoute(http.MethodTrace, path, handle, middlewares...)
+	r.AddRoute(http.MethodConnect, path, handle, middlewares...)
 }

@@ -25,8 +25,7 @@ func validateCsrfToken(c *core.Context) bool {
 
 func Csrf(callback func(c *core.Context)) core.Handler {
 	return func(c *core.Context) {
-		//if c.Request.Method == "POST" {}
-		if !validateCsrfToken(c) {
+		if c.IsPost() && !validateCsrfToken(c) {
 			callback(c)
 		} else {
 			c.Next()
