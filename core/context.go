@@ -2,7 +2,10 @@ package core
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
 	"net/http"
+	"time"
 
 	"github.com/gorilla/sessions"
 	"github.com/mholt/binding"
@@ -20,6 +23,12 @@ type Context struct {
 	session         sessions.Store
 	app             *Router
 }
+
+// 开放几个API 获取 app 的只读行为
+
+//func (c *Context) GetApp() *Router {
+//	return c.app
+//}
 
 // 重置Context对象
 func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
@@ -176,12 +185,12 @@ func (c *Context) File(filepath string) {
 }
 
 // 获取cookie
-func (c *Context) GetCookie(name string) string {
-	cookie, err := c.req.Cookie(name)
-	if err != nil {
-		return ""
+func (c *Context) GetCookie(name string) (cookie string, err error) {
+	cok, err := c.req.Cookie(name)
+	if err == nil {
+		cookie = cok.Value
 	}
-	return cookie.Value
+	return
 }
 
 // 设置cookie
@@ -224,6 +233,15 @@ func (c *Context) Abort(statusCode int, msg string) {
 			panic(msg)
 		}
 	}
+}
+
+func (c *Context) GetToken() string {
+	r := rand.Int()
+	t := time.Now().UnixNano()
+	token := fmt.Sprintf("%d%d", r, t)
+	c.SetCookie("csrf_token", token, 2*60)
+	c.Set("csrf_token", token)
+	return token
 }
 
 // 设置状态码
