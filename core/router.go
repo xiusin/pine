@@ -45,6 +45,7 @@ func init() {
 }
 
 // 实例化路由
+// 如果传入nil 则使用默认配置
 func NewRouter(option *Option) *Router {
 	r := &Router{
 		option: option,
@@ -66,7 +67,7 @@ func NewRouter(option *Option) *Router {
 		},
 	}
 	if r.option == nil {
-		r.option = &DefaultOptions
+		r.option = DefaultOptions()
 	}
 	return r
 }
@@ -207,6 +208,7 @@ func (r *Router) Use(middleWares ...Handler) *Router {
 	return r
 }
 
+// 优雅关闭服务器
 func (_ *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal, done chan<- bool) {
 	<-quit
 	logrus.Println("Server is shutting down...")
@@ -259,7 +261,7 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	if r.option.ErrorHandler != nil {
 		defer r.option.ErrorHandler.Recover(c)()
 	}
-	res.Header().Set("Server", "xiusin/router")
+	res.Header().Set("Server", r.option.ServerName)
 	r.dispatch(c, res, req)
 }
 

@@ -26,7 +26,7 @@ type RouteGroup struct {
 // 添加路由, 内部函数
 func (r *RouteGroup) addRoute(method, path string, handle Handler, middlewares ...Handler) *Route {
 	// 特殊正则表达式的路由保存一下
-	matched, _ := regexp.MatchString("\\/[:*]+", r.Prefix+path)
+	matched, _ := regexp.MatchString("/[:*]+", r.Prefix+path)
 	var pattern string
 	var params []string
 	if matched {
