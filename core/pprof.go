@@ -1,31 +1,30 @@
-package components
+package core
 
 import (
-	"github.com/xiusin/router/core"
 	"net/http/pprof"
 )
 
-func pprofIndex(context *core.Context) {
+func pprofIndex(context *Context) {
 	pprof.Index(context.Writer(), context.Request())
 }
 
-func pprofCmdline(context *core.Context) {
+func pprofCmdline(context *Context) {
 	pprof.Cmdline(context.Writer(), context.Request())
 }
 
-func pprofProfile(context *core.Context) {
+func pprofProfile(context *Context) {
 	pprof.Profile(context.Writer(), context.Request())
 }
 
-func pprofSymbol(context *core.Context) {
+func pprofSymbol(context *Context) {
 	pprof.Symbol(context.Writer(), context.Request())
 }
 
-func pprofTrace(context *core.Context) {
+func pprofTrace(context *Context) {
 	pprof.Trace(context.Writer(), context.Request())
 }
 
-func EnablePprof(r *core.Router) {
+func EnablePprof(r *Router) {
 	r.GET("/debug/pprof/*action", pprofIndex)
 	r.GET("/debug/pprof/cmdline", pprofCmdline)
 	r.GET("/debug/pprof/profile", pprofProfile)

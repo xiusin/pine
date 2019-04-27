@@ -282,6 +282,7 @@ func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request
 	// 解析地址参数
 	urlParsed, err := url.ParseRequestURI(req.RequestURI)
 	if err != nil {
+		c.status = http.StatusInternalServerError
 		_ = c.Text(err.Error())
 		return
 	}
@@ -292,6 +293,7 @@ func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request
 		c.setRoute(route)
 		c.Next()
 	} else {
+		c.status = http.StatusNotFound
 		r.RouteNotFoundHandler(c)
 	}
 }

@@ -22,6 +22,7 @@ type Context struct {
 	render          *render.Render      // 模板渲染
 	session         sessions.Store
 	app             *Router
+	status          int
 }
 
 // 开放几个API 获取 app 的只读行为
@@ -37,6 +38,7 @@ func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
 	c.middlewareIndex = -1
 	c.route = nil
 	c.stopped = false
+	c.status = http.StatusOK
 	c.params = map[string]string{}
 }
 
@@ -104,8 +106,9 @@ func (c *Context) Next() {
 	middlewares = append(middlewares, c.route.Middleware...)
 	length := len(middlewares)
 	if length > c.middlewareIndex {
+		idx := c.middlewareIndex // 临时变量存储当前索引 由于中间件为递归实现, 会触发下面的逻辑
 		middlewares[c.middlewareIndex](c)
-		if length == c.middlewareIndex {
+		if length == idx {
 			c.route.Handle(c)
 			return
 		}
@@ -226,9 +229,9 @@ func (c *Context) IsPost() bool {
 func (c *Context) Abort(statusCode int, msg string) {
 	c.SetStatus(statusCode)
 	if c.app.option.ErrorHandler != nil {
-		if statusCode >= 400 && statusCode < 500 {
+		if statusCode >= http.StatusBadRequest && statusCode < http.StatusInternalServerError {
 			c.app.option.ErrorHandler.Error40x(c, msg)
-		} else if statusCode >= 500 {
+		} else if statusCode >= http.StatusInternalServerError {
 			c.app.option.ErrorHandler.Error50x(c, msg)
 			panic(msg)
 		}
@@ -246,5 +249,10 @@ func (c *Context) GetToken() string {
 
 // 设置状态码
 func (c *Context) SetStatus(statusCode int) {
+	c.status = statusCode
 	c.res.WriteHeader(statusCode)
+}
+
+func (c *Context) Status() int {
+	return c.status
 }

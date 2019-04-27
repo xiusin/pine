@@ -5,6 +5,7 @@ import (
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"github.com/xiusin/router/core"
 	"os"
+	"time"
 )
 
 func Logger() core.Handler {
@@ -15,13 +16,17 @@ func Logger() core.Handler {
 		})
 		logrus.SetLevel(logrus.DebugLevel)
 		logrus.SetOutput(os.Stdout)
+		start := time.Now()
+		c.Next()
 		logrus.Infof(
-			"Method: %s    Path: %s     Query: %v    POST: %v",
+			"| %d | %s | %s | %s | Path: %s | Query: %#v | POST: %#v",
+			c.Status(),
+			c.Request().RemoteAddr,
 			c.Request().Method,
+			time.Now().Sub(start).String(),
 			c.Request().URL.Path,
 			c.Request().URL.Query(),
 			c.Request().PostForm,
 		)
-		c.Next()
 	}
 }
