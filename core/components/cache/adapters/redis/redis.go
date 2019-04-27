@@ -2,10 +2,12 @@ package redis
 
 import (
 	"github.com/gomodule/redigo/redis"
+	"github.com/xiusin/router/core/components/cache"
 	"time"
 )
 
 type Option struct {
+	cache.EmptyOption
 	MaxIdle        int
 	MaxActive      int
 	MaxIdleTimeout int
@@ -20,36 +22,10 @@ type Option struct {
 }
 
 type Cache struct {
-	option *Option
+	option cache.Option
 	prefix string
 	ttl    int
 	pool   *redis.Pool
-}
-
-func New(option *Option) *Cache {
-	return &Cache{
-		prefix: "",
-		option: option,
-		ttl:    option.TTL,
-		pool: &redis.Pool{
-			MaxIdle:     option.MaxIdle,
-			MaxActive:   option.MaxActive,
-			IdleTimeout: time.Duration(option.MaxIdleTimeout) * time.Second,
-			Wait:        true,
-			Dial: func() (redis.Conn, error) {
-				con, err := redis.Dial("tcp", option.Host,
-					redis.DialPassword(option.Password),
-					redis.DialDatabase(option.DbIndex),
-					redis.DialConnectTimeout(time.Duration(option.ConnectTimeout)*time.Second),
-					redis.DialReadTimeout(time.Duration(option.ReadTimeout)*time.Second),
-					redis.DialWriteTimeout(time.Duration(option.WriteTimeout)*time.Second))
-				if err != nil {
-					return nil, err
-				}
-				return con, nil
-			},
-		},
-	}
 }
 
 func (cache *Cache) getCacheKey(key string) string {
@@ -116,4 +92,32 @@ func (cache *Cache) SaveAll(data map[string]string) bool {
 		return false
 	}
 	return true
+}
+
+func init() {
+	cache.Register("redis", func(option cache.Option) cache.Cache {
+		return &Cache{
+			prefix: "",
+			option: option,
+			ttl:    option.GetInt("TTL"),
+			pool: &redis.Pool{
+				MaxIdle:     option.GetDefaultInt("MaxIdle", 10),
+				MaxActive:   option.GetDefaultInt("MaxActive", 100),
+				IdleTimeout: time.Duration(option.GetDefaultInt("MaxIdleTimeout", 30)) * time.Second,
+				Wait:        true,
+				Dial: func() (redis.Conn, error) {
+					con, err := redis.Dial("tcp", option.GetString("Host"),
+						redis.DialPassword(option.GetDefaultString("Password", "")),
+						redis.DialDatabase(option.GetDefaultInt("DbIndex", 0)),
+						redis.DialConnectTimeout(time.Duration(option.GetDefaultInt("ConnectTimeout", 30))*time.Second),
+						redis.DialReadTimeout(time.Duration(option.GetDefaultInt("ReadTimeout", 30))*time.Second),
+						redis.DialWriteTimeout(time.Duration(option.GetDefaultInt("WriteTimeout", 30))*time.Second))
+					if err != nil {
+						return nil, err
+					}
+					return con, nil
+				},
+			},
+		}
+	})
 }
