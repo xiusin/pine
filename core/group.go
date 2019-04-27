@@ -16,6 +16,10 @@ type RouteGroup struct {
 	middleWares          []Handler                    // 中间件列表
 }
 
+const defaultAnyPattern = "([\\w0-9\\_\\.\\+\\-]+)"
+
+var compiler = regexp.MustCompile("<(.+?)>$")
+
 // 添加路由, 内部函数
 func (r *RouteGroup) AddRoute(method, path string, handle Handler, middlewares ...Handler) *Route {
 	// 特殊正则表达式的路由保存一下
@@ -26,16 +30,18 @@ func (r *RouteGroup) AddRoute(method, path string, handle Handler, middlewares .
 		uriPartials := strings.Split(r.Prefix+path, "/")[1:]
 		for _, v := range uriPartials {
 			if strings.Contains(v, ":") || strings.Contains(v, "*") {
-				params = append(params, strings.TrimLeftFunc(v, func(r rune) bool {
-					if string(r) == ":" {
-						pattern += "/([\\w0-9\\_\\.\\+\\-]+)"
+				p := strings.TrimLeftFunc(v, func(bit rune) bool {
+					// 添加一些路由匹配规则
+					if string(bit) == ":" {
+						pattern += "/" + r.getPattern(v)
 						return true
-					} else if string(r) == "*" {
-						pattern += "/?([\\w0-9\\_\\.\\+\\-]+)?"
+					} else if string(bit) == "*" {
+						pattern += "/?" + r.getPattern(v) + "?"
 						return true
 					}
 					return false
-				}))
+				})
+				params = append(params, compiler.ReplaceAllString(p, ""))
 			} else {
 				pattern = pattern + "/" + v
 			}
@@ -87,4 +93,13 @@ func (r *RouteGroup) ANY(path string, handle Handler, middlewares ...Handler) {
 	r.AddRoute(http.MethodPatch, path, handle, middlewares...)
 	r.AddRoute(http.MethodTrace, path, handle, middlewares...)
 	r.AddRoute(http.MethodConnect, path, handle, middlewares...)
+}
+
+func (r *RouteGroup) getPattern(str string) string {
+	p := compiler.FindAllStringSubmatch(str, 1)
+	if len(p) == 0 || len(p[0]) == 0 {
+		return defaultAnyPattern
+	} else {
+		return "(" + p[0][1] + ")"
+	}
 }
