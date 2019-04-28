@@ -5,61 +5,40 @@ import (
 	"reflect"
 )
 
-type Option interface {
-	Get(string) (interface{}, error)
-	GetBool(string) bool
-	GetDefaultBool(string, bool) bool
-	GetInt(string) int
-	GetDefaultInt(string, int) int
-	GetString(string) string
-	GetDefaultString(string, string) string
-	Set(key string, val interface{}) error
+type OptionSetter interface {
+	Set(Option, string, interface{}) error
 }
 
-type EmptyOption struct {
+type OptionIntf interface {
+	ToString() string
 }
 
-type SubOption struct {
-	*EmptyOption
+type Option struct {
+}
+
+func (s *Option) ToString() string {
+	return "ToString"
+}
+
+type SubOpt struct {
+	Option
 	Name string
 }
 
-func (EmptyOption) Get(string) (interface{}, error) {
-	panic("implement me")
+type Setter struct {
 }
 
-func (EmptyOption) GetBool(string) bool {
-	panic("implement me")
-}
+func (e *Setter) Set(option OptionIntf, key string, val interface{}) error {
 
-func (EmptyOption) GetDefaultBool(string, bool) bool {
-	panic("implement me")
-}
-
-func (EmptyOption) GetInt(string) int {
-	panic("implement me")
-}
-
-func (EmptyOption) GetDefaultInt(string, int) int {
-	panic("implement me")
-}
-
-func (EmptyOption) GetString(string) string {
-	panic("implement me")
-}
-
-func (EmptyOption) GetDefaultString(string, string) string {
-	panic("implement me")
-}
-
-func (EmptyOption) Set(key string, val interface{}) error {
-	panic("implement me")
+	s := reflect.ValueOf(option).Elem().FieldByName("Name")
+	s.SetString(val.(string))
+	fmt.Printf("内容: %#v \n\n\n", s)
+	fmt.Println(reflect.ValueOf(option).Elem().FieldByName("Name"))
+	return nil
 }
 
 func main() {
-	opt := SubOption{}
-	name := "asdasdasd"
-	s := reflect.ValueOf(&opt).Elem()
-	s.Field(0).SetString(name)
-	fmt.Println(opt)
+	setter := &Setter{}
+	opt := &SubOpt{Name: "mirchen"}
+	_ = setter.Set(opt, "Name", "xiusin")
 }

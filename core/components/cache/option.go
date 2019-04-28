@@ -1,52 +1,94 @@
 package cache
 
+import (
+	"errors"
+	"fmt"
+	"reflect"
+)
+
 type Option interface {
-	Get(string) (interface{}, error)
-	GetBool( string) bool
-	GetDefaultBool (string, bool) bool
-	GetInt(string) int
-	GetDefaultInt(string, int) int
-	GetString(string) string
-	GetDefaultString(string, string) string
-	Set(key string, val interface{}) error
+	ToString() string
 }
 
-type EmptyOption struct {
+var OptHandler = handler{}
 
+var ValidError = errors.New("不可用的字段")
+
+type handler struct {
 }
 
-func (option *EmptyOption) Get(string) (interface{}, error) {
-	panic("implement me")
+func (*handler) GetBool(option Option, key string) (bool, error) {
+	fieldValue, err := getFieldValue(option, key)
+	if err != nil {
+		return false, err
+	}
+	return fieldValue.Bool(), nil
 }
 
-func (option *EmptyOption) GetBool(string) bool {
-	panic("implement me")
+func (h *handler) GetDefaultBool(option Option, key string, defaultVal bool) bool {
+	val, err := h.GetBool(option, key)
+	if err != nil {
+		return defaultVal
+	}
+	return val
 }
 
-func (option *EmptyOption) GetDefaultBool(string, bool) bool {
-	panic("implement me")
+func (*handler) GetInt(option Option, key string) (int, error) {
+	fieldValue, err := getFieldValue(option, key)
+	if err != nil {
+		return 0, err
+	}
+	return int(fieldValue.Int()), nil
 }
 
-func (option *EmptyOption) GetInt(string) int {
-	panic("implement me")
+func (h *handler) GetDefaultInt(option Option, key string, defaultVal int) int {
+	val, err := h.GetInt(option, key)
+	if err != nil {
+		return defaultVal
+	}
+	return val
 }
 
-func (option *EmptyOption) GetDefaultInt(string, int) int {
-	panic("implement me")
+func (*handler) GetString(option Option, key string) (string, error) {
+	fieldValue, err := getFieldValue(option, key)
+	if err != nil {
+		return "", err
+	}
+	return fieldValue.String(), nil
 }
 
-func (option *EmptyOption) GetString(string) string {
-	panic("implement me")
+func (h *handler) GetDefaultString(option Option, key string, defaultVal string) string {
+	val, err := h.GetString(option, key)
+	if err != nil {
+		fmt.Println("err", err.Error())
+		return defaultVal
+	}
+	return val
 }
 
-func (option *EmptyOption) GetDefaultString(string, string) string {
-	panic("implement me")
+func (*handler) Set(option Option, key string, val interface{}) error {
+	var field reflect.Value
+	field = reflect.ValueOf(option).Elem().FieldByName(key)
+	if !field.IsValid() {
+		return ValidError
+	}
+	switch val.(type) {
+	case int:
+		field.SetInt(int64(val.(int)))
+	case string:
+		field.SetString(val.(string))
+	case bool:
+		field.SetBool(val.(bool))
+	default:
+		return errors.New("不支持的字段类型")
+	}
+	return nil
 }
 
-func (option *EmptyOption) Set(key string, val interface{}) error {
-	panic("implement me")
-}
-
-func (option *EmptyOption)  {
-
+func getFieldValue(option Option, fieldName string) (*reflect.Value, error) {
+	s := reflect.ValueOf(option).Elem().FieldByName(fieldName)
+	if !s.IsValid() {
+		return nil, errors.New("数据错误, 不存在的字段名")
+	}
+	return &s, nil
 }

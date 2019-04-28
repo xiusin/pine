@@ -121,9 +121,9 @@ func (r *Router) List() {
 				return false
 			})
 			for _, param := range v.Param {
-				repPath := strings.Replace(path, "([\\w0-9\\_\\-]+)", ":"+param, 1)
+				repPath := strings.Replace(path, defaultAnyPattern, ":"+param, 1)
 				if path == repPath {
-					path = strings.Replace(path, "/?([\\w0-9\\_\\-]+)?", "/*"+param, 1)
+					path = strings.Replace(path, "/?"+defaultAnyPattern+"?", "/*"+param, 1)
 				} else {
 					path = repPath
 				}
