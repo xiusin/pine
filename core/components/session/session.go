@@ -1,4 +1,4 @@
-package components
+package session
 
 import (
 	"github.com/gorilla/sessions"

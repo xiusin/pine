@@ -8,7 +8,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/unrolled/render"
 	formatter "github.com/x-cray/logrus-prefixed-formatter"
-	"github.com/xiusin/router/core/components"
+	"github.com/xiusin/router/core/components/di"
+	"github.com/xiusin/router/core/components/session"
 	"net/http"
 	"net/url"
 	"os"
@@ -28,7 +29,8 @@ type Router struct {
 	groups   map[string]*RouteGroup // 分组路由保存
 	pool     *sync.Pool
 	option   *Option
-	session  *components.Sessions // session存储
+	di       di.BuilderInf
+	session  *session.Sessions // session存储
 }
 
 const Version = "dev"
@@ -90,6 +92,15 @@ func (*Router) staticHandler(path, dir string) Handler {
 		fileServer := http.StripPrefix(path, http.FileServer(http.Dir(dir)))
 		fileServer.ServeHTTP(c.Writer(), c.Request())
 	}
+}
+
+// 创建一个静态资源处理函数
+func (r *Router) SetDI(builder di.BuilderInf) {
+	r.di = builder
+}
+
+func (r *Router) GetDI() di.BuilderInf {
+	return r.di
 }
 
 // 打印所有的路由列表
@@ -200,7 +211,7 @@ func (r *Router) SetRender(render *render.Render) {
 }
 
 // 设置session管理器
-func (r *Router) SetSessionManager(s *components.Sessions) {
+func (r *Router) SetSessionManager(s *session.Sessions) {
 	r.session = s
 }
 

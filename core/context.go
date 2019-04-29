@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"github.com/xiusin/router/core/components/di"
 	"math/rand"
 	"net/http"
 	"time"
@@ -18,8 +19,9 @@ type Context struct {
 	res             http.ResponseWriter // 响应对象
 	stopped         bool                // 是否停止传播中间件
 	route           *Route              // 当前context匹配到的路由
-	middlewareIndex int                 // 中间件起始索引
-	render          *render.Render      // 模板渲染
+	di              di.BuilderInf
+	middlewareIndex int            // 中间件起始索引
+	render          *render.Render // 模板渲染
 	session         sessions.Store
 	app             *Router
 	status          int
@@ -30,6 +32,14 @@ type Context struct {
 //func (c *Context) GetApp() *Router {
 //	return c.app
 //}
+
+func (c *Context) SetDI(builder di.BuilderInf) {
+	c.di = builder
+}
+
+func (c *Context) GetDI() di.BuilderInf {
+	return c.di
+}
 
 // 重置Context对象
 func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
@@ -106,7 +116,7 @@ func (c *Context) Next() {
 	middlewares = append(middlewares, c.route.Middleware...)
 	length := len(middlewares)
 	if length > c.middlewareIndex {
-		idx := c.middlewareIndex // 临时变量存储当前索引 由于中间件为递归实现, 会触发下面的逻辑
+		idx := c.middlewareIndex
 		middlewares[c.middlewareIndex](c)
 		if length == idx {
 			c.route.Handle(c)

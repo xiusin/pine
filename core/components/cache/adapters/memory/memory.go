@@ -19,8 +19,6 @@ func (o *Option) ToString() string {
 	return string(s)
 }
 
-// https://www.cnblogs.com/junneyang/p/6069981.html 阅读
-
 type Memory struct {
 	prefix string
 	option cache.Option
