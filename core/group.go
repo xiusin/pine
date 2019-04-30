@@ -2,6 +2,7 @@ package core
 
 import (
 	"net/http"
+	"reflect"
 	"regexp"
 	"strings"
 )
@@ -62,6 +63,26 @@ func (r *RouteGroup) AddRoute(method, path string, handle Handler, middlewares .
 		r.methodRoutes[method][path] = route
 	}
 	return route
+}
+
+func (r *RouteGroup) Handle(inst interface{})  {
+	ref := reflect.ValueOf(inst)
+	if ref.Kind() != reflect.Struct {
+		panic("请传入一个struct类型")
+	}
+	method := ref.MethodByName("BeforeActivation")
+	// 如果存在 BeforeActivation 方法, 则执行调用
+	if method.IsValid() {
+		par := reflect.ValueOf(r)
+		method.Call([]reflect.Value{par})
+	} else {	//反射文件结构体方法
+		info := reflect.TypeOf(inst)
+		l := info.NumMethod()
+		for i := 0; i< l; i++ {
+			//info.Method(i).Name
+		}
+	}
+
 }
 
 func (r *RouteGroup) GET(path string, handle Handler, middlewares ...Handler) *Route {
