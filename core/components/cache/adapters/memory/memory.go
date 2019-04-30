@@ -3,6 +3,7 @@ package memory
 import (
 	"encoding/json"
 	"errors"
+	"github.com/sirupsen/logrus"
 	"github.com/xiusin/router/core/components/cache"
 	"sync"
 	"time"
@@ -10,8 +11,9 @@ import (
 
 // 直接保存到内存
 type Option struct {
-	TTL    int
-	Prefix string
+	TTL        int
+	GCInterval int //sec
+	Prefix     string
 }
 
 func (o *Option) ToString() string {
@@ -31,14 +33,20 @@ type Value struct {
 	ExpiresAt time.Time
 }
 
+var once sync.Once
 var keyNotExistsError = errors.New("key not exists")
 
 func init() {
 	cache.Register("memory", func(option cache.Option) cache.Cache {
-		return &Memory{
+		mem := &Memory{
 			prefix: cache.OptHandler.GetDefaultString(option, "Prefix", ""),
 			option: option,
 		}
+		once.Do(func() {
+			logrus.Println("启动GC定时器")
+			go mem.expirationCheck()
+		})
+		return mem
 	})
 }
 
@@ -102,4 +110,22 @@ func (m *Memory) SaveAll(data map[string]string) bool {
 
 func (m *Memory) Clear() {
 	memStore = sync.Map{}
+}
+
+// 简单化实现, 定时清理辣鸡数据
+func (m *Memory) expirationCheck() {
+	tick := time.Tick(time.Duration(cache.OptHandler.GetDefaultInt(m.option, "GCInterval", 30)) * time.Second)
+	for _ = range tick {
+		func() {
+			now := time.Now()
+			memStore.Range(func(key, value interface{}) bool {
+				item := value.(*Value)
+				if now.Sub(item.ExpiresAt) <= 0 {
+					memStore.Delete(key)
+				}
+				return true
+			})
+			logrus.Println("CACHE:MEMORY: 执行内存数据清理")
+		}()
+	}
 }

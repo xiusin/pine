@@ -83,3 +83,29 @@ func (b *Builder) Delete(serviceName string) {
 	delete(b.services, serviceName)
 	b.mu.Unlock()
 }
+
+var diDefault = NewBuilder()
+
+func GetDefinition(serviceName string) (*Definition, error) {
+	return diDefault.GetDefinition(serviceName)
+}
+
+func Set(serviceName string, handler BuildHandler, shared bool) *Definition {
+	return diDefault.Set(serviceName, handler, shared)
+}
+
+func Add(definition *Definition) {
+	diDefault.Add(definition)
+}
+
+func Get(serviceName string, receiver ...interface{}) (interface{}, error) {
+	return diDefault.Get(serviceName, receiver...)
+}
+
+func Exists(serviceName string) bool {
+	return diDefault.Exists(serviceName)
+}
+
+func Delete(serviceName string) {
+	diDefault.Delete(serviceName)
+}
