@@ -19,9 +19,9 @@ type Context struct {
 	res             http.ResponseWriter // 响应对象
 	stopped         bool                // 是否停止传播中间件
 	route           *Route              // 当前context匹配到的路由
-	di              di.BuilderInf
-	middlewareIndex int            // 中间件起始索引
-	render          *render.Render // 模板渲染
+	di              di.BuilderInf       // di依赖管理容器
+	middlewareIndex int                 // 中间件起始索引
+	render          *render.Render      // 模板渲染
 	session         sessions.Store
 	app             *Router
 	status          int
@@ -125,6 +125,17 @@ func (c *Context) Next() {
 	} else {
 		c.route.Handle(c)
 	}
+}
+
+// 获取一个flusher对象
+//demo:
+//f, _ := w.(http.Flusher)
+//	fmt.Fprintf(w, "time.now(): %v \n\r", time.Now())
+//f.Flush()
+//}
+// 在调用 Flush 之前，需要保证写入 http.ResponseWriter 的内容以 \n 结尾，不然不会输出到客户端。
+func (c *Context) Flusher() http.Flusher {
+	return c.Writer().(http.Flusher)
 }
 
 // 设置当前处理路由对象

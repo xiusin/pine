@@ -99,3 +99,7 @@ func (m *Memory) SaveAll(data map[string]string) bool {
 	}
 	return true
 }
+
+func (m *Memory) Clear() {
+	memStore = sync.Map{}
+}

@@ -15,6 +15,7 @@ type BuilderInf interface {
 	Get(serviceName string, receiver ...interface{}) (interface{}, error)
 	GetDefinition(serviceName string) (*Definition, error)
 	Delete(serviceName string)
+	Exists(string) bool
 }
 
 type DiInf interface {
@@ -25,6 +26,10 @@ type DiInf interface {
 type Builder struct {
 	mu       sync.RWMutex
 	services map[string]*Definition
+}
+
+func NewBuilder() *Builder {
+	return &Builder{services: map[string]*Definition{}}
 }
 
 func (b *Builder) GetDefinition(serviceName string) (*Definition, error) {
@@ -39,33 +44,38 @@ func (b *Builder) GetDefinition(serviceName string) (*Definition, error) {
 
 func (b *Builder) Set(serviceName string, handler BuildHandler, shared bool) *Definition {
 	b.mu.Lock()
-	def := &Definition{
-		ServiceName: serviceName,
-		Factory:     handler,
-		Shared:      shared,
-	}
+	def := NewDefinition(serviceName, handler, shared)
 	b.services[serviceName] = def
 	b.mu.Unlock()
 	return def
 }
 
 func (b *Builder) Add(definition *Definition) {
-	b.mu.Lock()
-	b.services[definition.ServiceName] = definition
-	b.mu.Unlock()
+	b.services[definition.ServiceName()] = definition
 }
 
 func (b *Builder) Get(serviceName string, receiver ...interface{}) (interface{}, error) {
 	b.mu.RLock()
 	service, ok := b.services[serviceName]
+	b.mu.RUnlock()
 	if !ok {
 		return nil, ServiceNotExistsErr
+	}
+	s, err := service.Resolve(b)
+	if err != nil {
+		return nil, err
 	}
 	for idx, _ := range receiver {
 		receiver[idx] = service
 	}
+	return s, nil
+}
+
+func (b *Builder) Exists(serviceName string) bool {
+	b.mu.RLock()
+	_, exists := b.services[serviceName]
 	b.mu.RUnlock()
-	return service, nil
+	return exists
 }
 
 func (b *Builder) Delete(serviceName string) {

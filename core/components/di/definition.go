@@ -4,14 +4,22 @@ import "sync"
 
 type Definition struct {
 	mu          sync.Mutex
-	Shared      bool
-	ServiceName string
+	shared      bool
+	serviceName string
 	instance    interface{}
-	Factory     BuildHandler
+	factory     BuildHandler
+}
+
+func (d *Definition) SetShared(shared bool) {
+	d.shared = shared
+}
+
+func (d *Definition) ServiceName() string {
+	return d.serviceName
 }
 
 func (d *Definition) IsShared() bool {
-	return d.Shared
+	return d.shared
 }
 
 func (d *Definition) IsResolved() bool {
@@ -22,12 +30,20 @@ func (d *Definition) Resolve(builder BuilderInf) (service interface{}, err error
 	d.mu.Lock()
 	defer d.mu.Unlock()
 	if !d.IsResolved() || !d.IsShared() {
-		service, err = d.Factory(builder)
+		service, err = d.factory(builder)
 		if d.IsShared() && !d.IsResolved() {
 			d.instance = service
 		}
 	} else {
 		service = d.instance
 	}
-	return d.Factory(builder)
+	return service, nil
+}
+
+func NewDefinition(name string, factory BuildHandler, shared bool) *Definition {
+	return &Definition{
+		serviceName: name,
+		factory:     factory,
+		shared:      shared,
+	}
 }
