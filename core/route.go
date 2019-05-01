@@ -21,5 +21,5 @@ func (r *Route) SetName(name string) {
 }
 
 func (r *Route) String() string {
-	return fmt.Sprintf("%v", r)
+	return fmt.Sprintf("%#v", r)
 }

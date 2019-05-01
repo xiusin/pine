@@ -3,8 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/fatih/color"
-	"github.com/rodaine/table"
 	"github.com/sirupsen/logrus"
 	"github.com/unrolled/render"
 	formatter "github.com/x-cray/logrus-prefixed-formatter"
@@ -14,9 +12,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"reflect"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,7 +31,6 @@ type Router struct {
 
 const Version = "dev"
 
-//from http://patorjk.com/software/taag/#p=display&h=3&v=0&f=Graffiti&t=XiusinRouter
 const Logo = `
 ____  __.__            .__      __________               __                
 \   \/  |__|__ __ _____|__| ____\______   \ ____  __ ___/  |_  ___________ 

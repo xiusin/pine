@@ -13,7 +13,7 @@ func (m *MyController) BeforeActivation(r *core.RouteGroup) {
 }
 
 func (m *MyController) Hello(c *core.Context) {
-	c.Writer().Write([]byte("Hello world"))
+	_, _ = c.Writer().Write([]byte("Hello world"))
 }
 
 func main() {

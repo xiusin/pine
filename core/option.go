@@ -13,10 +13,9 @@ const (
 var NotKeyStoreErr = errors.New("no key store")
 
 type Option struct {
-	TimeOut time.Duration
-	Port    int
-	Host    string
-	//ShowRouteList bool
+	TimeOut      time.Duration
+	Port         int
+	Host         string
 	Env          int
 	ErrorHandler Errors
 	ServerName   string
@@ -46,7 +45,6 @@ func (o *Option) MergeOption(option *Option) {
 	if option.Host != "" {
 		o.Host = option.Host
 	}
-	//o.ShowRouteList = option.ShowRouteList
 	o.Env = option.Env
 	if option.ErrorHandler != nil {
 		o.ErrorHandler = option.ErrorHandler
