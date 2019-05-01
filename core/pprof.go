@@ -24,7 +24,7 @@ func pprofTrace(context *Context) {
 	pprof.Trace(context.Writer(), context.Request())
 }
 
-func EnablePprof(r *Router) {
+func EnableProfile(r *Router) {
 	r.GET("/debug/pprof/*action", pprofIndex)
 	r.GET("/debug/pprof/cmdline", pprofCmdline)
 	r.GET("/debug/pprof/profile", pprofProfile)

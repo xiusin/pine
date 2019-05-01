@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/sirupsen/logrus"
 	"github.com/unrolled/render"
-	formatter "github.com/x-cray/logrus-prefixed-formatter"
+	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"github.com/xiusin/router/core/components/di"
 	"github.com/xiusin/router/core/components/session"
 	"net/http"
@@ -44,12 +44,12 @@ ____  __.__            .__      __________               __
 type Handler func(*Context)
 
 func init() {
-	logrus.SetFormatter(&formatter.TextFormatter{
+	logrus.SetFormatter(&prefixed.TextFormatter{
 		TimestampFormat: "2006-01-02 15:04:05",
 		FullTimestamp:   true,
 	})
 	logrus.SetLevel(logrus.DebugLevel)
-	logrus.SetOutput(os.Stdout)
+	logrus.SetReportCaller(true)
 }
 
 // 实例化路由

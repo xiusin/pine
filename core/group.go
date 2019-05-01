@@ -7,9 +7,6 @@ import (
 	"strings"
 )
 
-var patternRoutes = map[string][]*Route{} // 记录匹配路由映射
-var namedRoutes = map[string]*Route{}     // 命名路由保存
-
 type RouteGroup struct {
 	Prefix               string
 	RouteNotFoundHandler Handler                      //NotFound的默认处理函数
@@ -17,9 +14,12 @@ type RouteGroup struct {
 	middleWares          []Handler                    // 中间件列表
 }
 
-const defaultAnyPattern = "([\\w0-9\\_\\.\\+\\-]+)"
-
-var compiler = regexp.MustCompile("<(.+?)>$")
+var (
+	patternRoutes = map[string][]*Route{}                                                     // 记录匹配路由映射
+	namedRoutes   = map[string]*Route{}                                                       // 命名路由保存
+	compiler      = regexp.MustCompile("<(.+?)>$")                                            // 正则匹配规则
+	patternMap    = map[string]string{":int": "<\\d+>", ":string": "<[\\w0-9\\_\\.\\+\\-]+>"} //规则字段映射
+)
 
 // 添加路由, 内部函数
 func (r *RouteGroup) AddRoute(method, path string, handle Handler, middlewares ...Handler) *Route {
@@ -32,7 +32,6 @@ func (r *RouteGroup) AddRoute(method, path string, handle Handler, middlewares .
 		for _, v := range uriPartials {
 			if strings.Contains(v, ":") || strings.Contains(v, "*") {
 				p := strings.TrimLeftFunc(v, func(bit rune) bool {
-					// 添加一些路由匹配规则
 					if string(bit) == ":" {
 						pattern += "/" + r.getPattern(v)
 						return true
@@ -71,9 +70,9 @@ func (r *RouteGroup) Handle(c interface{}) {
 		panic("请传入一个struct类型")
 	}
 	method := reflect.ValueOf(c).MethodByName("BeforeActivation")
-	if method.IsValid() { // callBefore to register router
+	if method.IsValid() {
 		method.Call([]reflect.Value{reflect.ValueOf(r)})
-	} else { //auto register struct func
+	} else {
 		refType, refVal := reflect.TypeOf(c), reflect.ValueOf(c)
 		for i := 0; i < refType.NumMethod(); i++ {
 			m := refVal.MethodByName(refType.Method(i).Name)
@@ -123,9 +122,11 @@ func (r *RouteGroup) ANY(path string, handle Handler, middlewares ...Handler) {
 
 func (r *RouteGroup) getPattern(str string) string {
 	p := compiler.FindAllStringSubmatch(str, 1)
+	var pattern string
 	if len(p) == 0 || len(p[0]) == 0 {
-		return defaultAnyPattern
+		pattern = strings.Trim(strings.Trim(patternMap[":string"], "<"), ">")
 	} else {
-		return "(" + p[0][1] + ")"
+		pattern = p[0][1]
 	}
+	return "(" + pattern + ")"
 }
