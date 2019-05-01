@@ -13,26 +13,26 @@ const (
 var NotKeyStoreErr = errors.New("no key store")
 
 type Option struct {
-	TimeOut       time.Duration
-	Port          int
-	Host          string
-	ShowRouteList bool
-	Env           int
-	ErrorHandler  Errors
-	ServerName    string
-	Others        map[string]interface{}
+	TimeOut time.Duration
+	Port    int
+	Host    string
+	//ShowRouteList bool
+	Env          int
+	ErrorHandler Errors
+	ServerName   string
+	Others       map[string]interface{}
 }
 
 func DefaultOptions() *Option {
 	return &Option{
-		Port:          9528,
-		Host:          "127.0.0.1",
-		ShowRouteList: true,
-		TimeOut:       time.Second * 60,
-		Env:           DevMode,
-		ErrorHandler:  DefaultErrorHandler,
-		ServerName:    "xiusin/router",
-		Others:        map[string]interface{}{},
+		Port: 9528,
+		Host: "127.0.0.1",
+		//ShowRouteList: false,
+		TimeOut:      time.Second * 60,
+		Env:          DevMode,
+		ErrorHandler: DefaultErrorHandler,
+		ServerName:   "xiusin/router",
+		Others:       map[string]interface{}{},
 	}
 }
 
@@ -46,7 +46,7 @@ func (o *Option) MergeOption(option *Option) {
 	if option.Host != "" {
 		o.Host = option.Host
 	}
-	o.ShowRouteList = option.ShowRouteList
+	//o.ShowRouteList = option.ShowRouteList
 	o.Env = option.Env
 	if option.ErrorHandler != nil {
 		o.ErrorHandler = option.ErrorHandler

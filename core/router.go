@@ -103,47 +103,48 @@ func (r *Router) GetDI() di.BuilderInf {
 	return r.di
 }
 
-// 打印所有的路由列表
-func (r *Router) List() {
-	headerFmt := color.New(color.FgGreen, color.Underline).SprintfFunc()
-	columnFmt := color.New(color.FgRed).SprintfFunc()
-	tbl := table.New("Method     ", "Path    ", "Func    ")
-	tbl.WithHeaderFormatter(headerFmt).WithFirstColumnFormatter(columnFmt)
-	for _, routes := range r.methodRoutes {
-		for path, v := range routes {
-			tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
-		}
-	}
-	for prefix, routeGroup := range r.groups {
-		for _, routes := range routeGroup.methodRoutes {
-			for path, v := range routes {
-				tbl.AddRow(v.Method, prefix+path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
-			}
-		}
-	}
-
-	for path, routes := range patternRoutes {
-		for _, v := range routes {
-			// 正则路由替换回显
-			path = strings.TrimFunc(path, func(r rune) bool {
-				if string(r) == "^" || string(r) == "$" {
-					return true
-				}
-				return false
-			})
-			for _, param := range v.Param {
-				repPath := strings.Replace(path, defaultAnyPattern, ":"+param, 1)
-				if path == repPath {
-					path = strings.Replace(path, "/?"+defaultAnyPattern+"?", "/*"+param, 1)
-				} else {
-					path = repPath
-				}
-			}
-			tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
-		}
-	}
-	tbl.Print()
-}
+//// 打印所有的路由列表
+//func (r *Router) List() {
+//	return
+//	headerFmt := color.New(color.FgGreen, color.Underline).SprintfFunc()
+//	columnFmt := color.New(color.FgRed).SprintfFunc()
+//	tbl := table.New("Method     ", "Path    ", "Func    ")
+//	tbl.WithHeaderFormatter(headerFmt).WithFirstColumnFormatter(columnFmt)
+//	for _, routes := range r.methodRoutes {
+//		for path, v := range routes {
+//			tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
+//		}
+//	}
+//	for prefix, routeGroup := range r.groups {
+//		for _, routes := range routeGroup.methodRoutes {
+//			for path, v := range routes {
+//				tbl.AddRow(v.Method, prefix+path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
+//			}
+//		}
+//	}
+//
+//	for path, routes := range patternRoutes {
+//		for _, v := range routes {
+//			// 正则路由替换回显
+//			path = strings.TrimFunc(path, func(r rune) bool {
+//				if string(r) == "^" || string(r) == "$" {
+//					return true
+//				}
+//				return false
+//			})
+//			for _, param := range v.Param {
+//				repPath := strings.Replace(path, defaultAnyPattern, ":"+param, 1)
+//				if path == repPath {
+//					path = strings.Replace(path, "/?"+defaultAnyPattern+"?", "/*"+param, 1)
+//				} else {
+//					path = repPath
+//				}
+//			}
+//			tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
+//		}
+//	}
+//	tbl.Print()
+//}
 
 // 匹配路由
 func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *Route {
@@ -245,7 +246,7 @@ func (_ *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal, done 
 
 // 启动服务
 func (r *Router) Serve() {
-	r.List()
+	//r.List()
 	done := make(chan bool, 1)
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)

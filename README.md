@@ -1,1 +1,2 @@
-1. hook 或 event 事件 (https://github.com/sadlil/go-trigger)
+1. 注释路由
+2. 依赖注入调整
