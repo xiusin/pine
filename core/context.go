@@ -3,42 +3,26 @@ package core
 import (
 	"context"
 	"fmt"
+	"github.com/gorilla/sessions"
 	"github.com/xiusin/router/core/components/di"
+	"github.com/xiusin/router/core/components/service/renderer"
 	"math/rand"
 	"net/http"
 	"time"
 
-	"github.com/gorilla/sessions"
 	"github.com/mholt/binding"
-	"github.com/unrolled/render"
 )
 
 type Context struct {
-	req             *http.Request       // 请求对象
-	params          map[string]string   // 路由参数
-	res             http.ResponseWriter // 响应对象
-	stopped         bool                // 是否停止传播中间件
-	route           *Route              // 当前context匹配到的路由
-	di              di.BuilderInf       // di依赖管理容器
-	middlewareIndex int                 // 中间件起始索引
-	render          *render.Render      // 模板渲染
-	session         sessions.Store
+	req             *http.Request         // 请求对象
+	params          map[string]string     // 路由参数
+	res             http.ResponseWriter   // 响应对象
+	stopped         bool                  // 是否停止传播中间件
+	route           *Route                // 当前context匹配到的路由
+	middlewareIndex int                   // 中间件起始索引
+	render          *renderer.RendererInf // 模板渲染
 	app             *Router
 	status          int
-}
-
-// 开放几个API 获取 app 的只读行为
-
-//func (c *Context) GetApp() *Router {
-//	return c.app
-//}
-
-func (c *Context) SetDI(builder di.BuilderInf) {
-	c.di = builder
-}
-
-func (c *Context) GetDI() di.BuilderInf {
-	return c.di
 }
 
 // 重置Context对象
@@ -50,11 +34,6 @@ func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
 	c.stopped = false
 	c.status = http.StatusOK
 	c.params = map[string]string{}
-}
-
-// 设置模板渲染 (后期改为interface)
-func (c *Context) setRenderer(r *render.Render) {
-	c.render = r
 }
 
 // 获取请求
@@ -169,38 +148,21 @@ func (c *Context) Get(key string) interface{} {
 }
 
 // 获取模板渲染对象
-func (c *Context) GetRenderer() *render.Render {
-	return c.render
+func (c *Context) GetRenderer() renderer.RendererInf {
+	rendererInf, ok := di.MustGet(di.RENDER).(renderer.RendererInf)
+	if !ok {
+		panic("renderer组件类型不正确")
+	}
+	return rendererInf
 }
 
-// 渲染data
-func (c *Context) Data(v string) error {
-	return c.render.Data(c.Writer(), http.StatusOK, []byte(v))
-}
-
-// 渲染html
-func (c *Context) HTML(name string, binding interface{}, htmlOpt ...render.HTMLOptions) error {
-	return c.render.HTML(c.Writer(), http.StatusOK, name, binding)
-}
-
-// 渲染json
-func (c *Context) JSON(v interface{}) error {
-	return c.render.JSON(c.Writer(), http.StatusOK, v)
-}
-
-// 渲染jsonp
-func (c *Context) JSONP(callback string, v interface{}) error {
-	return c.render.JSONP(c.Writer(), http.StatusOK, callback, v)
-}
-
-// 渲染text
-func (c *Context) Text(v string) error {
-	return c.render.Text(c.Writer(), http.StatusOK, v)
-}
-
-// 渲染xml
-func (c *Context) XML(v interface{}) error {
-	return c.render.XML(c.Writer(), http.StatusOK, v)
+// 获取session管理组件， 目前先依赖第三方
+func (c *Context) Session() sessions.Store {
+	sessionInf, ok := di.MustGet(di.SESSION).(sessions.Store)
+	if !ok {
+		panic("renderer组件类型不正确")
+	}
+	return sessionInf
 }
 
 // 发送file
@@ -276,4 +238,33 @@ func (c *Context) SetStatus(statusCode int) {
 
 func (c *Context) Status() int {
 	return c.status
+}
+
+// 渲染data
+func (c *Context) Data(v string) error {
+	return c.GetRenderer().Data(c.Writer(), v)
+}
+
+func (c *Context) HTML(name string, binding interface{}) error {
+	return c.GetRenderer().HTML(c.Writer(), name, binding)
+}
+
+// 渲染json
+func (c *Context) JSON(v interface{}) error {
+	return c.GetRenderer().JSON(c.Writer(), v)
+}
+
+// 渲染jsonp
+func (c *Context) JSONP(callback string, v interface{}) error {
+	return c.GetRenderer().JSONP(c.Writer(), callback, v)
+}
+
+// 渲染text
+func (c *Context) Text(v string) error {
+	return c.GetRenderer().Text(c.Writer(), v)
+}
+
+// 渲染xml
+func (c *Context) XML(v interface{}) error {
+	return c.GetRenderer().XML(c.Writer(), v)
 }

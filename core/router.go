@@ -7,7 +7,6 @@ import (
 	"github.com/unrolled/render"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"github.com/xiusin/router/core/components/di"
-	"github.com/xiusin/router/core/components/session"
 	"net/http"
 	"net/url"
 	"os"
@@ -26,7 +25,7 @@ type Router struct {
 	pool     *sync.Pool
 	option   *Option
 	di       di.BuilderInf
-	session  *session.Sessions // session存储
+	//session  *session.Sessions // session存储
 }
 
 const Version = "dev"
@@ -37,7 +36,7 @@ ____  __.__            .__      __________               __
  \     /|  |  |  /  ___|  |/    \|       _//  _ \|  |  \   ___/ __ \_  __ \
  /     \|  |  |  \___ \|  |   |  |    |   (  <_> |  |  /|  | \  ___/|  | \/
 /___/\  |__|____/____  |__|___|  |____|_  /\____/|____/ |__|  \___  |__|   
-      \_/            \/        \/       \/                        \/   Version: ` + Version + `
+      \_/            \/        \/       \/                        \/   	  Version: ` + Version + `
 `
 
 // 定义路由处理函数类型
@@ -206,10 +205,10 @@ func (r *Router) SetRender(render *render.Render) {
 	r.renderer = render
 }
 
-// 设置session管理器
-func (r *Router) SetSessionManager(s *session.Sessions) {
-	r.session = s
-}
+//// 设置session管理器
+//func (r *Router) SetSessionManager(s *session.Sessions) {
+//	r.session = s
+//}
 
 // 路由分组
 func (r *Router) Group(prefix string, middleWares ...Handler) *RouteGroup {
@@ -271,12 +270,12 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	defer r.pool.Put(c)
 	c.Reset(res, req)
 	c.app = r
-	if c.render == nil {
-		c.setRenderer(r.renderer)
-	}
-	if r.session != nil {
-		c.session = r.session.Manager()
-	}
+	//if c.render == nil {
+	//	c.setRenderer(r.renderer)
+	//}
+	//if r.session != nil {
+	//	c.session = r.session.Manager()
+	//}
 	if r.option.ErrorHandler != nil {
 		defer r.option.ErrorHandler.Recover(c)()
 	}

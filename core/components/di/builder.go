@@ -13,6 +13,7 @@ type BuilderInf interface {
 	Set(serviceName string, handler BuildHandler, shared bool) *Definition
 	Add(definition *Definition)
 	Get(serviceName string, receiver ...interface{}) (interface{}, error)
+	MustGet(serviceName string) interface{}
 	GetDefinition(serviceName string) (*Definition, error)
 	Delete(serviceName string)
 	Exists(string) bool
@@ -23,16 +24,12 @@ type DiInf interface {
 	GetDI() BuilderInf
 }
 
-type Builder struct {
+type builder struct {
 	mu       sync.RWMutex
 	services map[string]*Definition
 }
 
-func NewBuilder() *Builder {
-	return &Builder{services: map[string]*Definition{}}
-}
-
-func (b *Builder) GetDefinition(serviceName string) (*Definition, error) {
+func (b *builder) GetDefinition(serviceName string) (*Definition, error) {
 	b.mu.RLock()
 	service, ok := b.services[serviceName]
 	b.mu.RUnlock()
@@ -42,7 +39,7 @@ func (b *Builder) GetDefinition(serviceName string) (*Definition, error) {
 	return service, nil
 }
 
-func (b *Builder) Set(serviceName string, handler BuildHandler, shared bool) *Definition {
+func (b *builder) Set(serviceName string, handler BuildHandler, shared bool) *Definition {
 	b.mu.Lock()
 	def := NewDefinition(serviceName, handler, shared)
 	b.services[serviceName] = def
@@ -50,11 +47,11 @@ func (b *Builder) Set(serviceName string, handler BuildHandler, shared bool) *De
 	return def
 }
 
-func (b *Builder) Add(definition *Definition) {
+func (b *builder) Add(definition *Definition) {
 	b.services[definition.ServiceName()] = definition
 }
 
-func (b *Builder) Get(serviceName string, receiver ...interface{}) (interface{}, error) {
+func (b *builder) Get(serviceName string, receiver ...interface{}) (interface{}, error) {
 	b.mu.RLock()
 	service, ok := b.services[serviceName]
 	b.mu.RUnlock()
@@ -71,20 +68,28 @@ func (b *Builder) Get(serviceName string, receiver ...interface{}) (interface{},
 	return s, nil
 }
 
-func (b *Builder) Exists(serviceName string) bool {
+func (b *builder) MustGet(serviceName string) interface{} {
+	s, err := b.Get(serviceName)
+	if err != nil {
+		panic(err)
+	}
+	return s
+}
+
+func (b *builder) Exists(serviceName string) bool {
 	b.mu.RLock()
 	_, exists := b.services[serviceName]
 	b.mu.RUnlock()
 	return exists
 }
 
-func (b *Builder) Delete(serviceName string) {
+func (b *builder) Delete(serviceName string) {
 	b.mu.Lock()
 	delete(b.services, serviceName)
 	b.mu.Unlock()
 }
 
-var diDefault = NewBuilder()
+var diDefault = &builder{services: map[string]*Definition{}}
 
 func GetDefinition(serviceName string) (*Definition, error) {
 	return diDefault.GetDefinition(serviceName)
@@ -100,6 +105,10 @@ func Add(definition *Definition) {
 
 func Get(serviceName string, receiver ...interface{}) (interface{}, error) {
 	return diDefault.Get(serviceName, receiver...)
+}
+
+func MustGet(serviceName string) interface{} {
+	return diDefault.MustGet(serviceName)
 }
 
 func Exists(serviceName string) bool {
