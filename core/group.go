@@ -72,8 +72,7 @@ func (r *RouteGroup) AddRoute(method, path string, handle Handler, middlewares .
 }
 
 func (r *RouteGroup) Handle(c ControllerInf) {
-	refVal := reflect.ValueOf(c)
-	refType := reflect.TypeOf(c)
+	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
 	for i := 0; i < reflect.TypeOf(c).Elem().NumField(); i++ {
 		fieldType := fmt.Sprintf("%s", reflect.TypeOf(c).Elem().Field(i).Type)
 		fieldName := reflect.TypeOf(c).Elem().Field(i).Name
