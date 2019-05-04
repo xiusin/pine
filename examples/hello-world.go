@@ -5,7 +5,6 @@ import (
 	cacheRegister "github.com/xiusin/router/core/components/cache"
 	"github.com/xiusin/router/core/components/cache/adapters/redis"
 	_ "github.com/xiusin/router/core/components/cache/adapters/redis"
-	"github.com/xiusin/router/middlewares"
 )
 
 func main() {
@@ -17,9 +16,32 @@ func main() {
 	}
 	cache.Save("name", "xiusin")
 	handler := core.NewRouter(nil)
-	handler.GET("/hello/:name", func(c *core.Context) {
-		s, _ := cache.Get("name")
-		_, _ = c.Writer().Write([]byte("Hello " + s))
-	}, middlewares.Logger())
+	//handler.GET("/hello/:name", func(c *core.Context) {
+	//	s, _ := cache.Get("name")
+	//	_, _ = c.Writer().Write([]byte("Hello " + s))
+	//})
+
+	//handler.GET("/:name:string", func(c *core.Context) {
+	//	c.Writer().Write([]byte("name: "+ c.GetParam("name")))
+	//})
+
+	//handler.GET("/:num:int", func(c *core.Context) {
+	//	c.Writer().Write([]byte("num: "+ c.GetParam("num")))
+	//})
+
+	handler.GET("/any/*action", func(c *core.Context) {
+		c.Writer().Write([]byte(c.Request().URL.Path))
+	})
+
+	handler.GET("/cms_<\\d+>.html", func(c *core.Context) {
+		c.Writer().Write([]byte(c.Request().URL.Path))
+	})
+	//
+	//handler.GET("/302", func(c *core.Context) {
+	//	c.Redirect("/500", http.StatusFound)
+	//})
+	//handler.GET("/500", func(c *core.Context) {
+	//	panic("500错误")
+	//})
 	handler.Serve()
 }

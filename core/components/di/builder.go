@@ -19,11 +19,6 @@ type BuilderInf interface {
 	Exists(string) bool
 }
 
-type DiInf interface {
-	SetDI(builder BuilderInf)
-	GetDI() BuilderInf
-}
-
 type builder struct {
 	mu       sync.RWMutex
 	services map[string]*Definition

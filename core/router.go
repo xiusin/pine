@@ -3,15 +3,18 @@ package core
 import (
 	"context"
 	"fmt"
+	"github.com/fatih/color"
+	"github.com/rodaine/table"
 	"github.com/sirupsen/logrus"
 	"github.com/unrolled/render"
 	prefixed "github.com/x-cray/logrus-prefixed-formatter"
-	"github.com/xiusin/router/core/components/di"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
+	"reflect"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,12 +27,10 @@ type Router struct {
 	groups   map[string]*RouteGroup // 分组路由保存
 	pool     *sync.Pool
 	option   *Option
-	di       di.BuilderInf
-	//session  *session.Sessions // session存储
 }
 
 const Version = "dev"
-
+const logQueryFormat = "| %s | %s | %s | %s | Path: %s"
 const Logo = `
 ____  __.__            .__      __________               __                
 \   \/  |__|__ __ _____|__| ____\______   \ ____  __ ___/  |_  ___________ 
@@ -88,58 +89,6 @@ func (*Router) staticHandler(path, dir string) Handler {
 	}
 }
 
-// 创建一个静态资源处理函数
-func (r *Router) SetDI(builder di.BuilderInf) {
-	r.di = builder
-}
-
-func (r *Router) GetDI() di.BuilderInf {
-	return r.di
-}
-
-//// 打印所有的路由列表
-//func (r *Router) List() {
-//	return
-//	headerFmt := color.New(color.FgGreen, color.Underline).SprintfFunc()
-//	columnFmt := color.New(color.FgRed).SprintfFunc()
-//	tbl := table.New("Method     ", "Path    ", "Func    ")
-//	tbl.WithHeaderFormatter(headerFmt).WithFirstColumnFormatter(columnFmt)
-//	for _, routes := range r.methodRoutes {
-//		for path, v := range routes {
-//			tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
-//		}
-//	}
-//	for prefix, routeGroup := range r.groups {
-//		for _, routes := range routeGroup.methodRoutes {
-//			for path, v := range routes {
-//				tbl.AddRow(v.Method, prefix+path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
-//			}
-//		}
-//	}
-//
-//	for path, routes := range patternRoutes {
-//		for _, v := range routes {
-//			// 正则路由替换回显
-//			path = strings.TrimFunc(path, func(r rune) bool {
-//				if string(r) == "^" || string(r) == "$" {
-//					return true
-//				}
-//				return false
-//			})
-//			for _, param := range v.Param {
-//				repPath := strings.Replace(path, defaultAnyPattern, ":"+param, 1)
-//				if path == repPath {
-//					path = strings.Replace(path, "/?"+defaultAnyPattern+"?", "/*"+param, 1)
-//				} else {
-//					path = repPath
-//				}
-//			}
-//			tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
-//		}
-//	}
-//	tbl.Print()
-//}
-
 // 匹配路由
 func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *Route {
 	pathInfos := strings.Split(urlParsed.Path, "/")
@@ -158,13 +107,11 @@ func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *Route {
 		if ok {
 			path := "/" + strings.Join(pathInfos[i:], "/")
 			for routePath, route := range group.methodRoutes[ctx.Request().Method] {
-				for {
-					if routePath != path || route.Method != ctx.Request().Method {
-						continue
-					}
-					route.ExtendsMiddleWare = group.middleWares
-					return route
+				if routePath != path || route.Method != ctx.Request().Method {
+					continue
 				}
+				route.ExtendsMiddleWare = group.middleWares
+				return route
 			}
 		}
 	}
@@ -200,16 +147,6 @@ func (r *Router) StaticFile(path, file string) {
 	})
 }
 
-// 设置模板渲染
-func (r *Router) SetRender(render *render.Render) {
-	r.renderer = render
-}
-
-//// 设置session管理器
-//func (r *Router) SetSessionManager(s *session.Sessions) {
-//	r.session = s
-//}
-
 // 路由分组
 func (r *Router) Group(prefix string, middleWares ...Handler) *RouteGroup {
 	g := &RouteGroup{Prefix: prefix}
@@ -240,7 +177,6 @@ func (_ *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal, done 
 
 // 启动服务
 func (r *Router) Serve() {
-	//r.List()
 	done := make(chan bool, 1)
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
@@ -254,6 +190,7 @@ func (r *Router) Serve() {
 		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Time Out"), // 超时函数, 但是无法阻止服务器端停止
 	}
 	fmt.Println(Logo)
+	r.List()
 	go r.gracefulShutdown(srv, quit, done)
 	logrus.Println("Server run on: http://" + addr)
 	err := srv.ListenAndServe()
@@ -270,12 +207,6 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	defer r.pool.Put(c)
 	c.Reset(res, req)
 	c.app = r
-	//if c.render == nil {
-	//	c.setRenderer(r.renderer)
-	//}
-	//if r.session != nil {
-	//	c.session = r.session.Manager()
-	//}
 	if r.option.ErrorHandler != nil {
 		defer r.option.ErrorHandler.Recover(c)()
 	}
@@ -283,18 +214,9 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	r.dispatch(c, res, req)
 }
 
-// 调度路由
-func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request) {
-	// 解析地址参数
-	urlParsed, err := url.ParseRequestURI(req.RequestURI)
-	if err != nil {
-		c.status = http.StatusInternalServerError
-		_ = c.Text(err.Error())
-		return
-	}
-	// 匹配路由
+// 有可处理函数
+func (r *Router) handle(c *Context, urlParsed *url.URL) {
 	route := r.matchRoute(c, urlParsed)
-	// 有可处理函数
 	if route != nil {
 		c.setRoute(route)
 		c.Next()
@@ -302,6 +224,28 @@ func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request
 		c.status = http.StatusNotFound
 		r.RouteNotFoundHandler(c)
 	}
+}
+
+// 调度路由
+func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request) {
+	urlParsed, _ := url.ParseRequestURI(req.RequestURI) // 解析地址参数
+	start := time.Now()
+	r.handle(c, urlParsed)
+	r.queryLog(c, &start)
+}
+
+func (r *Router) queryLog(c *Context, start *time.Time) {
+	statusInfo, status := "", c.Status()
+	if status == http.StatusOK {
+		statusInfo = color.GreenString("%d", status)
+	} else if status > http.StatusBadRequest && status < http.StatusInternalServerError {
+		statusInfo = color.RedString("%d", status)
+	} else {
+		statusInfo = color.YellowString("%d", status)
+	}
+	logrus.Infof(logQueryFormat, statusInfo, color.YellowString("%s", c.Request().Method),
+		c.Request().RemoteAddr, time.Now().Sub(*start).String(), c.Request().URL.Path,
+	)
 }
 
 // 初始化RouteMap todo tree替代
@@ -316,4 +260,46 @@ func defaultRouteMap() map[string]map[string]*Route {
 		http.MethodConnect: {},
 		http.MethodPatch:   {},
 	}
+}
+
+// 打印所有的路由列表
+func (r *Router) List() {
+	headerFmt := color.New(color.FgGreen, color.Underline).SprintfFunc()
+	columnFmt := color.New(color.FgRed).SprintfFunc()
+	tbl := table.New("Method     ", "Path    ", "Func    ")
+	tbl.WithHeaderFormatter(headerFmt).WithFirstColumnFormatter(columnFmt)
+	for _, routes := range r.methodRoutes {
+		for path, v := range routes {
+			tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
+		}
+	}
+	for prefix, routeGroup := range r.groups {
+		for _, routes := range routeGroup.methodRoutes {
+			for path, v := range routes {
+				tbl.AddRow(v.Method, prefix+path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
+			}
+		}
+	}
+
+	for path, routes := range patternRoutes {
+		for _, v := range routes {
+			// 正则路由替换回显
+			path = strings.TrimFunc(path, func(r rune) bool {
+				if string(r) == "^" || string(r) == "$" {
+					return true
+				}
+				return false
+			})
+			for _, param := range v.Param {
+				repPath := strings.Replace(path, defaultAnyPattern, ":"+param, 1)
+				if path == repPath {
+					path = strings.Replace(path, "/?"+defaultAnyPattern+"?", "/*"+param, 1)
+				} else {
+					path = repPath
+				}
+			}
+			tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
+		}
+	}
+	tbl.Print()
 }

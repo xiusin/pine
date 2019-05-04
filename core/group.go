@@ -1,6 +1,8 @@
 package core
 
 import (
+	"fmt"
+	"github.com/xiusin/router/core/components/di"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -15,14 +17,19 @@ type RouteGroup struct {
 }
 
 var (
-	patternRoutes = map[string][]*Route{}                                                     // 记录匹配路由映射
-	namedRoutes   = map[string]*Route{}                                                       // 命名路由保存
-	compiler      = regexp.MustCompile("<(.+?)>$")                                            // 正则匹配规则
-	patternMap    = map[string]string{":int": "<\\d+>", ":string": "<[\\w0-9\\_\\.\\+\\-]+>"} //规则字段映射
+	patternRoutes     = map[string][]*Route{}                                                     // 记录匹配路由映射
+	namedRoutes       = map[string]*Route{}                                                       // 命名路由保存
+	compiler          = regexp.MustCompile("<(.+?)>")                                             // 正则匹配规则
+	patternMap        = map[string]string{":int": "<\\d+>", ":string": "<[\\w0-9\\_\\.\\+\\-]+>"} //规则字段映射
+	defaultAnyPattern = "[\\w0-9\\_\\.\\+\\-]+"
 )
 
 // 添加路由, 内部函数
 func (r *RouteGroup) AddRoute(method, path string, handle Handler, middlewares ...Handler) *Route {
+	//替换正则匹配映射
+	for cons, str := range patternMap {
+		path = strings.Replace(path, cons, str, -1)
+	}
 	// 特殊正则表达式的路由保存一下
 	matched, _ := regexp.MatchString("/[:*]+", r.Prefix+path)
 	var pattern string
@@ -64,21 +71,35 @@ func (r *RouteGroup) AddRoute(method, path string, handle Handler, middlewares .
 	return route
 }
 
-func (r *RouteGroup) Handle(c interface{}) {
-	ref := reflect.ValueOf(c).Elem()
-	if ref.Kind() != reflect.Struct {
-		panic("请传入一个struct类型")
+func (r *RouteGroup) Handle(c ControllerInf) {
+	refVal := reflect.ValueOf(c)
+	refType := reflect.TypeOf(c)
+	for i := 0; i < reflect.TypeOf(c).Elem().NumField(); i++ {
+		fieldType := fmt.Sprintf("%s", reflect.TypeOf(c).Elem().Field(i).Type)
+		fieldName := reflect.TypeOf(c).Elem().Field(i).Name
+		service, err := di.Get(fieldType)
+		if fieldName != "Controller" && err == nil {
+			refVal.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
+		}
 	}
-	method := reflect.ValueOf(c).MethodByName("BeforeActivation")
+	method := refVal.MethodByName("BeforeActivation")
 	if method.IsValid() {
 		method.Call([]reflect.Value{reflect.ValueOf(r)})
 	} else {
-		refType, refVal := reflect.TypeOf(c), reflect.ValueOf(c)
 		for i := 0; i < refType.NumMethod(); i++ {
-			m := refVal.MethodByName(refType.Method(i).Name)
+			name := refType.Method(i).Name
+			m := refVal.MethodByName(name)
 			if r.isHandler(&m) {
-				//todo 这里可以根据前缀或后缀自动兼容注册类型
-				r.ANY("/"+strings.ToLower(refType.Method(i).Name), (m.Interface()).(func(*Context)))
+				path := strings.ToLower(name)
+				handle := m.Interface().(func(*Context))
+				//todo 抽象成方法
+				if strings.HasPrefix(path, "get") {
+					r.GET("/"+strings.TrimLeft(path, "get"), handle)
+				} else if strings.HasPrefix(path, "post") {
+					r.POST("/"+strings.TrimLeft(path, "post"), handle)
+				} else {
+					r.ANY("/"+path, handle)
+				}
 			}
 		}
 	}

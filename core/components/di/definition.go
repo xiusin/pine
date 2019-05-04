@@ -7,7 +7,16 @@ type Definition struct {
 	shared      bool
 	serviceName string
 	instance    interface{}
+	typeName    string
 	factory     BuildHandler
+}
+
+func (d *Definition) TypeName() string {
+	return d.typeName
+}
+
+func (d *Definition) SetTypeName(call func() string) {
+	d.typeName = call()
 }
 
 func (d *Definition) SetShared(shared bool) {
