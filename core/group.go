@@ -73,19 +73,17 @@ func (r *RouteGroup) AddRoute(method, path string, handle Handler, middlewares .
 
 func (r *RouteGroup) Handle(c ControllerInf) {
 	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
-	for i := 0; i < reflect.TypeOf(c).Elem().NumField(); i++ {
-		fieldType := fmt.Sprintf("%s", reflect.TypeOf(c).Elem().Field(i).Type)
-		fieldName := reflect.TypeOf(c).Elem().Field(i).Name
-		service, err := di.Get(fieldType)
-		if fieldName != "Controller" && err == nil {
-			refVal.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
-		}
-	}
+	r.autoRegisterService(c, refVal)
+	r.autoRegisterControllerRoute(refVal, refType)
+}
+
+func (r *RouteGroup) autoRegisterControllerRoute(refVal reflect.Value, refType reflect.Type) {
 	method := refVal.MethodByName("BeforeActivation")
 	if method.IsValid() {
 		method.Call([]reflect.Value{reflect.ValueOf(r)})
 	} else {
-		for i := 0; i < refType.NumMethod(); i++ {
+		l := refType.NumMethod()
+		for i := 0; i < l; i++ {
 			name := refType.Method(i).Name
 			m := refVal.MethodByName(name)
 			if r.isHandler(&m) {
@@ -100,6 +98,18 @@ func (r *RouteGroup) Handle(c ControllerInf) {
 					r.ANY("/"+path, handle)
 				}
 			}
+		}
+	}
+}
+
+func (r *RouteGroup) autoRegisterService(c ControllerInf, val reflect.Value) {
+	l := reflect.TypeOf(c).Elem().NumField()
+	for i := 0; i < l; i++ {
+		fieldType := fmt.Sprintf("%s", reflect.TypeOf(c).Elem().Field(i).Type)
+		fieldName := reflect.TypeOf(c).Elem().Field(i).Name
+		service, err := di.Get(fieldType)
+		if fieldName != "Controller" && err == nil {
+			val.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
 		}
 	}
 }
