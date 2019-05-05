@@ -9,8 +9,9 @@ import (
 // 直接保存到内存
 // 支持国人开发
 type Option struct {
-	TTL        int
-	Path     string
+	TTL    int
+	Path   string
+	Prefix string
 }
 
 func (o *Option) ToString() string {
@@ -31,38 +32,105 @@ func init() {
 			panic(err)
 		}
 		mem := &Nutsdb{
-			client: db,
-			option: option,
+			client:     db,
+			option:     option,
+			prefix:     cache.OptHandler.GetDefaultString(option, "Prefix", ""),
+			bucketName: "butsdb_bucket",
 		}
 		return mem
 	})
 }
 
 type Nutsdb struct {
-	option cache.Option
-	client *nutsdb.DB
+	option     cache.Option
+	prefix     string
+	client     *nutsdb.DB
+	bucketName string
 }
 
-func (Nutsdb) Get(string) (string, error) {
-	panic("implement me")
+func (c *Nutsdb) Get(key string) (val string, err error) {
+	if err = c.client.View(func(tx *nutsdb.Tx) error {
+		if e, err := tx.Get(c.bucketName, []byte(c.prefix+key)); err != nil {
+			return err
+		} else {
+			val = string(e.Value)
+		}
+		return nil
+	}); err != nil {
+		return "", err
+	}
+	return
 }
 
-func (Nutsdb) SetCachePrefix(string) {
-	panic("implement me")
+func (c *Nutsdb) SetCachePrefix(prefix string) {
+	c.prefix = prefix
 }
 
-func (Nutsdb) Save(string, string) bool {
-	panic("implement me")
+func (c *Nutsdb) Save(key, val string) bool {
+	if err := c.client.Update(func(tx *nutsdb.Tx) error {
+		if err := tx.Put(c.bucketName, []byte(c.prefix+key), []byte(val), uint32(cache.OptHandler.GetDefaultInt(c.option, "TTL", 0))); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return false
+	}
+	return true
 }
 
-func (Nutsdb) Delete(string) bool {
-	panic("implement me")
+func (c *Nutsdb) Delete(key string) bool {
+	if err := c.client.Update(func(tx *nutsdb.Tx) error {
+		if err := tx.Delete(c.bucketName, []byte(c.prefix+key)); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return false
+	}
+	return true
 }
 
-func (Nutsdb) Exists(string) bool {
-	panic("implement me")
+func (c *Nutsdb) Exists(key string) bool {
+	if err := c.client.View(func(tx *nutsdb.Tx) error {
+		if _, err := tx.Get(c.bucketName, []byte(c.prefix+key)); err != nil {
+			return err
+		}
+		return nil
+	}); err != nil {
+		return false
+	}
+	return true
 }
 
-func (Nutsdb) SaveAll(map[string]string) bool {
-	panic("implement me")
+func (c *Nutsdb) SaveAll(data map[string]string) bool {
+	tx, err := c.client.Begin(true)
+	if err != nil {
+		return false
+	}
+	for key, val := range data {
+		ttl := uint32(cache.OptHandler.GetDefaultInt(c.option, "TTL", 0))
+		if err = tx.Put(c.bucketName, []byte(c.prefix+key), []byte(val), ttl); err != nil {
+			_ = tx.Rollback()
+			return false
+		}
+	}
+	if err = tx.Commit(); err != nil {
+		_ = tx.Rollback()
+		return false
+	}
+	return true
+}
+
+func (c *Nutsdb) GetAny(callback func(*nutsdb.DB)) {
+	callback(c.client)
+}
+
+// 更换桶名以后, 需要获取原来的值请自行切换回来
+func (c *Nutsdb) BucketName(name string) *Nutsdb {
+	c.bucketName = name
+	return c
+}
+
+func (c *Nutsdb) Client() *nutsdb.DB {
+	return c.client
 }
