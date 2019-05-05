@@ -1,4 +1,4 @@
-package middlewares
+package casbin
 
 import (
 	"github.com/xiusin/router/core"
@@ -8,7 +8,7 @@ import (
 )
 
 // NewAuthorizer returns the authorizer, uses a Casbin enforcer as input
-func NewAuthorizer(e *casbin.Enforcer) core.Handler {
+func New(e *casbin.Enforcer) core.Handler {
 	a := &BasicAuthorizer{enforcer: e}
 	return func(c *core.Context) {
 		if !a.CheckPermission(c.Request()) {

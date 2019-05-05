@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	handler := core.NewRouter()
+	handler := core.NewRouter(nil)
 	handler.GET("/", func(context *core.Context) {
 		time.Sleep(5 * time.Second)
 		fmt.Println("我还是被执行了")

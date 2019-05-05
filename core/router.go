@@ -37,9 +37,7 @@ ____  __.__            .__      __________               __
  \     /|  |  |  /  ___|  |/    \|       _//  _ \|  |  \   ___/ __ \_  __ \
  /     \|  |  |  \___ \|  |   |  |    |   (  <_> |  |  /|  | \  ___/|  | \/
 /___/\  |__|____/____  |__|___|  |____|_  /\____/|____/ |__|  \___  |__|   
-      \_/            \/        \/       \/                        \/   	  Version: ` + Version + `
-`
-
+      \_/            \/        \/       \/                        \/   	  Version: ` + Version
 // 定义路由处理函数类型
 type Handler func(*Context)
 
@@ -187,10 +185,12 @@ func (r *Router) Serve() {
 		ReadTimeout:       r.option.TimeOut,
 		IdleTimeout:       r.option.TimeOut,
 		Addr:              addr,
-		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Time Out"), // 超时函数, 但是无法阻止服务器端停止
+		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Timeout"), // 超时函数, 但是无法阻止服务器端停止
 	}
-	fmt.Println(logo)
-	r.List()
+	if r.option.Env == DevMode {
+		fmt.Println(logo)
+		r.List()
+	}
 	go r.gracefulShutdown(srv, quit, done)
 	logrus.Println("Server run on: http://" + addr)
 	err := srv.ListenAndServe()
@@ -235,17 +235,19 @@ func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request
 }
 
 func (r *Router) queryLog(c *Context, start *time.Time) {
-	statusInfo, status := "", c.Status()
-	if status == http.StatusOK {
-		statusInfo = color.GreenString("%d", status)
-	} else if status > http.StatusBadRequest && status < http.StatusInternalServerError {
-		statusInfo = color.RedString("%d", status)
-	} else {
-		statusInfo = color.YellowString("%d", status)
+	if r.option.Env == ProdMode {
+		statusInfo, status := "", c.Status()
+		if status == http.StatusOK {
+			statusInfo = color.GreenString("%d", status)
+		} else if status > http.StatusBadRequest && status < http.StatusInternalServerError {
+			statusInfo = color.RedString("%d", status)
+		} else {
+			statusInfo = color.YellowString("%d", status)
+		}
+		logrus.Infof(logQueryFormat, statusInfo, color.YellowString("%s", c.Request().Method),
+			c.ClientIP(), time.Now().Sub(*start).String(), c.Request().URL.Path,
+		)
 	}
-	logrus.Infof(logQueryFormat, statusInfo, color.YellowString("%s", c.Request().Method),
-		c.ClientIP(), time.Now().Sub(*start).String(), c.Request().URL.Path,
-	)
 }
 
 // 初始化RouteMap todo tree替代

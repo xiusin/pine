@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"sync"
 	"time"
 )
 
@@ -20,13 +21,13 @@ type Option struct {
 	ErrorHandler Errors
 	ServerName   string
 	Others       map[string]interface{}
+	mu           sync.RWMutex
 }
 
 func DefaultOptions() *Option {
 	return &Option{
 		Port: 9528,
 		Host: "127.0.0.1",
-		//ShowRouteList: false,
 		TimeOut:      time.Second * 60,
 		Env:          DevMode,
 		ErrorHandler: DefaultErrorHandler,
@@ -36,6 +37,7 @@ func DefaultOptions() *Option {
 }
 
 func (o *Option) MergeOption(option *Option) {
+	o.mu.Lock()
 	if option.TimeOut != 0 {
 		o.TimeOut = option.TimeOut
 	}
@@ -50,6 +52,7 @@ func (o *Option) MergeOption(option *Option) {
 		o.ErrorHandler = option.ErrorHandler
 	}
 	o.ServerName = option.ServerName
+	o.mu.Unlock()
 	if option.Others != nil {
 		for k, v := range option.Others {
 			o.Add(k, v)
@@ -58,14 +61,18 @@ func (o *Option) MergeOption(option *Option) {
 }
 
 func (o *Option) Add(key string, val interface{}) *Option {
+	o.mu.Lock()
 	if o.Others == nil {
 		o.Others = map[string]interface{}{}
 	}
 	o.Others[key] = val
+	o.mu.Unlock()
 	return o
 }
 
 func (o *Option) Get(key string) (interface{}, error) {
+	o.mu.RLock()
+	defer o.mu.RUnlock()
 	if o.Others == nil {
 		return nil, NotKeyStoreErr
 	}

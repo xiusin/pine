@@ -1,4 +1,4 @@
-package middlewares
+package cors
 
 // 抄袭来自 rs/cors
 import (
@@ -41,7 +41,7 @@ The resulting handler is a standard net/http handler.
 */
 
 // Options is a configuration container to setup the CORS middleware.
-type CorsOptions struct {
+type Options struct {
 	// AllowedOrigins is a list of origins a cross-domain request can be executed from.
 	// If the special "*" value is present in the list, all origins will be allowed.
 	// An origin may contain a wildcard (*) to replace 0 or more characters
@@ -109,7 +109,7 @@ type Cors struct {
 }
 
 // New creates a new Cors handler with the provided options.
-func NewCors(options CorsOptions) *Cors {
+func NewCors(options Options) *Cors {
 	c := &Cors{
 		exposedHeaders:         convert(options.ExposedHeaders, http.CanonicalHeaderKey),
 		allowOriginFunc:        options.AllowOriginFunc,
@@ -183,13 +183,13 @@ func NewCors(options CorsOptions) *Cors {
 
 // Default creates a new Cors handler with default options.
 func Default() *Cors {
-	return NewCors(CorsOptions{})
+	return NewCors(Options{})
 }
 
 // AllowAll create a new Cors handler with permissive configuration allowing all
 // origins with all standard methods with any header and credentials.
 func AllowAll() *Cors {
-	return NewCors(CorsOptions{
+	return NewCors(Options{
 		AllowedOrigins: []string{"*"},
 		AllowedMethods: []string{
 			http.MethodHead,
@@ -206,7 +206,7 @@ func AllowAll() *Cors {
 
 // Handler apply the CORS specification on the request, and add relevant CORS headers
 // as necessary.
-func (c *Cors) Handler() core.Handler {
+func (c *Cors) New() core.Handler {
 	return func(ctx *core.Context) {
 		if ctx.Request().Method == http.MethodOptions && ctx.Request().Header.Get("Access-Control-Request-Method") != "" {
 			c.logf("Handler: Preflight request")

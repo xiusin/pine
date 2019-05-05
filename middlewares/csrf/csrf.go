@@ -1,4 +1,4 @@
-package middlewares
+package csrf
 
 import (
 	"github.com/xiusin/router/core"
@@ -23,7 +23,7 @@ func validateCsrfToken(c *core.Context) bool {
 	return true
 }
 
-func Csrf(callback func(c *core.Context)) core.Handler {
+func New(callback func(c *core.Context)) core.Handler {
 	return func(c *core.Context) {
 		if c.IsPost() && !validateCsrfToken(c) {
 			callback(c)

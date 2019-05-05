@@ -39,6 +39,10 @@ func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
 	c.params = map[string]string{}
 }
 
+func (c *Context) App() *Router  {
+	return c.app
+}
+
 // 获取请求
 func (c *Context) Request() *http.Request {
 	return c.req

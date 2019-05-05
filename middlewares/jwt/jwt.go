@@ -1,4 +1,4 @@
-package middlewares
+package jwt
 
 import (
 	"context"
@@ -53,9 +53,9 @@ type JwtOptions struct {
 	SigningMethod jwt.SigningMethod
 }
 
-type JWTMiddleware struct {
+type Middleware struct {
 	Options    JwtOptions
-	Middleware core.Handler
+	Handler core.Handler
 }
 
 func OnError(w http.ResponseWriter, r *http.Request, err string) {
@@ -63,7 +63,7 @@ func OnError(w http.ResponseWriter, r *http.Request, err string) {
 }
 
 // New constructs a new Secure instance with supplied options.
-func NewJwt(options ...JwtOptions) *JWTMiddleware {
+func NewJwt(options ...JwtOptions) *Middleware {
 
 	var opts JwtOptions
 	if len(options) == 0 {
@@ -84,19 +84,19 @@ func NewJwt(options ...JwtOptions) *JWTMiddleware {
 		opts.Extractor = FromAuthHeader
 	}
 
-	return &JWTMiddleware{
+	return &Middleware{
 		Options: opts,
 	}
 }
 
-func (m *JWTMiddleware) logf(format string, args ...interface{}) {
+func (m *Middleware) logf(format string, args ...interface{}) {
 	if m.Options.Debug {
 		log.Printf(format, args...)
 	}
 }
 
-func (m *JWTMiddleware) JwtHandler() core.Handler {
-	return m.Middleware
+func (m *Middleware) New() core.Handler {
+	return m.Handler
 }
 
 // FromAuthHeader is a "TokenExtractor" that takes a give request and extracts
@@ -141,7 +141,7 @@ func FromFirst(extractors ...TokenExtractor) TokenExtractor {
 	}
 }
 
-func (m *JWTMiddleware) CheckJWT(w http.ResponseWriter, r *http.Request) error {
+func (m *Middleware) CheckJWT(w http.ResponseWriter, r *http.Request) error {
 	if !m.Options.EnableAuthOnOptions {
 		if r.Method == "OPTIONS" {
 			return nil

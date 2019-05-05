@@ -33,12 +33,10 @@ func (e *ErrHandler) Recover(c *Context) func() {
 	return func() {
 		if err := recover(); err != nil {
 			logrus.Errorf(
-				"msg: %s  Method: %s    Path: %s    Query: %v    POST: %v\nStack: %s",
+				"msg: %s  Method: %s    Path: %s\n Stack: %s",
 				err,
 				c.Request().Method,
 				c.Request().URL.Path,
-				c.Request().URL.Query(),
-				c.Request().PostForm,
 				debug.Stack(),
 			)
 		}

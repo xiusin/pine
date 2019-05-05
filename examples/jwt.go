@@ -3,12 +3,12 @@ package main
 import (
 	"github.com/dgrijalva/jwt-go"
 	"github.com/xiusin/router/core"
-	"github.com/xiusin/router/middlewares"
+	jwt2 "github.com/xiusin/router/middlewares/jwt"
 )
 
 func main() {
 	handler := core.NewRouter(nil)
-	jwtM := middlewares.NewJwt(middlewares.JwtOptions{
+	jwtM := jwt2.NewJwt(jwt2.JwtOptions{
 		ValidationKeyGetter: func(token *jwt.Token) (interface{}, error) {
 			return []byte("My Secret"), nil
 		},
@@ -19,6 +19,6 @@ func main() {
 	}
 	handler.GET("/hello/:name", func(c *core.Context) {
 		_, _ = c.Writer().Write([]byte("Hello " + c.GetParamDefault("name", "world")))
-	}, jwtM.JwtHandler())
+	})
 	handler.Serve()
 }
