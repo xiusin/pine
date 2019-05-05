@@ -15,6 +15,10 @@ type MyController struct {
 	F2 *Field
 }
 
+func (m *MyController) UrlMapping() {
+	m.App().GET("/get/hello", m.GetHello)
+}
+
 func (m *MyController) GetHello(c *core.Context) {
 	_, _ = c.Writer().Write([]byte("Hello world Get"))
 }
