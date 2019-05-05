@@ -1,4 +1,4 @@
-1. 注释路由 `@Router /accounts/:id [get]`
+1. [废弃] 注释路由 `@Router /accounts/:id [get]`
 2. ~~嵌套路由`:int`, `:string`指定匹配类型~~
 3. 兼容路由匹配
     -  `doing -> cms_<\d+>.html` 

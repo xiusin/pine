@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"github.com/xiusin/router/core/components/di"
 	"net/http"
 	"reflect"
@@ -19,13 +18,13 @@ type RouteGroup struct {
 type routeMaker func(path string, handle Handler, mws ...Handler) *Route
 
 var (
-	urlSeparator                 = "/"                                                                       // url地址分隔符,不保证所有的可用 todo 待测试复制其他字符串的可行性
+	urlSeparator                 = "/"                                                                       // url地址分隔符
 	patternRoutes                = map[string][]*Route{}                                                     // 记录匹配路由映射
 	namedRoutes                  = map[string]*Route{}                                                       // 命名路由保存
 	compiler                     = regexp.MustCompile("<(.+?)>")                                             // 正则匹配规则
 	patternMap                   = map[string]string{":int": "<\\d+>", ":string": "<[\\w0-9\\_\\.\\+\\-]+>"} //规则字段映射
 	defaultAnyPattern            = "[\\w0-9\\_\\.\\+\\-]+"
-	upperCharToUnderLineCompiler = regexp.MustCompile("([A-Z])") // 大写字母转换为下划线和小写字母
+	upperCharToUnderLineCompiler = regexp.MustCompile("([A-Z])") 										// 大写字母转换为下划线和小写字母
 )
 
 // 添加路由, 内部函数
@@ -82,6 +81,7 @@ func (r *RouteGroup) Handle(c ControllerInf) {
 	r.autoRegisterControllerRoute(refVal, refType)
 }
 
+// 自动注册控制器映射路由
 func (r *RouteGroup) autoRegisterControllerRoute(refVal reflect.Value, refType reflect.Type) {
 	method := refVal.MethodByName("UrlMapping")
 	if method.IsValid() {
@@ -110,12 +110,12 @@ func (r *RouteGroup) autoMatchHttpMethod(path string, handle Handler) {
 	}
 }
 
-// 自动解析并注册controller的其他字段类型. (从di中自动解析)
-// todo 需要检测字段值是否为空再进行赋值
+// 从di中自动解析并注册controller的其他字段类型.
+// 目前是直接覆写字段类型.  todo 需要检测字段值是否为空再进行赋值
 func (r *RouteGroup) autoRegisterService(c ControllerInf, val reflect.Value) {
 	fieldNum := reflect.TypeOf(c).Elem().NumField()
 	for i := 0; i < fieldNum; i++ {
-		fieldType := fmt.Sprintf("%s", reflect.TypeOf(c).Elem().Field(i).Type)
+		fieldType := reflect.TypeOf(c).Elem().Field(i).Type.String()
 		fieldName := reflect.TypeOf(c).Elem().Field(i).Name
 		service, err := di.Get(fieldType)
 		if fieldName != "Controller" && err == nil {
@@ -148,7 +148,6 @@ func (r *RouteGroup) getPattern(str string) string {
 	return "(" + pattern + ")"
 }
 
-func (r *RouteGroup) ParseAnnotationRoute() {}
 
 func (r *RouteGroup) GET(path string, handle Handler, mws ...Handler) *Route {
 	return r.AddRoute(http.MethodGet, path, handle, mws...)

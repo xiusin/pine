@@ -7,7 +7,9 @@ import (
 	"github.com/xiusin/router/core/components/di"
 	"github.com/xiusin/router/core/components/service/renderer"
 	"math/rand"
+	"net"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/mholt/binding"
@@ -23,6 +25,7 @@ type Context struct {
 	render          *renderer.RendererInf // 模板渲染
 	app             *Router
 	status          int
+	Keys 			map[string]interface{}
 }
 
 // 重置Context对象
@@ -151,7 +154,7 @@ func (c *Context) Get(key string) interface{} {
 func (c *Context) GetRenderer() renderer.RendererInf {
 	rendererInf, ok := di.MustGet(di.RENDER).(renderer.RendererInf)
 	if !ok {
-		panic("renderer组件类型不正确")
+		panic(di.RENDER + "组件类型不正确")
 	}
 	return rendererInf
 }
@@ -160,7 +163,7 @@ func (c *Context) GetRenderer() renderer.RendererInf {
 func (c *Context) Session() sessions.Store {
 	sessionInf, ok := di.MustGet(di.SESSION).(sessions.Store)
 	if !ok {
-		panic("renderer组件类型不正确")
+		panic(di.SESSION + "组件类型不正确")
 	}
 	return sessionInf
 }
@@ -189,7 +192,7 @@ func (c *Context) SetCookie(name, value string, maxAge int) {
 	c.req.AddCookie(cookie)
 }
 
-// 绑定表单数据
+// 绑定表单数据 todo 抽离做成依赖
 func (c *Context) Bind(req *http.Request, formData binding.FieldMapper) error {
 	return binding.Bind(req, formData)
 }
@@ -240,6 +243,27 @@ func (c *Context) Status() int {
 	return c.status
 }
 
+// 获取客户端IP
+func (c *Context) ClientIP() string {
+	clientIP := c.ReqHeader("X-Forwarded-For")
+	clientIP = strings.TrimSpace(strings.Split(clientIP, ",")[0])
+	if clientIP == "" {
+		clientIP = strings.TrimSpace(c.ReqHeader("X-Real-Ip"))
+	}
+	if clientIP != "" {
+		return clientIP
+	}
+
+	if ip, _, err := net.SplitHostPort(strings.TrimSpace(c.Request().RemoteAddr)); err == nil {
+		return ip
+	}
+	return ""
+}
+
+func (c *Context) ReqHeader(key string) string  {
+	return c.Request().Header.Get(key)
+}
+
 // 渲染data
 func (c *Context) Data(v string) error {
 	return c.GetRenderer().Data(c.Writer(), v)
@@ -267,4 +291,28 @@ func (c *Context) Text(v string) error {
 // 渲染xml
 func (c *Context) XML(v interface{}) error {
 	return c.GetRenderer().XML(c.Writer(), v)
+}
+
+
+// 官方context的继承实现, 后续改进使用
+func (c *Context) Deadline() (deadline time.Time, ok bool) {
+	return
+}
+
+func (c *Context) Done() <-chan struct{} {
+	return nil
+}
+
+func (c *Context) Err() error {
+	return nil
+}
+
+func (c *Context) Value(key interface{}) interface{} {
+	if key == 0 {
+		return c.Request
+	}
+	if keyAsString, ok := key.(string); ok {
+		return c.Keys[keyAsString]
+	}
+	return nil
 }

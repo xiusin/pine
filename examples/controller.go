@@ -8,6 +8,10 @@ import (
 	"github.com/xiusin/router/core/components/helper"
 )
 
+type Field struct {
+	Name string
+}
+
 type MyController struct {
 	//todo 从DI中反射出来类型
 	core.Controller
@@ -15,8 +19,10 @@ type MyController struct {
 	F2 *Field
 }
 
-func (m *MyController) UrlMapping() {
-	m.App().GET("/get/hello", m.GetHello)
+
+// 优先执行此函数执行映射
+func (m *MyController) UrlMapping(r *core.RouteGroup) {
+	r.GET("/get/hello", m.GetHello)
 }
 
 func (m *MyController) GetHello(c *core.Context) {
@@ -27,9 +33,7 @@ func (m *MyController) PostHello(c *core.Context) {
 	_, _ = c.Writer().Write([]byte("Hello world Post"))
 }
 
-type Field struct {
-	Name string
-}
+
 
 func main() {
 
@@ -42,10 +46,10 @@ func main() {
 	}, true)
 
 	handler := core.NewRouter(nil)
+	g := handler.Group("/api")
 	a := new(MyController)
-	handler.Handle(a)
-
+	g.Handle(a)
 	fmt.Println(a.F2)
 	fmt.Println(a.F1)
-
+	handler.Serve()
 }

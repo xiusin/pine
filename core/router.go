@@ -31,7 +31,7 @@ type Router struct {
 
 const Version = "dev"
 const logQueryFormat = "| %s | %s | %s | %s | Path: %s"
-const Logo = `
+const logo = `
 ____  __.__            .__      __________               __                
 \   \/  |__|__ __ _____|__| ____\______   \ ____  __ ___/  |_  ___________ 
  \     /|  |  |  /  ___|  |/    \|       _//  _ \|  |  \   ___/ __ \_  __ \
@@ -189,7 +189,7 @@ func (r *Router) Serve() {
 		Addr:              addr,
 		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Time Out"), // 超时函数, 但是无法阻止服务器端停止
 	}
-	fmt.Println(Logo)
+	fmt.Println(logo)
 	r.List()
 	go r.gracefulShutdown(srv, quit, done)
 	logrus.Println("Server run on: http://" + addr)
@@ -244,7 +244,7 @@ func (r *Router) queryLog(c *Context, start *time.Time) {
 		statusInfo = color.YellowString("%d", status)
 	}
 	logrus.Infof(logQueryFormat, statusInfo, color.YellowString("%s", c.Request().Method),
-		c.Request().RemoteAddr, time.Now().Sub(*start).String(), c.Request().URL.Path,
+		c.ClientIP(), time.Now().Sub(*start).String(), c.Request().URL.Path,
 	)
 }
 
