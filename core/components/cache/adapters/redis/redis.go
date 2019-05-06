@@ -42,6 +42,10 @@ func (cache *Cache) getCacheKey(key string) string {
 	return cache.prefix + key
 }
 
+func (cache *Cache) Pool() *redis.Pool {
+	return cache.pool
+}
+
 func (cache *Cache) Get(key string) (string, error) {
 	client := cache.pool.Get()
 	s, err := redis.String(client.Do("GET", cache.getCacheKey(key)))
