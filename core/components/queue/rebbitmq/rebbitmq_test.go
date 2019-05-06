@@ -20,7 +20,7 @@ func init() {
 	})
 	queue.ConfigQueue("redis", &Option{
 		QueueName: "test",
-		Pool: cach.(*redis.Cache).Pool(),
+		Pool:      cach.(*redis.Cache).Pool(),
 	})
 }
 

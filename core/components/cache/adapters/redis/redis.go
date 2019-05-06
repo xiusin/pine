@@ -13,7 +13,6 @@ type Option struct {
 	MaxActive      int
 	MaxIdleTimeout int
 	Host           string
-	Port           int
 	Password       string
 	DbIndex        int
 	ConnectTimeout int

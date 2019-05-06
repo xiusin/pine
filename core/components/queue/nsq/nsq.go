@@ -5,6 +5,16 @@ import (
 	"github.com/xiusin/router/core/components/queue"
 )
 
+type Option struct {
+	QueueName string
+	Producer  func() *nsq.Producer
+	Consumer  func() *nsq.Consumer
+}
+
+func (o *Option) SetQueueName(name string) {
+	o.QueueName = name
+}
+
 type Nsq struct {
 	producer *nsq.Producer
 	consumer *nsq.Consumer
@@ -22,7 +32,7 @@ func init() {
 			panic("please input nsq.option")
 		}
 		client := &Nsq{
-			option:   opt,
+			option: opt,
 		}
 		if opt.Producer != nil {
 			client.producer = opt.Producer()

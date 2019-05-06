@@ -15,17 +15,19 @@ var que queue.Queue
 
 func init() {
 	cach, _ := cache.NewCache("redis", &redis.Option{
-		Host: "127.0.0.1",
-		Port: 6379,
+		Host: "127.0.0.1:6379",
 	})
 	queue.ConfigQueue("redis", &Option{
 		QueueName: "test",
-		Pool: cach.(*redis.Cache).Pool(),
+		Pool:      cach.(*redis.Cache).Pool(),
 	})
+
+	que = queue.Get("redis")
 }
 
-func TestNsq_Deliver(t *testing.T) {
-	_ = que.Deliver(&Test{
-		Data: "asdasd",
-	})
+func TestRedis_Deliver(t *testing.T) {
+	r := &Test{}
+	r.Data = "xiusin"
+	err := que.Deliver(r)
+	t.Log(err)
 }

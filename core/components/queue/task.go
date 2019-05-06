@@ -1,5 +1,7 @@
 package queue
 
+import "encoding/json"
+
 type TaskInf interface {
 	Handle() error
 	Finish() error
@@ -10,14 +12,15 @@ type Task struct {
 	Data string
 }
 
-func (Task) Handle() error {
+func (t *Task) Handle() error {
 	panic("implement me")
 }
 
-func (Task) Finish() error {
+func (t *Task) Finish() error {
 	panic("implement me")
 }
 
-func (Task) ToString() string {
-	panic("implement me")
+func (t *Task) ToString() string {
+	str, _ := json.Marshal(t.Data)
+	return string(str)
 }
