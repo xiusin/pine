@@ -13,6 +13,13 @@ const (
 
 var NotKeyStoreErr = errors.New("no key store")
 
+type cookieOption struct {
+	Path     string
+	Domain   string
+	Secure   bool
+	HttpOnly bool
+}
+
 type Option struct {
 	TimeOut      time.Duration
 	Port         int
@@ -21,17 +28,21 @@ type Option struct {
 	ErrorHandler Errors
 	ServerName   string
 	Others       map[string]interface{}
+	CsrfName     string
+	CsrfLifeTime time.Duration
 	mu           sync.RWMutex
+	Cookie       *cookieOption
 }
 
 func DefaultOptions() *Option {
 	return &Option{
-		Port: 9528,
-		Host: "127.0.0.1",
+		Port:         9528,
+		Host:         "0.0.0.0",
 		TimeOut:      time.Second * 60,
 		Env:          DevMode,
 		ErrorHandler: DefaultErrorHandler,
 		ServerName:   "xiusin/router",
+		CsrfName:     "csrf_token",
 		Others:       map[string]interface{}{},
 	}
 }

@@ -3,14 +3,15 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/gorilla/sessions"
-	"github.com/xiusin/router/core/components/di"
-	"github.com/xiusin/router/core/components/service/renderer"
 	"math/rand"
 	"net"
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/gorilla/sessions"
+	"github.com/xiusin/router/core/components/di"
+	"github.com/xiusin/router/core/components/service/renderer"
 
 	"github.com/mholt/binding"
 )
@@ -25,11 +26,11 @@ type Context struct {
 	render          *renderer.RendererInf // 模板渲染
 	app             *Router
 	status          int
-	Keys 			map[string]interface{}
+	Keys            map[string]interface{}
 }
 
 // 重置Context对象
-func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
+func (c *Context) reset(res http.ResponseWriter, req *http.Request) {
 	c.req = req
 	c.res = res
 	c.middlewareIndex = -1
@@ -39,7 +40,7 @@ func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
 	c.params = map[string]string{}
 }
 
-func (c *Context) App() *Router  {
+func (c *Context) App() *Router {
 	return c.app
 }
 
@@ -113,15 +114,9 @@ func (c *Context) Next() {
 	}
 }
 
-// 获取一个flusher对象
-//demo:
-//f, _ := w.(http.Flusher)
-//	fmt.Fprintf(w, "time.now(): %v \n\r", time.Now())
-//f.Flush()
-//}
-// 在调用 Flush 之前，需要保证写入 http.ResponseWriter 的内容以 \n 结尾，不然不会输出到客户端。
-func (c *Context) Flusher() http.Flusher {
-	return c.Writer().(http.Flusher)
+func (c *Context) Flush(content string) {
+	_, _ = c.res.Write([]byte(content + "\n"))
+	c.res.(http.Flusher).Flush()
 }
 
 // 设置当前处理路由对象
@@ -155,7 +150,7 @@ func (c *Context) Get(key string) interface{} {
 }
 
 // 获取模板渲染对象
-func (c *Context) GetRenderer() renderer.RendererInf {
+func (c *Context) View() renderer.RendererInf {
 	rendererInf, ok := di.MustGet(di.RENDER).(renderer.RendererInf)
 	if !ok {
 		panic(di.RENDER + "组件类型不正确")
@@ -164,7 +159,7 @@ func (c *Context) GetRenderer() renderer.RendererInf {
 }
 
 // 获取session管理组件， 目前先依赖第三方
-func (c *Context) Session() sessions.Store {
+func (c *Context) SessionManger() sessions.Store {
 	sessionInf, ok := di.MustGet(di.SESSION).(sessions.Store)
 	if !ok {
 		panic(di.SESSION + "组件类型不正确")
@@ -192,6 +187,18 @@ func (c *Context) SetCookie(name, value string, maxAge int) {
 		Name:   name,
 		Value:  value,
 		MaxAge: maxAge,
+	}
+	opt := c.app.option.Cookie
+	if opt != nil {
+		if opt.Path == "" {
+			cookie.Path = opt.Path
+		}
+
+		if opt.Domain == "" {
+			cookie.Domain = opt.Domain
+		}
+		cookie.Secure = opt.Secure
+		cookie.HttpOnly = opt.HttpOnly
 	}
 	c.req.AddCookie(cookie)
 }
@@ -232,8 +239,8 @@ func (c *Context) GetToken() string {
 	r := rand.Int()
 	t := time.Now().UnixNano()
 	token := fmt.Sprintf("%d%d", r, t)
-	c.SetCookie("csrf_token", token, 2*60)
-	c.Set("csrf_token", token)
+	c.SetCookie(c.app.option.CsrfName, token, int(c.app.option.CsrfLifeTime))
+	c.Set(c.app.option.CsrfName, token)
 	return token
 }
 
@@ -264,39 +271,38 @@ func (c *Context) ClientIP() string {
 	return ""
 }
 
-func (c *Context) ReqHeader(key string) string  {
+func (c *Context) ReqHeader(key string) string {
 	return c.Request().Header.Get(key)
 }
 
 // 渲染data
 func (c *Context) Data(v string) error {
-	return c.GetRenderer().Data(c.Writer(), v)
+	return c.View().Data(c.Writer(), v)
 }
 
 func (c *Context) HTML(name string, binding interface{}) error {
-	return c.GetRenderer().HTML(c.Writer(), name, binding)
+	return c.View().HTML(c.Writer(), name, binding)
 }
 
 // 渲染json
 func (c *Context) JSON(v interface{}) error {
-	return c.GetRenderer().JSON(c.Writer(), v)
+	return c.View().JSON(c.Writer(), v)
 }
 
 // 渲染jsonp
 func (c *Context) JSONP(callback string, v interface{}) error {
-	return c.GetRenderer().JSONP(c.Writer(), callback, v)
+	return c.View().JSONP(c.Writer(), callback, v)
 }
 
 // 渲染text
 func (c *Context) Text(v string) error {
-	return c.GetRenderer().Text(c.Writer(), v)
+	return c.View().Text(c.Writer(), v)
 }
 
 // 渲染xml
 func (c *Context) XML(v interface{}) error {
-	return c.GetRenderer().XML(c.Writer(), v)
+	return c.View().XML(c.Writer(), v)
 }
-
 
 // 官方context的继承实现, 后续改进使用
 func (c *Context) Deadline() (deadline time.Time, ok bool) {

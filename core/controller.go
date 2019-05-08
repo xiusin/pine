@@ -1,7 +1,15 @@
 package core
 
+import (
+	"github.com/gorilla/sessions"
+	"github.com/xiusin/router/core/components/service/renderer"
+)
+
 type ControllerInf interface {
 	Ctx() *Context
+	Session(string) *sessions.Session
+	SaveSession()
+	View() renderer.RendererInf
 }
 
 type Controller struct {
@@ -12,3 +20,21 @@ func (c *Controller) Ctx() *Context {
 	return c.ctx
 }
 
+func (c *Controller) Session(name string) *sessions.Session {
+	sess, err := c.ctx.SessionManger().Get(c.ctx.req, name)
+	if err != nil {
+		panic(err)
+	}
+	return sess
+}
+
+func (c *Controller) View() renderer.RendererInf {
+	return c.ctx.View()
+}
+
+func (c *Controller) SaveSession() {
+	err := sessions.Save(c.ctx.req, c.ctx.res)
+	if err != nil {
+		panic(err)
+	}
+}

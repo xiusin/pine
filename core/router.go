@@ -3,11 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-	"github.com/fatih/color"
-	"github.com/rodaine/table"
-	"github.com/sirupsen/logrus"
-	"github.com/unrolled/render"
-	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 	"net/http"
 	"net/url"
 	"os"
@@ -19,12 +14,18 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/fatih/color"
+	"github.com/rodaine/table"
+	"github.com/sirupsen/logrus"
+	"github.com/unrolled/render"
+	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
 
 type Router struct {
-	RouteGroup
+	Routes
 	renderer *render.Render
-	groups   map[string]*RouteGroup // 分组路由保存
+	groups   map[string]*Routes // 分组路由保存
 	pool     *sync.Pool
 	option   *Option
 }
@@ -38,6 +39,7 @@ ____  __.__            .__      __________               __
  /     \|  |  |  \___ \|  |   |  |    |   (  <_> |  |  /|  | \  ___/|  | \/
 /___/\  |__|____/____  |__|___|  |____|_  /\____/|____/ |__|  \___  |__|   
       \_/            \/        \/       \/                        \/   	  Version: ` + Version
+
 // 定义路由处理函数类型
 type Handler func(*Context)
 
@@ -55,7 +57,7 @@ func init() {
 func NewRouter(option *Option) *Router {
 	r := &Router{
 		option: option,
-		groups: map[string]*RouteGroup{},
+		groups: map[string]*Routes{},
 		pool: &sync.Pool{
 			New: func() interface{} {
 				ctx := &Context{
@@ -65,7 +67,7 @@ func NewRouter(option *Option) *Router {
 				return ctx
 			},
 		},
-		RouteGroup: RouteGroup{
+		Routes: Routes{
 			methodRoutes: defaultRouteMap(),
 			RouteNotFoundHandler: func(ctx *Context) {
 				_, _ = ctx.Writer().Write([]byte("Not Found"))
@@ -146,8 +148,8 @@ func (r *Router) StaticFile(path, file string) {
 }
 
 // 路由分组
-func (r *Router) Group(prefix string, middleWares ...Handler) *RouteGroup {
-	g := &RouteGroup{Prefix: prefix}
+func (r *Router) Group(prefix string, middleWares ...Handler) *Routes {
+	g := &Routes{Prefix: prefix}
 	g.methodRoutes = defaultRouteMap()
 	g.middleWares = append(g.middleWares, middleWares...)
 	r.groups[prefix] = g
@@ -205,7 +207,7 @@ func (r *Router) Serve() {
 func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	c := r.pool.Get().(*Context)
 	defer r.pool.Put(c)
-	c.Reset(res, req)
+	c.reset(res, req)
 	c.app = r
 	if r.option.ErrorHandler != nil {
 		defer r.option.ErrorHandler.Recover(c)()
