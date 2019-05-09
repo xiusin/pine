@@ -48,28 +48,17 @@ func (r *Route) SetName(name string) {
 
 // 添加路由, 内部函数
 func (r *Routes) AddRoute(method, path string, handle Handler, mws ...Handler) *Route {
-	//替换正则匹配映射
-	for cons, str := range patternMap {
+	for cons, str := range patternMap { //替换正则匹配映射
 		path = strings.Replace(path, cons, str, -1)
 	}
-	// 特殊正则表达式的路由保存一下
-	matched, _ := regexp.MatchString(urlSeparator+"[:*]+", r.Prefix+path)
+	ok, _ := regexp.MatchString(urlSeparator+"[:*]+", r.Prefix+path)
 	var pattern string
 	var params []string
-	if matched {
+	if ok {
 		uriPartials := strings.Split(r.Prefix+path, urlSeparator)[1:]
 		for _, v := range uriPartials {
 			if strings.Contains(v, ":") || strings.Contains(v, "*") {
-				p := strings.TrimLeftFunc(v, func(bit rune) bool {
-					if string(bit) == ":" {
-						pattern += urlSeparator + r.getPattern(v)
-						return true
-					} else if string(bit) == "*" {
-						pattern += urlSeparator + "?" + r.getPattern(v) + "?"
-						return true
-					}
-					return false
-				})
+				p := strings.TrimLeftFunc(v, r.trimFunc(&pattern, v))
 				params = append(params, compiler.ReplaceAllString(p, ""))
 			} else {
 				pattern = pattern + urlSeparator + v
@@ -77,14 +66,7 @@ func (r *Routes) AddRoute(method, path string, handle Handler, mws ...Handler) *
 		}
 		pattern = "^" + pattern + "$"
 	}
-	route := &Route{
-		Method:     method,
-		Handle:     handle,
-		Middleware: mws,
-		IsPattern:  matched,
-		Param:      params,
-		Pattern:    pattern,
-	}
+	route := &Route{Method: method, Handle: handle, Middleware: mws, IsPattern: ok, Param: params, Pattern: pattern}
 	if pattern != "" {
 		patternRoutes[pattern] = append(patternRoutes[pattern], route)
 	} else {
@@ -98,6 +80,19 @@ func (r *Routes) Handle(c ControllerInf) {
 	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
 	r.autoRegisterService(c, refVal)
 	r.autoRegisterControllerRoute(refVal, refType)
+}
+
+func (r *Routes) trimFunc(pattern *string, v string) func(bit rune) bool {
+	return func(bit rune) bool {
+		if string(bit) == ":" {
+			*pattern += urlSeparator + r.getPattern(v)
+			return true
+		} else if string(bit) == "*" {
+			*pattern += urlSeparator + "?" + r.getPattern(v) + "?"
+			return true
+		}
+		return false
+	}
 }
 
 // 自动注册控制器映射路由
