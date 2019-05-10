@@ -2,14 +2,14 @@ package core
 
 import (
 	"github.com/gorilla/sessions"
-	"github.com/xiusin/router/core/components/service/renderer"
+	"github.com/xiusin/router/core/components/di/interfaces"
 )
 
 type ControllerInf interface {
 	Ctx() *Context
 	Session(string) *sessions.Session
 	SaveSession()
-	View() renderer.RendererInf
+	View() interfaces.RendererInf
 }
 
 type Controller struct {
@@ -28,7 +28,7 @@ func (c *Controller) Session(name string) *sessions.Session {
 	return sess
 }
 
-func (c *Controller) View() renderer.RendererInf {
+func (c *Controller) View() interfaces.RendererInf {
 	return c.ctx.View()
 }
 

@@ -13,6 +13,7 @@ func init() {
 	mem, err = cache.NewCache("memory", &Option{
 		TTL:        30,
 		Prefix:     "mem_",
+		maxMemSize: 100 * 1024,
 		GCInterval: 5,
 	})
 	if err != nil {

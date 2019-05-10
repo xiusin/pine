@@ -19,7 +19,6 @@ import (
 	"github.com/rodaine/table"
 	"github.com/sirupsen/logrus"
 	"github.com/unrolled/render"
-	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
 
 type Router struct {
@@ -42,15 +41,6 @@ ____  __.__            .__      __________               __
 
 // 定义路由处理函数类型
 type Handler func(*Context)
-
-func init() {
-	logrus.SetFormatter(&prefixed.TextFormatter{
-		TimestampFormat: "2006-01-02 15:04:05",
-		FullTimestamp:   true,
-	})
-	logrus.SetLevel(logrus.DebugLevel)
-	logrus.SetReportCaller(true)
-}
 
 // 实例化路由
 // 如果传入nil 则使用默认配置

@@ -10,20 +10,19 @@ import (
 	"time"
 
 	"github.com/gorilla/sessions"
-	"github.com/xiusin/router/core/components/di"
-	"github.com/xiusin/router/core/components/service/renderer"
-
 	"github.com/mholt/binding"
+	"github.com/xiusin/router/core/components/di"
+	"github.com/xiusin/router/core/components/di/interfaces"
 )
 
 type Context struct {
-	req             *http.Request         // 请求对象
-	params          map[string]string     // 路由参数
-	res             http.ResponseWriter   // 响应对象
-	stopped         bool                  // 是否停止传播中间件
-	route           *Route                // 当前context匹配到的路由
-	middlewareIndex int                   // 中间件起始索引
-	render          *renderer.RendererInf // 模板渲染
+	req             *http.Request           // 请求对象
+	params          map[string]string       // 路由参数
+	res             http.ResponseWriter     // 响应对象
+	stopped         bool                    // 是否停止传播中间件
+	route           *Route                  // 当前context匹配到的路由
+	middlewareIndex int                     // 中间件起始索引
+	render          *interfaces.RendererInf // 模板渲染
 	app             *Router
 	status          int
 	Keys            map[string]interface{}
@@ -149,24 +148,6 @@ func (c *Context) Get(key string) interface{} {
 	return c.req.Context().Value(key)
 }
 
-// 获取模板渲染对象
-func (c *Context) View() renderer.RendererInf {
-	rendererInf, ok := di.MustGet(di.RENDER).(renderer.RendererInf)
-	if !ok {
-		panic(di.RENDER + "组件类型不正确")
-	}
-	return rendererInf
-}
-
-// 获取session管理组件， 目前先依赖第三方
-func (c *Context) SessionManger() sessions.Store {
-	sessionInf, ok := di.MustGet(di.SESSION).(sessions.Store)
-	if !ok {
-		panic(di.SESSION + "组件类型不正确")
-	}
-	return sessionInf
-}
-
 // 发送file
 func (c *Context) File(filepath string) {
 	http.ServeFile(c.Writer(), c.Request(), filepath)
@@ -273,6 +254,34 @@ func (c *Context) ClientIP() string {
 
 func (c *Context) ReqHeader(key string) string {
 	return c.Request().Header.Get(key)
+}
+
+// 获取模板渲染对象
+func (c *Context) View() interfaces.RendererInf {
+	rendererInf, ok := di.MustGet(di.RENDER).(interfaces.RendererInf)
+	if !ok {
+		panic(di.RENDER + "组件类型不正确")
+	}
+	return rendererInf
+}
+
+// 日志对象
+func (c *Context) Logger() interfaces.LoggerInf {
+	loggerInf, ok := di.MustGet(di.LOGGER).(interfaces.LoggerInf)
+	if !ok {
+		panic(di.LOGGER + "组件类型不正确")
+	}
+	loggerInf.SetOutput()
+	return loggerInf
+}
+
+// 获取session管理组件， 目前先依赖第三方
+func (c *Context) SessionManger() sessions.Store {
+	sessionInf, ok := di.MustGet(di.SESSION).(sessions.Store)
+	if !ok {
+		panic(di.SESSION + "组件类型不正确")
+	}
+	return sessionInf
 }
 
 // 渲染data

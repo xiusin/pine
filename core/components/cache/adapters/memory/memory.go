@@ -3,51 +3,58 @@ package memory
 import (
 	"encoding/json"
 	"errors"
+	"sync"
+	"sync/atomic"
+	"time"
+	"unsafe"
+
 	"github.com/sirupsen/logrus"
 	"github.com/xiusin/router/core/components/cache"
-	"sync"
-	"time"
 )
 
-// 直接保存到内存
-type Option struct {
-	TTL        int
-	GCInterval int //sec
-	Prefix     string
-}
+type (
+	Option struct {
+		TTL        int
+		GCInterval int //sec
+		Prefix     string
+		maxMemSize int	// bit
+	}
+	Memory struct {
+		prefix    string
+		totalSize int32
+		option    cache.Option
+		store     sync.Map
+	}
+	entry struct {
+		data      string
+		size      int32
+		ExpiresAt time.Time
+	}
+)
 
-func (o *Option) ToString() string {
-	s, _ := json.Marshal(o)
-	return string(s)
-}
-
-type Memory struct {
-	prefix string
-	option cache.Option
-}
-
-var memStore sync.Map
-
-type Value struct {
-	data      string
-	ExpiresAt time.Time
-}
-
-var once sync.Once
-var keyNotExistsError = errors.New("key not exists")
+var (
+	once              sync.Once
+	keyNotExistsError = errors.New("key not exists")
+	defaultMem        *Memory
+)
 
 func init() {
 	cache.Register("memory", func(option cache.Option) cache.Cache {
-		mem := &Memory{
-			prefix: cache.OptHandler.GetDefaultString(option, "Prefix", ""),
-			option: option,
-		}
 		once.Do(func() {
-			logrus.Println("启动GC定时器")
-			go mem.expirationCheck()
+			defaultMem = &Memory{
+				prefix: cache.OptHandler.GetDefaultString(option, "Prefix", ""),
+				option: option,
+			}
+			go defaultMem.expirationCheck()
 		})
-		return mem
+		return defaultMem //只对外开放一个实例
 	})
+}
+
+// 直接保存到内存
+func (o *Option) ToString() string {
+	s, _ := json.Marshal(o)
+	return string(s)
 }
 
 func (m *Memory) getExpireAt() time.Time {
@@ -55,13 +62,13 @@ func (m *Memory) getExpireAt() time.Time {
 }
 
 func (m *Memory) Get(key string) (string, error) {
-	if data, ok := memStore.Load(m.getKey(key)); ok {
-		d, ok := data.(*Value)
+	if data, ok := m.store.Load(m.getKey(key)); ok {
+		d, ok := data.(*entry)
 		if ok && time.Now().Sub(d.ExpiresAt) > 0 {
 			d.ExpiresAt = m.getExpireAt()
 			return d.data, nil
 		} else {
-			memStore.Delete(m.getKey(key))
+			m.store.Delete(m.getKey(key))
 		}
 	}
 	return "", keyNotExistsError
@@ -76,26 +83,41 @@ func (m *Memory) SetCachePrefix(prefix string) {
 }
 
 func (m *Memory) Save(key string, val string) bool {
-	data := &Value{
+	data := &entry{
 		data:      val,
 		ExpiresAt: m.getExpireAt(),
 	}
-	memStore.Store(m.getKey(key), data)
+	size := unsafe.Sizeof(data)
+	data.size = int32(size) + 4
+	if int32(cache.OptHandler.GetDefaultInt(m.option, "maxMemSize", 500*1024*1024)) > m.totalSize {
+		atomic.AddInt32(&m.totalSize, data.size)
+		m.store.Store(m.getKey(key), data)
+	} else {
+		logrus.Error("已超出设置内存限制, 无法存储")
+		return false
+	}
 	return true
 }
 
 func (m *Memory) Delete(key string) bool {
-	memStore.Delete(m.getKey(key))
+	if data, ok := m.store.Load(m.getKey(key)); ok {
+		d, ok := data.(*entry)
+		if ok {
+			atomic.AddInt32(&m.totalSize, -d.size)
+			m.store.Delete(m.getKey(key))
+		}
+	}
 	return true
 }
 
 func (m *Memory) Exists(key string) bool {
-	if data, ok := memStore.Load(m.getKey(key)); ok {
-		d, ok := data.(*Value)
+	if data, ok := m.store.Load(m.getKey(key)); ok {
+		d, ok := data.(*entry)
 		if ok && time.Now().Sub(d.ExpiresAt) > 0 {
 			return true
 		} else {
-			memStore.Delete(m.getKey(key))
+			atomic.AddInt32(&m.totalSize, -d.size)
+			m.store.Delete(m.getKey(key))
 		}
 	}
 	return false
@@ -109,7 +131,7 @@ func (m *Memory) SaveAll(data map[string]string) bool {
 }
 
 func (m *Memory) Clear() {
-	memStore = sync.Map{}
+	m.store = sync.Map{}
 }
 
 // 简单化实现, 定时清理辣鸡数据
@@ -118,14 +140,14 @@ func (m *Memory) expirationCheck() {
 	for _ = range tick {
 		func() {
 			now := time.Now()
-			memStore.Range(func(key, value interface{}) bool {
-				item := value.(*Value)
-				if now.Sub(item.ExpiresAt) <= 0 {
-					memStore.Delete(key)
+			m.store.Range(func(key, value interface{}) bool {
+				item, ok := value.(*entry)
+				if ok && now.Sub(item.ExpiresAt) <= 0 {
+					atomic.AddInt32(&m.totalSize, -item.size)
+					m.store.Delete(key)
 				}
 				return true
 			})
-			logrus.Println("CACHE:MEMORY: 执行内存数据清理")
 		}()
 	}
 }

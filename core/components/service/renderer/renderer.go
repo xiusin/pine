@@ -1,9 +1,10 @@
 package renderer
 
 import (
-	"github.com/unrolled/render"
 	"io"
 	"net/http"
+
+	"github.com/unrolled/render"
 )
 
 type Renderer struct {

@@ -14,3 +14,6 @@
  - logger 
  - sessions
  
+ 
+ 参考文档: 
+ - [使用Go实现一个LRU](https://www.jianshu.com/p/970f1a8dd9cf) 
