@@ -271,7 +271,6 @@ func (c *Context) Logger() interfaces.LoggerInf {
 	if !ok {
 		panic(di.LOGGER + "组件类型不正确")
 	}
-	loggerInf.SetOutput()
 	return loggerInf
 }
 

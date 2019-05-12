@@ -8,7 +8,7 @@ import (
 func main() {
 	handler := core.NewRouter(nil)
 	handler.GET("/", func(c *core.Context) {
-		c.Abort(404, "Not Found")
+		panic("发生错误")
 	})
 	handler.Serve()
 }
