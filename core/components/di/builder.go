@@ -5,8 +5,6 @@ import (
 	"sync"
 )
 
-var ServiceNotExistsErr = errors.New("service not exists")
-
 type BuildHandler func(builder BuilderInf) (interface{}, error)
 
 type BuilderInf interface {
@@ -29,7 +27,7 @@ func (b *builder) GetDefinition(serviceName string) (*Definition, error) {
 	service, ok := b.services[serviceName]
 	b.mu.RUnlock()
 	if !ok {
-		return nil, ServiceNotExistsErr
+		return nil, errors.New("service "+serviceName+" not exists")
 	}
 	return service, nil
 }
@@ -51,7 +49,7 @@ func (b *builder) Get(serviceName string, receiver ...interface{}) (interface{},
 	service, ok := b.services[serviceName]
 	b.mu.RUnlock()
 	if !ok {
-		return nil, ServiceNotExistsErr
+		return nil, errors.New("service "+serviceName+" not exists")
 	}
 	s, err := service.Resolve(b)
 	if err != nil {

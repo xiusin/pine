@@ -8,7 +8,7 @@ import (
 func main() {
 	handler := core.NewRouter(nil)
 	handler.GET("/", func(c *core.Context) {
-		panic("发生错误")
+		panic("数据类型错误， 无法解析指定数据类型。 请检查")
 	})
 	handler.Serve()
 }

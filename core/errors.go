@@ -7,11 +7,11 @@ import (
 	"io/ioutil"
 	"log"
 	"runtime/debug"
-	//"fmt"
-	//"runtime/debug"
 	"strconv"
 	"strings"
 	"text/template"
+
+	"github.com/xiusin/router/core/components/di"
 )
 
 // 错误信息
@@ -27,6 +27,7 @@ type ErrHandler struct {
 	errMsg        string
 	fileContent   []string
 	firstFileCode string
+	firstLine     string
 }
 
 func (e *ErrHandler) Error40x(c *Context, msg string) {
@@ -49,9 +50,14 @@ func (e *ErrHandler) Error50x(c *Context, msg string) {
 </head>
 <body>
 <div style="font-family:Inconsolata !important;font-weight:bold !important;line-height:1.3 !important;font-size:14px !important;">
+    <div class="__BtrD__header"><div class="__BtrD__logo __BtrD__tops">
+        <span class="__BtrD__logo-img"></span>
+        <span class="__BtrD__theme">Panic error page</span>
+    </div>
+    </div>
     <div class="__BtrD__container-fluid">
         <div class="__BtrD__row __BtrD__contents">
-            <div class="__BtrD__col-md-4 __BtrD__attr __BtrD__left">
+            <div class="__BtrD__col-md-3 __BtrD__attr __BtrD__left">
                 <div class="__BtrD__content-nav" id="cont-nav">
                     <div class="__BtrD__top-tog __BtrD__active" id="__BtrD__function">Trace</div>
                 </div>
@@ -61,7 +67,7 @@ func (e *ErrHandler) Error50x(c *Context, msg string) {
                     </div>
                 </div>
             </div>
-            <div class="__BtrD__col-md-8 __BtrD__attr __BtrD__middle ">
+            <div class="__BtrD__col-md-6 __BtrD__attr __BtrD__middle ">
                 <div class="__BtrD__exception-type">
                     <span>Panic Error</span>
                 </div>
@@ -69,12 +75,84 @@ func (e *ErrHandler) Error50x(c *Context, msg string) {
                 <div class="__BtrD__code-view" id="proc-main">
 	<textarea id="code-go" name="code" style="display:none">` + e.firstFileCode + `</textarea>
                 </div>
-                <div class="__BtrD__active-desc" id="repop">
+                <!--<div class="__BtrD__active-desc" id="repop">
                     <div class="__BtrD__keyword">Class: <span class="__BtrD__char-null">null</span></div>
                     <div class="__BtrD__namespace">Namespace: <span class="__BtrD__char-null">null</span></div>
-                    <div class="__BtrD__file">File: C:\wamp64\www\Dbug\index.php:<span
-                                class="__BtrD__char-integer">31</span></div>
+                    <div class="__BtrD__file">File: C:\wamp64\www\Dbug\index.php:<span class="__BtrD__char-integer">31</span></div>
 
+                </div>-->
+            </div>
+
+
+            <div class="__BtrD__col-md-3 __BtrD__attr __BtrD__right">
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-1"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Server
+                    </div>
+                    <div class="__BtrD__content" style="display:none;">
+                        <div class="__BtrD__listed">
+                            <span class="__BtrD__index">HTTP_HOST</span> :
+                            <span class="__BtrD__value"><span class="__BtrD__char-string">dbug</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-2"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Get</div>
+                    <div class="__BtrD__content" style="display:none;">
+                    </div>
+                </div>
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-3"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Post</div>
+                    <div class="__BtrD__content" style="display:none;">
+                        <div class="__BtrD__listed">
+                            <span class="__BtrD__index">foo</span> :
+                            <span class="__BtrD__value"><span class="__BtrD__char-integer">22</span></span>
+                        </div>
+                        <div class="__BtrD__listed">
+                            <span class="__BtrD__index">bar</span> :
+                            <span class="__BtrD__value"><span class="char-object">Foo</span>
+        [  <span class="__BtrD__caret"></span>  <div class="__BtrD__env-arr"><span
+                                            class="private">private&nbsp;&nbsp; </span> : <span
+                                            class="__BtrD__char-string">string</span>; <br/><span class="protected">protected </span> : <span
+                                            class="__BtrD__char-integer">20</span>; <br/><span class="private">private&nbsp;&nbsp;&nbsp; </span> : [  <span
+                                            class="__BtrD__caret"></span>  <div class="__BtrD__env-arr"><span
+                                                class="key">foo</span> : <span
+                                                class="__BtrD__char-string">bar</span>,<br/></div>]; <br/><span
+                                            class="protected">protected </span> : <span
+                                            class="__BtrD__char-bool">false</span>; <br/></div>]</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-4"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Files</div>
+                    <div class="__BtrD__content" style="display:none;">
+                    </div>
+                </div>
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-5"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Request
+                    </div>
+                    <div class="__BtrD__content" style="display:none;">
+                    </div>
+                </div>
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-6"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Session
+                    </div>
+                    <div class="__BtrD__content" style="display:none;">
+                    </div>
+                </div>
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-7"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Cookie
+                    </div>
+                    <div class="__BtrD__content" style="display:none;">
+                        <div class="__BtrD__listed">
+                            <span class="__BtrD__index">BittrDebug_toggle_right</span> :
+                            <span class="__BtrD__value"><span class="__BtrD__char-string">tog-1</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-8"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Env</div>
+                    <div class="__BtrD__content" style="display:none;">
+                    </div>
                 </div>
             </div>
         </div>
@@ -82,18 +160,52 @@ func (e *ErrHandler) Error50x(c *Context, msg string) {
 </div>
 <script>
 var fileMap = ` + string(jsData) + `
-var editor = CodeMirror.fromTextArea(document.getElementById('code-go'), {
-    mode: "go",
-    lineNumbers: true,
-	lineWrapping: true,
-	firstLineNumber: 10,
-	readOnly: true,
-	theme: 'cobalt',
-    extraKeys: {"Ctrl-Q": function(cm){ cm.foldCode(cm.getCursor()); }},
-    foldGutter: true,
-    gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]
-  });
- editor.setSize('auto','660px');
+var editor = initEditor(` + e.firstLine + `);
+    var ls = document.querySelectorAll(".__BtrD__active > div");
+    for (var i = 0; i< ls.length; i++) {
+        ls[i].onclick = function (i) {
+            return function () {
+                document.getElementById('code-go').value = fileMap[i]
+                editor.getDoc().setValue(document.getElementById('code-go').value);
+                editor.getDoc().remove();
+                document.querySelector(".CodeMirror").remove()
+                editor = initEditor()
+            }
+        }(i)
+    }
+
+    function initEditor(firstLine){
+        var editor = CodeMirror.fromTextArea(document.getElementById('code-go'), {
+            mode: "go",
+            lineNumbers: false,
+            lineWrapping: true,
+            firstLineNumber: firstLine,
+            readOnly: true,
+            theme: 'cobalt',
+			scrollbarStyle: null,
+            foldGutter: true,
+            gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]
+        })
+        editor.setSize('auto', '860px');
+        return editor
+    }
+  function a(t, e, r, i) {
+            t.addEventListener(e, function (t) {
+                for (var e = t.target; e && e !== this;) e.matches(r) && i.call(e, t), e = e.parentNode
+            })
+        }
+ var B = function (t) {
+            var e = document.cookie.match("(^|;) ?" + t + "=([^;]*)(;|$)");
+            return e ? e[2] : null
+        }("BittrDebug_toggle_right");
+        B && (document.getElementById(B).nextElementSibling.style.display = "block"), a(document, "click", ".__BtrD__global .__BtrD__labeled", function () {
+          //  r("BittrDebug_toggle_right", this.getAttribute("id"));
+            var t = this.nextElementSibling;
+            "none" === t.style.display ? t.style.display = "block" : t.style.display = "none"
+        }), a(document, "click", ".__BtrD__contents .__BtrD__right .__BtrD__global .__BtrD__listed .__BtrD__caret", function () {
+            var t = this.nextElementSibling;
+            "none" === t.style.display ? t.style.display = "block" : t.style.display = "none"
+        });
 </script>
 </body>
 </html>`)
@@ -115,13 +227,15 @@ func (e *ErrHandler) Recover(c *Context) func() {
 	return func() {
 		if err := recover(); err != nil {
 			stack := debug.Stack()
-			//logrus.Printf(
-			//	"msg: %s  Method: %s  Path: %s\n Stack: %s",
-			//	err,
-			//	c.Request().Method,
-			//	c.Request().URL.Path,
-			//	stack,
-			//)
+			if di.Exists(di.LOGGER) {
+				c.Logger().Printf(
+					"msg: %s  Method: %s  Path: %s\n Stack: %s",
+					err,
+					c.Request().Method,
+					c.Request().URL.Path,
+					stack,
+				)
+			}
 			c.SetStatus(500)
 			e.errMsg = fmt.Sprintf("%s", err)
 			e.Error50x(c, e.ShowTraceInfo(string(stack)))
@@ -145,22 +259,29 @@ func (e *ErrHandler) ShowTraceInfo(msg string) string {
 		line := strings.Split(path[1], " ")
 		lineNum, _ := strconv.Atoi(line[0])
 		codes := strings.Split(string(codeContent), "\n")
+		ln, _ := strconv.Atoi(line[0])
+		codes[ln-1] = codes[ln-1] + "	  //	 <-----  BUG调用位置"
 		count := len(codes)
-		if count-lineNum < 15 && count-30 > 0 {
-			codes = codes[count-30:]
-		} else if lineNum < 15 && count > 30 {
+		var firstLine int
+
+		if count-lineNum < 25 && count-50 > 0 {
+			firstLine = count - 50
+			codes = codes[count-50:]
+		} else if lineNum < 25 && count > 50 {
 			codes = codes[:]
+			firstLine = 0
 		} else {
 			var start int
 			var end int
-			if lineNum > 15 {
-				start = lineNum - 15
+			if lineNum > 25 {
+				start = lineNum - 25
 			}
-			if lineNum+15 > count {
+			if lineNum+25 > count {
 				end = count
 			} else {
-				end = lineNum + 15
+				end = lineNum + 25
 			}
+			firstLine = start
 			codes = codes[start:end]
 		}
 		s := strings.Join(codes, "\n")
@@ -177,6 +298,9 @@ func (e *ErrHandler) ShowTraceInfo(msg string) string {
 		idx++
 		if e.firstFileCode == "" {
 			e.firstFileCode = s
+		}
+		if e.firstLine == "" {
+			e.firstLine = strconv.Itoa(firstLine)
 		}
 	}
 	e.fileContent = fileContentMap
@@ -257,7 +381,7 @@ func (e *ErrHandler) css() []byte {
         margin-left: -15px
     }
 
-    .__BtrD__col-md-4, .__BtrD__col-md-6 {
+    .__BtrD__col-md-3, .__BtrD__col-md-6 {
         position: relative;
         min-height: 1px;
         padding-right: 15px;
@@ -265,16 +389,16 @@ func (e *ErrHandler) css() []byte {
     }
 
     @media (min-width: 992px) {
-        .__BtrD__col-md-4, .__BtrD__col-md-6 {
+        .__BtrD__col-md-3, .__BtrD__col-md-6 {
             float: left
         }
 
-        .__BtrD__col-md-8 {
-            width: 65%
+        .__BtrD__col-md-6 {
+            width: 50%
         }
 
-        .__BtrD__col-md-4 {
-            width: 33.33333333%
+        .__BtrD__col-md-3 {
+            width: 25%
         }
     }
 
