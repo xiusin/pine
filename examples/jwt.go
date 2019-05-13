@@ -14,11 +14,8 @@ func main() {
 		},
 		SigningMethod: jwt.SigningMethodHS256,
 	})
-	jwtM.Middleware = func(context *core.Context) {
-
-	}
 	handler.GET("/hello/:name", func(c *core.Context) {
 		_, _ = c.Writer().Write([]byte("Hello " + c.GetParamDefault("name", "world")))
-	})
+	}, jwtM.New())
 	handler.Serve()
 }

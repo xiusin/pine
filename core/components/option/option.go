@@ -1,4 +1,4 @@
-package core
+package option
 
 import (
 	"errors"
@@ -8,43 +8,47 @@ import (
 
 const (
 	DevMode = iota
+	TestMode
 	ProdMode
 )
 
 var NotKeyStoreErr = errors.New("no key store")
 
-type cookieOption struct {
-	Path     string
-	Domain   string
-	Secure   bool
-	HttpOnly bool
-}
-
-type Option struct {
-	TimeOut      time.Duration
-	Port         int
-	Host         string
-	Env          int
-	ErrorHandler Errors
-	ServerName   string
-	Others       map[string]interface{}
-	CsrfName     string
-	CsrfLifeTime time.Duration
-	mu           sync.RWMutex
-	Cookie       *cookieOption
-}
-
-func DefaultOptions() *Option {
-	return &Option{
-		Port:         9528,
-		Host:         "0.0.0.0",
-		TimeOut:      time.Second * 60,
-		Env:          DevMode,
-		ErrorHandler: DefaultErrorHandler,
-		ServerName:   "xiusin/router",
-		CsrfName:     "csrf_token",
-		Others:       map[string]interface{}{},
+type (
+	cookieOption struct {
+		Path     string
+		Domain   string
+		Secure   bool
+		HttpOnly bool
 	}
+	Option struct {
+		TimeOut      time.Duration
+		Port         int
+		Host         string
+		Env          int
+		ServerName   string
+		Others       map[string]interface{}
+		CsrfName     string
+		CsrfLifeTime time.Duration
+		mu           sync.RWMutex
+		Cookie       *cookieOption
+	}
+)
+
+func Default() *Option {
+	return &Option{
+		Port:       9528,
+		Host:       "0.0.0.0",
+		TimeOut:    time.Second * 60,
+		Env:        DevMode,
+		ServerName: "xiusin/router",
+		CsrfName:   "csrf_token",
+		Others:     map[string]interface{}{},
+	}
+}
+
+func (o *Option)SetMode(env int) {
+	o.Env = env
 }
 
 func (o *Option) MergeOption(option *Option) {
@@ -59,9 +63,6 @@ func (o *Option) MergeOption(option *Option) {
 		o.Host = option.Host
 	}
 	o.Env = option.Env
-	if option.ErrorHandler != nil {
-		o.ErrorHandler = option.ErrorHandler
-	}
 	o.ServerName = option.ServerName
 	o.mu.Unlock()
 	if option.Others != nil {

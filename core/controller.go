@@ -10,6 +10,7 @@ type ControllerInf interface {
 	Session(string) *sessions.Session
 	SaveSession()
 	View() interfaces.RendererInf
+	Logger() interfaces.LoggerInf
 }
 
 type Controller struct {
@@ -30,6 +31,10 @@ func (c *Controller) Session(name string) *sessions.Session {
 
 func (c *Controller) View() interfaces.RendererInf {
 	return c.ctx.View()
+}
+
+func (c *Controller) Logger() interfaces.LoggerInf {
+	return c.ctx.Logger()
 }
 
 func (c *Controller) SaveSession() {

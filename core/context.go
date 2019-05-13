@@ -87,11 +87,6 @@ func (c *Context) GetRoute(name string) *Route {
 	return r
 }
 
-// 记录中间件索引位置
-func (c *Context) handlerIndex() {
-	c.middlewareIndex++
-}
-
 // 执行下个中间件
 func (c *Context) Next() {
 	if c.IsStopped() == true {
@@ -138,7 +133,7 @@ func (c *Context) getRoute() *Route {
 	return c.route
 }
 
-// 附加数据的context (可以装载附加组件)
+// 附加数据的context
 func (c *Context) Set(key string, value interface{}) {
 	c.req.WithContext(context.WithValue(c.req.Context(), key, value))
 }
@@ -174,7 +169,6 @@ func (c *Context) SetCookie(name, value string, maxAge int) {
 		if opt.Path == "" {
 			cookie.Path = opt.Path
 		}
-
 		if opt.Domain == "" {
 			cookie.Domain = opt.Domain
 		}
@@ -206,11 +200,11 @@ func (c *Context) IsPost() bool {
 
 func (c *Context) Abort(statusCode int, msg string) {
 	c.SetStatus(statusCode)
-	if c.app.option.ErrorHandler != nil {
+	if c.app.ErrorHandler != nil {
 		if statusCode >= http.StatusBadRequest && statusCode < http.StatusInternalServerError {
-			c.app.option.ErrorHandler.Error40x(c, msg)
+			c.app.ErrorHandler.Error40x(c, msg)
 		} else if statusCode >= http.StatusInternalServerError {
-			c.app.option.ErrorHandler.Error50x(c, msg)
+			c.app.ErrorHandler.Error50x(c, msg)
 			panic(msg)
 		}
 	}

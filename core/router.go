@@ -19,14 +19,16 @@ import (
 	"github.com/rodaine/table"
 	"github.com/sirupsen/logrus"
 	"github.com/unrolled/render"
+	"github.com/xiusin/router/core/components/option"
 )
 
 type Router struct {
 	Routes
-	renderer *render.Render
-	groups   map[string]*Routes // 分组路由保存
-	pool     *sync.Pool
-	option   *Option
+	renderer     *render.Render
+	groups       map[string]*Routes // 分组路由保存
+	pool         *sync.Pool
+	option       *option.Option
+	ErrorHandler Errors
 }
 
 const Version = "dev"
@@ -44,9 +46,9 @@ type Handler func(*Context)
 
 // 实例化路由
 // 如果传入nil 则使用默认配置
-func NewRouter(option *Option) *Router {
+func NewRouter(opt *option.Option) *Router {
 	r := &Router{
-		option: option,
+		option: opt,
 		groups: map[string]*Routes{},
 		pool: &sync.Pool{
 			New: func() interface{} {
@@ -63,9 +65,10 @@ func NewRouter(option *Option) *Router {
 				_, _ = ctx.Writer().Write([]byte("Not Found"))
 			},
 		},
+		ErrorHandler:DefaultErrorHandler,
 	}
 	if r.option == nil {
-		r.option = DefaultOptions()
+		r.option = option.Default()
 	}
 	return r
 }
@@ -179,7 +182,7 @@ func (r *Router) Serve() {
 		Addr:              addr,
 		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Timeout"), // 超时函数, 但是无法阻止服务器端停止
 	}
-	if r.option.Env == DevMode {
+	if r.option.Env == option.DevMode {
 		fmt.Println(logo)
 		r.List()
 	}
@@ -199,8 +202,8 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	defer r.pool.Put(c)
 	c.reset(res, req)
 	c.app = r
-	if r.option.ErrorHandler != nil {
-		defer r.option.ErrorHandler.Recover(c)()
+	if r.ErrorHandler != nil {
+		defer r.ErrorHandler.Recover(c)()
 	}
 	res.Header().Set("Server", r.option.ServerName)
 	r.dispatch(c, res, req)
@@ -227,7 +230,7 @@ func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request
 }
 
 func (r *Router) queryLog(c *Context, start *time.Time) {
-	if r.option.Env == ProdMode {
+	if r.option.Env == option.ProdMode {
 		statusInfo, status := "", c.Status()
 		if status == http.StatusOK {
 			statusInfo = color.GreenString("%d", status)
