@@ -1,6 +1,8 @@
 package interfaces
 
-import "io"
+import (
+	"io"
+)
 
 type RendererInf interface {
 	// 渲染data

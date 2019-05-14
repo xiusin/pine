@@ -7,9 +7,13 @@ import (
 	"github.com/unrolled/render"
 )
 
-type Renderer struct {
-	engine *render.Render
-}
+type
+(
+	Renderer struct {
+		engine *render.Render
+	}
+	Data map[string]interface{}		// 提供给前端使用
+)
 
 func New(options Options) *Renderer {
 	return &Renderer{engine: render.New(warpOpt(&options))}

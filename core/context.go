@@ -15,6 +15,8 @@ import (
 	"github.com/xiusin/router/core/components/di/interfaces"
 )
 
+type ViewData map[string]interface{}
+
 type Context struct {
 	req             *http.Request           // 请求对象
 	params          map[string]string       // 路由参数
@@ -26,6 +28,7 @@ type Context struct {
 	app             *Router
 	status          int
 	Keys            map[string]interface{}
+	TplData         ViewData
 }
 
 // 重置Context对象
@@ -37,6 +40,7 @@ func (c *Context) reset(res http.ResponseWriter, req *http.Request) {
 	c.stopped = false
 	c.status = http.StatusOK
 	c.params = map[string]string{}
+	c.TplData = ViewData{}
 }
 
 func (c *Context) App() *Router {
@@ -320,9 +324,6 @@ func (c *Context) Err() error {
 }
 
 func (c *Context) Value(key interface{}) interface{} {
-	if key == 0 {
-		return c.Request
-	}
 	if keyAsString, ok := key.(string); ok {
 		return c.Keys[keyAsString]
 	}

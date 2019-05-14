@@ -22,16 +22,17 @@ type (
 		HttpOnly bool
 	}
 	Option struct {
-		TimeOut      time.Duration
-		Port         int
-		Host         string
-		Env          int
-		ServerName   string
-		Others       map[string]interface{}
-		CsrfName     string
-		CsrfLifeTime time.Duration
-		mu           sync.RWMutex
-		Cookie       *cookieOption
+		TimeOut            time.Duration
+		Port               int
+		Host               string
+		Env                int
+		ServerName         string
+		Others             map[string]interface{}
+		CsrfName           string
+		CsrfLifeTime       time.Duration
+		mu                 sync.RWMutex
+		Cookie             *cookieOption
+		MaxMultipartMemory int64
 	}
 )
 
@@ -47,7 +48,7 @@ func Default() *Option {
 	}
 }
 
-func (o *Option)SetMode(env int) {
+func (o *Option) SetMode(env int) {
 	o.Env = env
 }
 
