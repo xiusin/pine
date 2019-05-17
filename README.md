@@ -8,15 +8,13 @@
 4. bench性能的时候出现ab软件卡死的情况。 换用其他软件尝试
 5. ~~自动反射字段类型， 如反射类型， （在DI上注入依赖）, 具体参考案例~~
 6. 优化代码
- -  UrlMapping 使用传入接口方式来解决
+ -  ~~UrlMapping 使用传入接口方式来解决~~
 ## 组件化 ##
 将依赖包组件化。 比如日志能不能排除依赖关系， 使用di容器管理，  内部使用框架内置接口类型限定
  - ~~renderer~~
- - logger 
+ - ~~logger~~ 
  - sessions
  
 
-
- 
  参考文档: 
  - [使用Go实现一个LRU](https://www.jianshu.com/p/970f1a8dd9cf) 

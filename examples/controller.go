@@ -21,7 +21,7 @@ type MyController struct {
 
 
 // 优先执行此函数执行映射
-func (m *MyController) UrlMapping(r *core.RouteGroup) {
+func (m *MyController) UrlMapping(r core.RouteInf) {
 	r.GET("/get/hello", m.GetHello)
 }
 

@@ -2,8 +2,9 @@ package option
 
 import (
 	"errors"
-	"sync"
 	"time"
+
+	"github.com/spf13/viper"
 )
 
 const (
@@ -21,18 +22,18 @@ type (
 		Secure   bool
 		HttpOnly bool
 	}
+
 	Option struct {
+		MaxMultipartMemory int64
 		TimeOut            time.Duration
 		Port               int
 		Host               string
 		Env                int
 		ServerName         string
-		Others             map[string]interface{}
 		CsrfName           string
 		CsrfLifeTime       time.Duration
-		mu                 sync.RWMutex
 		Cookie             *cookieOption
-		MaxMultipartMemory int64
+		Setter             *viper.Viper
 	}
 )
 
@@ -44,7 +45,11 @@ func Default() *Option {
 		Env:        DevMode,
 		ServerName: "xiusin/router",
 		CsrfName:   "csrf_token",
-		Others:     map[string]interface{}{},
+		MaxMultipartMemory: 8 << 20,
+		Cookie: &cookieOption{
+			Secure: true,
+		},
+		Setter: viper.New(),
 	}
 }
 
@@ -52,8 +57,19 @@ func (o *Option) SetMode(env int) {
 	o.Env = env
 }
 
+func (o *Option) IsDevMode() bool {
+	return o.Env == DevMode
+}
+
+func (o *Option) IsProdMode() bool {
+	return o.Env == ProdMode
+}
+
+func (o *Option) Viper() *viper.Viper {
+	return o.Setter
+}
+
 func (o *Option) MergeOption(option *Option) {
-	o.mu.Lock()
 	if option.TimeOut != 0 {
 		o.TimeOut = option.TimeOut
 	}
@@ -65,32 +81,17 @@ func (o *Option) MergeOption(option *Option) {
 	}
 	o.Env = option.Env
 	o.ServerName = option.ServerName
-	o.mu.Unlock()
-	if option.Others != nil {
-		for k, v := range option.Others {
-			o.Add(k, v)
-		}
-	}
+
 }
 
 func (o *Option) Add(key string, val interface{}) *Option {
-	o.mu.Lock()
-	if o.Others == nil {
-		o.Others = map[string]interface{}{}
-	}
-	o.Others[key] = val
-	o.mu.Unlock()
+	o.Setter.Set(key, val)
 	return o
 }
 
 func (o *Option) Get(key string) (interface{}, error) {
-	o.mu.RLock()
-	defer o.mu.RUnlock()
-	if o.Others == nil {
-		return nil, NotKeyStoreErr
-	}
-	val, ok := o.Others[key]
-	if !ok {
+	val := o.Setter.Get(key)
+	if val == nil {
 		return nil, NotKeyStoreErr
 	}
 	return val, nil

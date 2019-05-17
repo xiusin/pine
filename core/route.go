@@ -28,6 +28,19 @@ type (
 		middleWares          []Handler                    // 中间件列表
 	}
 
+	RouteInf interface {
+		GET(path string, handle Handler, mws ...Handler) *Route
+		POST(path string, handle Handler, mws ...Handler) *Route
+		PUT(path string, handle Handler, mws ...Handler) *Route
+		HEAD(path string, handle Handler, mws ...Handler) *Route
+		DELETE(path string, handle Handler, mws ...Handler) *Route
+		ANY(path string, handle Handler, mws ...Handler)
+	}
+
+	UrlMappingInf interface {
+		UrlMapping(RouteInf)
+	}
+
 	routeMaker func(path string, handle Handler, mws ...Handler) *Route
 )
 
@@ -98,16 +111,18 @@ func (r *Routes) trimFunc(pattern *string, v string) func(bit rune) bool {
 // 自动注册控制器映射路由
 func (r *Routes) autoRegisterControllerRoute(refVal reflect.Value, refType reflect.Type) {
 	method := refVal.MethodByName("UrlMapping")
-	if method.IsValid() {
-		method.Call([]reflect.Value{reflect.ValueOf(r)})
-	} else {
-		methodNum := refType.NumMethod()
-		for i := 0; i < methodNum; i++ {
-			name := refType.Method(i).Name
-			m := refVal.MethodByName(name)
-			if r.isHandler(&m) {
-				r.autoMatchHttpMethod(name, m.Interface().(func(*Context)))
-			}
+	_, ok := refVal.Interface().(UrlMappingInf)
+	if method.IsValid() && ok {
+		method.Call([]reflect.Value{reflect.ValueOf(RouteInf(r))})	// 如果实现了UrlMapping接口, 则调用函数
+		return
+	}
+	// 自动根据前缀注册路由
+	methodNum := refType.NumMethod()
+	for i := 0; i < methodNum; i++ {
+		name := refType.Method(i).Name
+		m := refVal.MethodByName(name)
+		if r.isHandler(&m) {
+			r.autoMatchHttpMethod(name, m.Interface().(func(*Context)))
 		}
 	}
 }

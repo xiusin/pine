@@ -213,6 +213,9 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (r *Router) handle(c *Context, urlParsed *url.URL) {
 	route := r.matchRoute(c, urlParsed)
 	if route != nil {
+		if r.option.MaxMultipartMemory == 0 {
+			c.req.ParseMultipartForm(r.option.MaxMultipartMemory)
+		}
 		c.setRoute(route)
 		c.Next()
 	} else {
