@@ -15,6 +15,14 @@
  - ~~logger~~ 
  - sessions
  
+ 
+ ## feature ##
+ 1. router使用tree
+ 2. crontab 
+ 3. rpc
+ 4. queue sendJob -> doJob
+ 5. cacheOptHandler废弃->修改为反射通用函数
+ 6. 路由扩展, 包含group->group->group的功能
 
  参考文档: 
  - [使用Go实现一个LRU](https://www.jianshu.com/p/970f1a8dd9cf) 
