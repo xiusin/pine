@@ -1,6 +1,7 @@
 package core
 
 import (
+	"fmt"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -48,7 +49,7 @@ var (
 	urlSeparator                 = "/"                                                                       // url地址分隔符
 	patternRoutes                = map[string][]*Route{}                                                     // 记录匹配路由映射
 	namedRoutes                  = map[string]*Route{}                                                       // 命名路由保存
-	compiler                     = regexp.MustCompile("<(.+?)>")                                             // 正则匹配规则
+	patternRouteCompiler                     = regexp.MustCompile(":(\\w+)(<.+?>)?")                                 // 正则匹配规则
 	patternMap                   = map[string]string{":int": "<\\d+>", ":string": "<[\\w0-9\\_\\.\\+\\-]+>"} //规则字段映射
 	defaultAnyPattern            = "[\\w0-9\\_\\.\\+\\-]+"
 	upperCharToUnderLineCompiler = regexp.MustCompile("([A-Z])") // 大写字母转换为下划线和小写字母
@@ -64,21 +65,40 @@ func (r *Routes) AddRoute(method, path string, handle Handler, mws ...Handler) *
 	for cons, str := range patternMap { //替换正则匹配映射
 		path = strings.Replace(path, cons, str, -1)
 	}
-	ok, _ := regexp.MatchString(urlSeparator+"[:*]+", r.Prefix+path)
+	//ok, _ := regexp.MatchString(urlSeparator+"[:*]+", r.Prefix+path)
+	ok, _ := regexp.MatchString("[:*]+", r.Prefix+path)
 	var pattern string
 	var params []string
 	if ok {
 		uriPartials := strings.Split(r.Prefix+path, urlSeparator)[1:]
 		for _, v := range uriPartials {
-			if strings.Contains(v, ":") || strings.Contains(v, "*") {
-				p := strings.TrimLeftFunc(v, r.trimFunc(&pattern, v))
-				params = append(params, compiler.ReplaceAllString(p, ""))
-			} else {
+			if strings.Contains(v, ":")  {
+				pattern += patternRouteCompiler.ReplaceAllStringFunc(v, func(s string) string {
+					_, patternStr := r.getPattern(v)
+					//fmt.Println("p", p)
+					//params = append(params, patternRouteCompiler.ReplaceAllString(p, ""))
+					return patternStr
+				})
+				fmt.Println("v", v)
+
+			} else if strings.HasPrefix(v, "*") {	// 匹配any的方式只支持以*开始的路由段并且本段只有一个可用参数
+				p := strings.TrimLeftFunc(v, func(ru rune) bool {
+					if string(ru) == "*" {
+						param, patternStr := r.getPattern(v)
+						params = append(params, param)
+						pattern += urlSeparator + "?" + patternStr + "?"
+						return true
+					}
+					return false
+				})
+				params = append(params, patternRouteCompiler.ReplaceAllString(p, ""))
+			}else {
 				pattern = pattern + urlSeparator + v
 			}
 		}
 		pattern = "^" + pattern + "$"
 	}
+
 	route := &Route{Method: method, Handle: handle, Middleware: mws, IsPattern: ok, Param: params, Pattern: pattern}
 	if pattern != "" {
 		patternRoutes[pattern] = append(patternRoutes[pattern], route)
@@ -93,19 +113,6 @@ func (r *Routes) Handle(c ControllerInf) {
 	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
 	r.autoRegisterService(c, refVal)
 	r.autoRegisterControllerRoute(refVal, refType)
-}
-
-func (r *Routes) trimFunc(pattern *string, v string) func(bit rune) bool {
-	return func(bit rune) bool {
-		if string(bit) == ":" {
-			*pattern += urlSeparator + r.getPattern(v)
-			return true
-		} else if string(bit) == "*" {
-			*pattern += urlSeparator + "?" + r.getPattern(v) + "?"
-			return true
-		}
-		return false
-	}
 }
 
 // 自动注册控制器映射路由
@@ -166,15 +173,19 @@ func (r *Routes) isHandler(m *reflect.Value) bool {
 }
 
 // 获取地址匹配符
-func (r *Routes) getPattern(str string) string {
-	p := compiler.FindAllStringSubmatch(str, 1)
-	var pattern string
-	if len(p) == 0 || len(p[0]) == 0 {
-		pattern = strings.Trim(strings.Trim(patternMap[":string"], "<"), ">")
+func (r *Routes) getPattern(str string) (paramName , pattern string) {
+	params := patternRouteCompiler.FindAllStringSubmatch(str, 1)
+	if params[0][2] == "" {
+		pattern = patternMap[":string"]
 	} else {
-		pattern = p[0][1]
+		pattern = params[0][2]
 	}
-	return "(" + pattern + ")"
+	pattern =strings.Trim(strings.Trim(pattern, "<"), ">")
+	if pattern != "" {
+		pattern = "(" + pattern + ")"
+	}
+	paramName = params[0][1]
+	return 
 }
 
 func (r *Routes) GET(path string, handle Handler, mws ...Handler) *Route {

@@ -1,7 +1,7 @@
 1. [废弃] 注释路由 `@Router /accounts/:id [get]`
 2. ~~嵌套路由`:int`, `:string`指定匹配类型~~
 3. 兼容路由匹配
-    -  `doing -> cms_<\d+>.html` 
+    -  `doing -> cms_:id<\d+>.html` 
     - ~~cms/:id:int => cms/1 !cms/id~~
     - ~~可以根据前缀或后缀自动兼容注册类型,比如: GetEdit PostEdit~~
     
@@ -21,7 +21,7 @@
  2. crontab 
  3. rpc
  4. queue sendJob -> doJob
- 5. cacheOptHandler废弃->修改为反射通用函数
+ 5. cacheOptHandler废弃->修改为反射通用函数 [最后处理]
  6. 路由扩展, 包含group->group->group的功能
 
  参考文档: 
