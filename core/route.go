@@ -1,7 +1,6 @@
 package core
 
 import (
-	"fmt"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -20,6 +19,7 @@ type (
 		Param             []string
 		Pattern           string
 		name              string
+		OriginStr         string
 	}
 
 	Routes struct {
@@ -46,13 +46,14 @@ type (
 )
 
 var (
-	urlSeparator                 = "/"                                                                       // url地址分隔符
-	patternRoutes                = map[string][]*Route{}                                                     // 记录匹配路由映射
-	namedRoutes                  = map[string]*Route{}                                                       // 命名路由保存
-	patternRouteCompiler                     = regexp.MustCompile(":(\\w+)(<.+?>)?")                                 // 正则匹配规则
-	patternMap                   = map[string]string{":int": "<\\d+>", ":string": "<[\\w0-9\\_\\.\\+\\-]+>"} //规则字段映射
-	defaultAnyPattern            = "[\\w0-9\\_\\.\\+\\-]+"
-	upperCharToUnderLineCompiler = regexp.MustCompile("([A-Z])") // 大写字母转换为下划线和小写字母
+	urlSeparator         = "/"                                                  // url地址分隔符
+	patternRoutes        = map[string][]*Route{}                                // 记录匹配路由映射
+	namedRoutes          = map[string]*Route{}                                  // 命名路由保存
+	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_]+)(<.+?>)?") // 正则匹配规则
+	patternMap           = map[string]string{
+		":int":    "<\\d+>",
+		":string": "<[\\w0-9\\_\\.\\+\\-]+>",
+	}                                                                           //规则字段映射
 )
 
 func (r *Route) SetName(name string) {
@@ -61,45 +62,37 @@ func (r *Route) SetName(name string) {
 }
 
 // 添加路由, 内部函数
+// *any 只支持路由段级别的设置
+// :param 支持路由段内嵌
 func (r *Routes) AddRoute(method, path string, handle Handler, mws ...Handler) *Route {
+	originName := r.Prefix + path
 	for cons, str := range patternMap { //替换正则匹配映射
 		path = strings.Replace(path, cons, str, -1)
 	}
-	//ok, _ := regexp.MatchString(urlSeparator+"[:*]+", r.Prefix+path)
-	ok, _ := regexp.MatchString("[:*]+", r.Prefix+path)
+	isPattern, _ := regexp.MatchString("[:*]", r.Prefix+path)
 	var pattern string
 	var params []string
-	if ok {
+	if isPattern {
 		uriPartials := strings.Split(r.Prefix+path, urlSeparator)[1:]
 		for _, v := range uriPartials {
-			if strings.Contains(v, ":")  {
-				pattern += patternRouteCompiler.ReplaceAllStringFunc(v, func(s string) string {
-					_, patternStr := r.getPattern(v)
-					//fmt.Println("p", p)
-					//params = append(params, patternRouteCompiler.ReplaceAllString(p, ""))
+			if strings.Contains(v, ":") {
+				pattern = pattern + urlSeparator + patternRouteCompiler.ReplaceAllStringFunc(v, func(s string) string {
+					param, patternStr := r.getPattern(s)
+					params = append(params, param)
 					return patternStr
 				})
-				fmt.Println("v", v)
-
-			} else if strings.HasPrefix(v, "*") {	// 匹配any的方式只支持以*开始的路由段并且本段只有一个可用参数
-				p := strings.TrimLeftFunc(v, func(ru rune) bool {
-					if string(ru) == "*" {
-						param, patternStr := r.getPattern(v)
-						params = append(params, param)
-						pattern += urlSeparator + "?" + patternStr + "?"
-						return true
-					}
-					return false
-				})
-				params = append(params, patternRouteCompiler.ReplaceAllString(p, ""))
-			}else {
+			} else if strings.HasPrefix(v, "*") {
+				param, patternStr := r.getPattern(v)
+				params = append(params, param)
+				pattern += urlSeparator + "?" + patternStr + "?"
+			} else {
 				pattern = pattern + urlSeparator + v
 			}
 		}
 		pattern = "^" + pattern + "$"
 	}
 
-	route := &Route{Method: method, Handle: handle, Middleware: mws, IsPattern: ok, Param: params, Pattern: pattern}
+	route := &Route{Method: method, Handle: handle, Middleware: mws, IsPattern: isPattern, Param: params, Pattern: pattern, OriginStr: originName}
 	if pattern != "" {
 		patternRoutes[pattern] = append(patternRoutes[pattern], route)
 	} else {
@@ -120,7 +113,7 @@ func (r *Routes) autoRegisterControllerRoute(refVal reflect.Value, refType refle
 	method := refVal.MethodByName("UrlMapping")
 	_, ok := refVal.Interface().(UrlMappingInf)
 	if method.IsValid() && ok {
-		method.Call([]reflect.Value{reflect.ValueOf(RouteInf(r))})	// 如果实现了UrlMapping接口, 则调用函数
+		method.Call([]reflect.Value{reflect.ValueOf(RouteInf(r))}) // 如果实现了UrlMapping接口, 则调用函数
 		return
 	}
 	// 自动根据前缀注册路由
@@ -162,7 +155,7 @@ func (r *Routes) autoRegisterService(c ControllerInf, val reflect.Value) {
 
 // 大写字母变分隔符
 func (r *Routes) upperCharToUnderLine(path string) string {
-	return strings.TrimLeft("_", upperCharToUnderLineCompiler.ReplaceAllStringFunc(path, func(s string) string {
+	return strings.TrimLeft("_", regexp.MustCompile("([A-Z])").ReplaceAllStringFunc(path, func(s string) string {
 		return strings.ToLower("_" + strings.ToLower(s))
 	}))
 }
@@ -173,19 +166,19 @@ func (r *Routes) isHandler(m *reflect.Value) bool {
 }
 
 // 获取地址匹配符
-func (r *Routes) getPattern(str string) (paramName , pattern string) {
+func (r *Routes) getPattern(str string) (paramName, pattern string) {
 	params := patternRouteCompiler.FindAllStringSubmatch(str, 1)
 	if params[0][2] == "" {
 		pattern = patternMap[":string"]
 	} else {
 		pattern = params[0][2]
 	}
-	pattern =strings.Trim(strings.Trim(pattern, "<"), ">")
+	pattern = strings.Trim(strings.Trim(pattern, "<"), ">")
 	if pattern != "" {
 		pattern = "(" + pattern + ")"
 	}
 	paramName = params[0][1]
-	return 
+	return
 }
 
 func (r *Routes) GET(path string, handle Handler, mws ...Handler) *Route {

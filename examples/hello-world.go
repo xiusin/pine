@@ -31,12 +31,17 @@ func main() {
 	//	c.Writer().Write([]byte(c.Request().URL.Path))
 	//})
 
-	handler.GET("/cms_:id<\\d+>.html", func(c *core.Context) {
-		c.Writer().Write([]byte(c.Request().URL.Path))
+	handler.GET("/:username:string/cms_:id<\\d+>.html", func(c *core.Context) {
+		_, _ = c.Writer().Write([]byte(c.GetParam("id")))
 	})
 
+	handler.GET("/hello/*name", func(c *core.Context) {
+		_, _ = c.Writer().Write([]byte(c.Request().URL.Path))
+	})
+
+
 	handler.GET("/cms1_:id.html", func(c *core.Context) {
-		c.Writer().Write([]byte(c.Request().URL.Path))
+		_, _ = c.Writer().Write([]byte(c.Request().URL.Path))
 	})
 	//
 	//handler.GET("/302", func(c *core.Context) {

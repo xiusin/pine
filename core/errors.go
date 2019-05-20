@@ -231,8 +231,8 @@ func (e *ErrHandler) errors(c *Context, errmsg, trace string) {
 		return
 	}
 	var buf bytes.Buffer
-	if err := tpl.Execute(&buf, map[string]string{
-		"stack": trace,
+	if err := tpl.Execute(&buf, map[string]interface{}{
+		"stack": template.HTML(trace),
 		"error": errmsg,
 	}); err != nil {
 		log.Println(err.Error())

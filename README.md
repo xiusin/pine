@@ -1,7 +1,8 @@
 1. [废弃] 注释路由 `@Router /accounts/:id [get]`
 2. ~~嵌套路由`:int`, `:string`指定匹配类型~~
 3. 兼容路由匹配
-    -  `doing -> cms_:id<\d+>.html` 
+    -  ~~`doing -> cms_:id<\d+>.html`~~
+    - 同一路由段支持多自定义规则
     - ~~cms/:id:int => cms/1 !cms/id~~
     - ~~可以根据前缀或后缀自动兼容注册类型,比如: GetEdit PostEdit~~
     

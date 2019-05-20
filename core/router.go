@@ -281,24 +281,9 @@ func (r *Router) List() {
 		}
 	}
 
-	for path, routes := range patternRoutes {
+	for _, routes := range patternRoutes {
 		for _, v := range routes {
-			// 正则路由替换回显
-			path = strings.TrimFunc(path, func(r rune) bool {
-				if string(r) == "^" || string(r) == "$" {
-					return true
-				}
-				return false
-			})
-			for _, param := range v.Param {
-				repPath := strings.Replace(path, defaultAnyPattern, ":"+param, 1)
-				if path == repPath {
-					path = strings.Replace(path, "/?"+defaultAnyPattern+"?", "/*"+param, 1)
-				} else {
-					path = repPath
-				}
-			}
-			tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
+			tbl.AddRow(v.Method, v.OriginStr, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
 		}
 	}
 	tbl.Print()
