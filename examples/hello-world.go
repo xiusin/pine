@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"github.com/xiusin/router/core"
 	_ "github.com/xiusin/router/core/components/cache/adapters/redis"
 )
@@ -31,18 +33,22 @@ func main() {
 	//	c.Writer().Write([]byte(c.Request().URL.Path))
 	//})
 
-	handler.GET("/:username:string/cms_:id<\\d+>.html", func(c *core.Context) {
-		_, _ = c.Writer().Write([]byte(c.GetParam("id")))
+	//handler.GET("/:username:string/cms_:id<\\d+>.html", func(c *core.Context) {
+	//	_, _ = c.Writer().Write([]byte(fmt.Sprintf("%#v", c.Params())))
+	//})
+
+	handler.GET("/cms_:pid<\\d+>_:uid.html", func(c *core.Context) {
+		_, _ = c.Writer().Write([]byte(fmt.Sprintf("%#v", c.Params())))
 	})
 
-	handler.GET("/hello/*name", func(c *core.Context) {
-		_, _ = c.Writer().Write([]byte(c.Request().URL.Path))
-	})
-
-
-	handler.GET("/cms1_:id.html", func(c *core.Context) {
-		_, _ = c.Writer().Write([]byte(c.Request().URL.Path))
-	})
+	//handler.GET("/hello/*name", func(c *core.Context) {
+	//	_, _ = c.Writer().Write([]byte(c.Request().URL.Path))
+	//})
+	//
+	//
+	//handler.GET("/cms1_:id.html", func(c *core.Context) {
+	//	_, _ = c.Writer().Write([]byte(c.Request().URL.Path))
+	//})
 	//
 	//handler.GET("/302", func(c *core.Context) {
 	//	c.Redirect("/500", http.StatusFound)

@@ -83,8 +83,8 @@ func (r *Routes) AddRoute(method, path string, handle Handler, mws ...Handler) *
 				})
 			} else if strings.HasPrefix(v, "*") {
 				param, patternStr := r.getPattern(v)
-				params = append(params, param)
 				pattern += urlSeparator + "?" + patternStr + "?"
+				params = append(params, param)
 			} else {
 				pattern = pattern + urlSeparator + v
 			}
@@ -92,7 +92,15 @@ func (r *Routes) AddRoute(method, path string, handle Handler, mws ...Handler) *
 		pattern = "^" + pattern + "$"
 	}
 
-	route := &Route{Method: method, Handle: handle, Middleware: mws, IsPattern: isPattern, Param: params, Pattern: pattern, OriginStr: originName}
+	route := &Route{
+		Method:     method,
+		Handle:     handle,
+		Middleware: mws,
+		IsPattern:  isPattern,
+		Param:      params,
+		Pattern:    pattern,
+		OriginStr:  originName,
+	}
 	if pattern != "" {
 		patternRoutes[pattern] = append(patternRoutes[pattern], route)
 	} else {
@@ -114,15 +122,14 @@ func (r *Routes) autoRegisterControllerRoute(refVal reflect.Value, refType refle
 	_, ok := refVal.Interface().(UrlMappingInf)
 	if method.IsValid() && ok {
 		method.Call([]reflect.Value{reflect.ValueOf(RouteInf(r))}) // 如果实现了UrlMapping接口, 则调用函数
-		return
-	}
-	// 自动根据前缀注册路由
-	methodNum := refType.NumMethod()
-	for i := 0; i < methodNum; i++ {
-		name := refType.Method(i).Name
-		m := refVal.MethodByName(name)
-		if r.isHandler(&m) {
-			r.autoMatchHttpMethod(name, m.Interface().(func(*Context)))
+	} else { // 自动根据前缀注册路由
+		methodNum := refType.NumMethod()
+		for i := 0; i < methodNum; i++ {
+			name := refType.Method(i).Name
+			m := refVal.MethodByName(name)
+			if r.isHandler(&m) {
+				r.autoMatchHttpMethod(name, m.Interface().(func(*Context)))
+			}
 		}
 	}
 }
@@ -169,11 +176,9 @@ func (r *Routes) isHandler(m *reflect.Value) bool {
 func (r *Routes) getPattern(str string) (paramName, pattern string) {
 	params := patternRouteCompiler.FindAllStringSubmatch(str, 1)
 	if params[0][2] == "" {
-		pattern = patternMap[":string"]
-	} else {
-		pattern = params[0][2]
+		params[0][2] = patternMap[":string"]
 	}
-	pattern = strings.Trim(strings.Trim(pattern, "<"), ">")
+	pattern = strings.Trim(strings.Trim(params[0][2], "<"), ">")
 	if pattern != "" {
 		pattern = "(" + pattern + ")"
 	}

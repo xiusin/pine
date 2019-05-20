@@ -58,6 +58,11 @@ func (c *Context) SetParam(key, value string) {
 }
 
 // 获取路由参数
+func (c *Context) Params() map[string]string {
+	return c.params
+}
+
+// 获取路由参数
 func (c *Context) GetParam(key string) string {
 	value, _ := c.params[key]
 	return value

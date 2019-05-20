@@ -84,10 +84,10 @@ func (*Router) staticHandler(path, dir string) Handler {
 
 // 匹配路由
 func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *Route {
-	pathInfos := strings.Split(urlParsed.Path, "/")
+	pathInfos := strings.Split(urlParsed.Path, urlSeparator)
 	l := len(pathInfos)
 	for i := 1; i <= l; i++ {
-		p := strings.Join(pathInfos[:i], "/")
+		p := strings.Join(pathInfos[:i], urlSeparator)
 		route, ok := r.methodRoutes[ctx.Request().Method][p]
 		if ok { // 直接匹配到路由
 			if route.Method != ctx.Request().Method {
@@ -98,7 +98,7 @@ func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *Route {
 		// 在路由分组内查找
 		group, ok := r.groups[p]
 		if ok {
-			path := "/" + strings.Join(pathInfos[i:], "/")
+			path := urlSeparator + strings.Join(pathInfos[i:], urlSeparator)
 			for routePath, route := range group.methodRoutes[ctx.Request().Method] {
 				if routePath != path || route.Method != ctx.Request().Method {
 					continue
