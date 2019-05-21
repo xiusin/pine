@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"log"
+	"runtime"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -55,6 +56,7 @@ func (e *ErrHandler) Recover(c *Context) func() {
 }
 
 func (e *ErrHandler) errors(c *Context, errmsg, trace string) {
+	fmt.Println(runtime.Caller(0))
 	c.SetStatus(500)
 	tpl := template.New("debug")
 	jsData, _ := json.Marshal(e.fileContent)
@@ -246,7 +248,7 @@ func (e *ErrHandler) ShowTraceInfo(msg string) string {
 	msgs = msgs[1:]
 	l := len(msgs)
 	idx := 1
-	fileContentMap := []string{}
+	var fileContentMap []string
 	for i := 0; i < l; i += 2 {
 
 		path := strings.Split(msgs[i+1], ":")
