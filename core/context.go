@@ -28,7 +28,7 @@ type Context struct {
 	app             *Router
 	status          int
 	Keys            map[string]interface{}
-	TplData         ViewData
+	tplData         ViewData
 }
 
 // 重置Context对象
@@ -40,7 +40,7 @@ func (c *Context) reset(res http.ResponseWriter, req *http.Request) {
 	c.stopped = false
 	c.status = http.StatusOK
 	c.params = map[string]string{}
-	c.TplData = ViewData{}
+	c.tplData = ViewData{}
 }
 
 func (c *Context) App() *Router {
@@ -145,11 +145,6 @@ func (c *Context) getRoute() *Route {
 // 附加数据的context
 func (c *Context) Set(key string, value interface{}) {
 	c.req.WithContext(context.WithValue(c.req.Context(), key, value))
-}
-
-// 获取附带数据
-func (c *Context) Get(key string) interface{} {
-	return c.req.Context().Value(key)
 }
 
 // 发送file
@@ -291,8 +286,13 @@ func (c *Context) Data(v string) error {
 	return c.View().Data(c.Writer(), v)
 }
 
-func (c *Context) HTML(name string, binding interface{}) error {
-	return c.View().HTML(c.Writer(), name, binding)
+// 设置模板数据, 仅服务于HTML
+func (c *Context) ViewData(key string, val interface{})  {
+	c.tplData[key] = val
+}
+
+func (c *Context) HTML(name string) error {
+	return c.View().HTML(c.Writer(), name, c.tplData)
 }
 
 // 渲染json
