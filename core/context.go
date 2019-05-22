@@ -3,9 +3,11 @@ package core
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
 	"net"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -267,7 +269,7 @@ func (c *Context) View() interfaces.RendererInf {
 func (c *Context) Logger() interfaces.LoggerInf {
 	loggerInf, ok := di.MustGet(di.LOGGER).(interfaces.LoggerInf)
 	if !ok {
-		panic(di.LOGGER + "组件类型不正确")
+		loggerInf = log.New(os.Stdout, "[ROUTER-DEBUG]", log.LstdFlags)
 	}
 	return loggerInf
 }
