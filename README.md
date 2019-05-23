@@ -17,6 +17,6 @@
  4. queue sendJob -> doJob
  5. cacheOptHandler废弃->修改为反射通用函数 [最后处理]
  6. 路由扩展, 包含group->group->group的功能
-
+ 7. 针对di反射植入到controller的属性使用tag标签标记类型如: "service:session".
  参考文档: 
  - [使用Go实现一个LRU](https://www.jianshu.com/p/970f1a8dd9cf) 

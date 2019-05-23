@@ -266,12 +266,14 @@ func (c *Context) View() interfaces.RendererInf {
 }
 
 // 日志对象
-func (c *Context) Logger() interfaces.LoggerInf {
-	loggerInf, ok := di.MustGet(di.LOGGER).(interfaces.LoggerInf)
+func (c *Context) Logger() (loggerInf interfaces.LoggerInf) {
+	ok := di.Exists(di.LOGGER)
 	if !ok {
 		loggerInf = log.New(os.Stdout, "[ROUTER-DEBUG]", log.LstdFlags)
+	} else {
+		loggerInf = di.MustGet(di.LOGGER).(interfaces.LoggerInf)
 	}
-	return loggerInf
+	return
 }
 
 // 获取session管理组件， 目前先依赖第三方
