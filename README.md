@@ -1,4 +1,3 @@
-1. [废弃] 注释路由 `@Router /accounts/:id [get]`
 2. ~~嵌套路由`:int`, `:string`指定匹配类型~~
 3. 兼容路由匹配
     -  ~~`doing -> cms_:id<\d+>.html`~~
@@ -18,5 +17,7 @@
  5. cacheOptHandler废弃->修改为反射通用函数 [最后处理]
  6. 路由扩展, 包含group->group->group的功能
  7. 针对di反射植入到controller的属性使用tag标签标记类型如: "service:session".
- 参考文档: 
+ 8. 参考symfony的依赖注入方式看是否可实现
+ 
+## 参考文档  ##
  - [使用Go实现一个LRU](https://www.jianshu.com/p/970f1a8dd9cf) 
