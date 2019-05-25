@@ -7,6 +7,7 @@ import (
 
 type ControllerInf interface {
 	Ctx() *Context
+	SetCtx(*Context)
 	Session(string) *sessions.Session
 	SaveSession()
 	View() interfaces.RendererInf
@@ -15,6 +16,10 @@ type ControllerInf interface {
 
 type Controller struct {
 	ctx *Context
+}
+
+func (c *Controller) SetCtx(ctx *Context) {
+	c.ctx = ctx
 }
 
 func (c *Controller) Ctx() *Context {

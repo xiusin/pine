@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/xiusin/router/core"
 	_ "github.com/xiusin/router/core/components/cache/adapters/redis"
 	"github.com/xiusin/router/core/components/di"
@@ -15,6 +16,7 @@ type Field struct {
 type MyController struct {
 	//todo 从DI中反射出来类型
 	core.Controller
+	Haha string
 	F1 Field
 	F2 *Field
 }
@@ -22,21 +24,18 @@ type MyController struct {
 
 // 优先执行此函数执行映射
 func (m *MyController) UrlMapping(r core.RouteInf) {
-	r.GET("/get/hello", m.GetHello)
+	r.GET("/get/hello/:id", "GetHello")
 }
 
-func (m *MyController) GetHello(c *core.Context) {
-	_, _ = c.Writer().Write([]byte("Hello world Get"))
+func (m *MyController) GetHello(id int64) {
+	_, _ = m.Ctx().Writer().Write([]byte(fmt.Sprintf("%p", m)))
 }
 
-func (m *MyController) PostHello(c *core.Context) {
-	_, _ = c.Writer().Write([]byte("Hello world Post"))
+func (m *MyController) PostHello() {
+	_, _ = m.Ctx().Writer().Write([]byte("Hello world Post"))
 }
-
-
 
 func main() {
-
 	di.Set(helper.GetTypeName(&Field{}), func(builder di.BuilderInf) (i interface{}, e error) {
 		return &Field{Name: "ref"}, nil
 	}, true)

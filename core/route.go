@@ -20,6 +20,7 @@ type (
 		Pattern           string
 		name              string
 		OriginStr         string
+		controller        ControllerInf
 	}
 
 	Routes struct {
@@ -30,12 +31,17 @@ type (
 	}
 
 	RouteInf interface {
-		GET(path string, handle Handler, mws ...Handler) *Route
-		POST(path string, handle Handler, mws ...Handler) *Route
-		PUT(path string, handle Handler, mws ...Handler) *Route
-		HEAD(path string, handle Handler, mws ...Handler) *Route
-		DELETE(path string, handle Handler, mws ...Handler) *Route
-		ANY(path string, handle Handler, mws ...Handler)
+		GET(path string, handle string, mws ...Handler)
+		POST(path string, handle string, mws ...Handler)
+		PUT(path string, handle string, mws ...Handler)
+		HEAD(path string, handle string, mws ...Handler)
+		DELETE(path string, handle string, mws ...Handler)
+		ANY(path string, handle string, mws ...Handler)
+	}
+
+	urlMappingRoute struct {
+		r *Routes
+		c ControllerInf
 	}
 
 	UrlMappingInf interface {
@@ -44,6 +50,53 @@ type (
 
 	routeMaker func(path string, handle Handler, mws ...Handler) *Route
 )
+
+func newUrlMappingRoute(r *Routes, c ControllerInf) *urlMappingRoute {
+	return &urlMappingRoute{r: r, c: c}
+}
+
+func (_ urlMappingRoute) warpControllerHandler(method string, c ControllerInf) Handler {
+	refValCtrl := reflect.ValueOf(c)
+
+	// 分析函数参数?todo 查看iris怎么实现参数解析的
+
+
+
+
+
+
+	return func(context *Context) {
+		c := reflect.New(refValCtrl.Elem().Type())	// 利用反射构建变量
+		c.MethodByName("SetCtx").Call([]reflect.Value{reflect.ValueOf(context)})
+		c.MethodByName(method).Call([]reflect.Value{})
+	}
+}
+
+func (u *urlMappingRoute) GET(path, method string, mws ...Handler) {
+	u.r.GET(path, u.warpControllerHandler(method, u.c), mws...)
+
+}
+
+func (u *urlMappingRoute) POST(path, method string, mws ...Handler) {
+	u.r.POST(path, u.warpControllerHandler(method, u.c), mws...)
+}
+
+func (u *urlMappingRoute) PUT(path, method string, mws ...Handler) {
+	u.r.PUT(path, u.warpControllerHandler(method, u.c), mws...)
+
+}
+
+func (u *urlMappingRoute) HEAD(path, method string, mws ...Handler) {
+	u.r.HEAD(path, u.warpControllerHandler(method, u.c), mws...)
+}
+
+func (u *urlMappingRoute) DELETE(path, method string, mws ...Handler) {
+	u.r.DELETE(path, u.warpControllerHandler(method, u.c), mws...)
+}
+
+func (u *urlMappingRoute) ANY(path, method string, mws ...Handler) {
+	u.r.ANY(path, u.warpControllerHandler(method, u.c), mws...)
+}
 
 var (
 	urlSeparator         = "/"                                                  // url地址分隔符
@@ -113,15 +166,15 @@ func (r *Routes) AddRoute(method, path string, handle Handler, mws ...Handler) *
 func (r *Routes) Handle(c ControllerInf) {
 	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
 	r.autoRegisterService(c, refVal)
-	r.autoRegisterControllerRoute(refVal, refType)
+	r.autoRegisterControllerRoute(refVal, refType, c)
 }
 
 // 自动注册控制器映射路由
-func (r *Routes) autoRegisterControllerRoute(refVal reflect.Value, refType reflect.Type) {
+func (r *Routes) autoRegisterControllerRoute(refVal reflect.Value, refType reflect.Type, c ControllerInf) {
 	method := refVal.MethodByName("UrlMapping")
 	_, ok := refVal.Interface().(UrlMappingInf)
 	if method.IsValid() && ok {
-		method.Call([]reflect.Value{reflect.ValueOf(RouteInf(r))}) // 如果实现了UrlMapping接口, 则调用函数
+		method.Call([]reflect.Value{reflect.ValueOf(newUrlMappingRoute(r, c))}) // 如果实现了UrlMapping接口, 则调用函数
 	} else { // 自动根据前缀注册路由
 		methodNum := refType.NumMethod()
 		for i := 0; i < methodNum; i++ {
@@ -133,6 +186,27 @@ func (r *Routes) autoRegisterControllerRoute(refVal reflect.Value, refType refle
 		}
 	}
 }
+
+//
+//
+//// 自动注册控制器映射路由
+//func (r *Routes) autoRegisterControllerRoute(refVal reflect.Value, refType reflect.Type) {
+//	// todo  不在依托固定接口模板 ctx怎么注入到controller函数并且最小化修改
+//	method := refVal.MethodByName("UrlMapping")
+//	_, ok := refVal.Interface().(UrlMappingInf)
+//	if method.IsValid() && ok {
+//		method.Call([]reflect.Value{reflect.ValueOf(RouteInf(r))}) // 如果实现了UrlMapping接口, 则调用函数
+//	} else { // 自动根据前缀注册路由
+//		methodNum := refType.NumMethod()
+//		for i := 0; i < methodNum; i++ {
+//			name := refType.Method(i).Name
+//			m := refVal.MethodByName(name)
+//			if r.isHandler(&m) {
+//				r.autoMatchHttpMethod(name, m.Interface().(func(*Context)))
+//			}
+//		}
+//	}
+//}
 
 // 自动注册映射处理函数的http请求方法
 func (r *Routes) autoMatchHttpMethod(path string, handle Handler) {
@@ -206,13 +280,15 @@ func (r *Routes) DELETE(path string, handle Handler, mws ...Handler) *Route {
 	return r.AddRoute(http.MethodDelete, path, handle, mws...)
 }
 
-func (r *Routes) ANY(path string, handle Handler, mws ...Handler) {
-	r.GET(path, handle, mws...)
-	r.POST(path, handle, mws...)
-	r.HEAD(path, handle, mws...)
-	r.PUT(path, handle, mws...)
-	r.DELETE(path, handle, mws...)
-	r.AddRoute(http.MethodPatch, path, handle, mws...)
-	r.AddRoute(http.MethodTrace, path, handle, mws...)
-	r.AddRoute(http.MethodConnect, path, handle, mws...)
+func (r *Routes) ANY(path string, handle Handler, mws ...Handler) []*Route {
+	var routes []*Route
+	routes = append(routes, r.GET(path, handle, mws...))
+	routes = append(routes, r.POST(path, handle, mws...))
+	routes = append(routes, r.HEAD(path, handle, mws...))
+	routes = append(routes, r.PUT(path, handle, mws...))
+	routes = append(routes, r.DELETE(path, handle, mws...))
+	routes = append(routes, r.AddRoute(http.MethodPatch, path, handle, mws...))
+	routes = append(routes, r.AddRoute(http.MethodTrace, path, handle, mws...))
+	routes = append(routes, r.AddRoute(http.MethodConnect, path, handle, mws...))
+	return routes
 }
