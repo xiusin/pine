@@ -36,7 +36,7 @@ func (e *ErrHandler) Recover(c *Context) func() {
 				c.Request().URL.Path,
 				stack,
 			)
-			_, _ = c.Writer().Write([]byte(errstr + "\n" + string(stack)))
+			_, _ = c.Writer().Write([]byte("<h1>" + errstr + "</h1>" + "\n" + string(stack)))
 		}
 	}
 }

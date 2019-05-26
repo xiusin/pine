@@ -65,7 +65,7 @@ func NewRouter(opt *option.Option) *Router {
 				_, _ = ctx.Writer().Write([]byte("Not Found"))
 			},
 		},
-		ErrorHandler:DefaultErrorHandler,
+		ErrorHandler: DefaultErrorHandler,
 	}
 	if r.option == nil {
 		r.option = option.Default()
@@ -158,12 +158,12 @@ func (r *Router) Use(middleWares ...Handler) *Router {
 // 优雅关闭服务器
 func (_ *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal, done chan<- bool) {
 	<-quit
-	logrus.Println("Server is shutting down...")
+	logrus.Println("server is shutting down...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	srv.SetKeepAlivesEnabled(false)
 	if err := srv.Shutdown(ctx); err != nil {
-		logrus.Fatalf("Could not gracefully shutdown the server: %v\n", err)
+		logrus.Fatalf("could not gracefully shutdown the server: %v\n", err)
 	}
 	close(done)
 }
@@ -187,12 +187,12 @@ func (r *Router) Serve() {
 		r.List()
 	}
 	go r.gracefulShutdown(srv, quit, done)
-	logrus.Println("Server run on: http://" + addr)
+	logrus.Println("server run on: http://" + addr)
 	err := srv.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
-		logrus.Fatalf("Server was error: %s", err.Error())
+		logrus.Fatalf("server was error: %s", err.Error())
 	}
-	logrus.Println("Server stopped")
+	logrus.Println("server stopped")
 	<-done
 }
 
@@ -233,7 +233,7 @@ func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request
 }
 
 func (r *Router) queryLog(c *Context, start *time.Time) {
-	if r.option.Env == option.ProdMode {
+	if r.option.Env == option.DevMode {
 		statusInfo, status := "", c.Status()
 		if status == http.StatusOK {
 			statusInfo = color.GreenString("%d", status)
@@ -264,6 +264,7 @@ func defaultRouteMap() map[string]map[string]*Route {
 
 // 打印所有的路由列表
 func (r *Router) List() {
+	return
 	headerFmt := color.New(color.FgGreen, color.Underline).SprintfFunc()
 	columnFmt := color.New(color.FgRed).SprintfFunc()
 	tbl := table.New("Method     ", "Path    ", "Func    ")

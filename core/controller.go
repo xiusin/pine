@@ -1,6 +1,8 @@
 package core
 
 import (
+	"errors"
+
 	"github.com/gorilla/sessions"
 	"github.com/xiusin/router/core/components/di/interfaces"
 )
@@ -19,7 +21,12 @@ type Controller struct {
 }
 
 func (c *Controller) SetCtx(ctx *Context) {
-	c.ctx = ctx
+	if c.ctx == nil {
+		if ctx == nil {
+			panic(errors.New("ctx参数错误"))
+		}
+		c.ctx = ctx
+	}
 }
 
 func (c *Controller) Ctx() *Context {

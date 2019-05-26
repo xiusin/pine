@@ -18,7 +18,6 @@ type (
 		IsPattern         bool
 		Param             []string
 		Pattern           string
-		name              string
 		OriginStr         string
 		controller        ControllerInf
 	}
@@ -30,7 +29,7 @@ type (
 		middleWares          []Handler                    // 中间件列表
 	}
 
-	RouteInf interface {
+	ControllerRouteMappingInf interface {
 		GET(path string, handle string, mws ...Handler)
 		POST(path string, handle string, mws ...Handler)
 		PUT(path string, handle string, mws ...Handler)
@@ -44,10 +43,6 @@ type (
 		c ControllerInf
 	}
 
-	UrlMappingInf interface {
-		UrlMapping(RouteInf)
-	}
-
 	routeMaker func(path string, handle Handler, mws ...Handler) *Route
 )
 
@@ -55,20 +50,27 @@ func newUrlMappingRoute(r *Routes, c ControllerInf) *urlMappingRoute {
 	return &urlMappingRoute{r: r, c: c}
 }
 
-func (_ urlMappingRoute) warpControllerHandler(method string, c ControllerInf) Handler {
+func (u *urlMappingRoute) warpControllerHandler(method string, c ControllerInf) Handler {
 	refValCtrl := reflect.ValueOf(c)
-
 	// 分析函数参数?todo 查看iris怎么实现参数解析的
-
-
-
-
-
-
 	return func(context *Context) {
-		c := reflect.New(refValCtrl.Elem().Type())	// 利用反射构建变量
+		c := reflect.New(refValCtrl.Elem().Type()) // 利用反射构建变量
 		c.MethodByName("SetCtx").Call([]reflect.Value{reflect.ValueOf(context)})
+		u.autoRegisterService(&c)
 		c.MethodByName(method).Call([]reflect.Value{})
+	}
+}
+
+func (u *urlMappingRoute) autoRegisterService(val *reflect.Value) {
+	e := val.Type().Elem()
+	fieldNum := e.NumField()
+	for i := 0; i < fieldNum; i++ {
+		fieldType := e.Field(i).Type.String()
+		fieldName := e.Field(i).Name
+		service, err := di.Get(fieldType)
+		if fieldName != "Controller" && err == nil {
+			val.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
+		}
 	}
 }
 
@@ -106,13 +108,8 @@ var (
 	patternMap           = map[string]string{
 		":int":    "<\\d+>",
 		":string": "<[\\w0-9\\_\\.\\+\\-]+>",
-	}                                                                           //规则字段映射
+	} //规则字段映射
 )
-
-func (r *Route) SetName(name string) {
-	r.name = name
-	namedRoutes[name] = r
-}
 
 // 添加路由, 内部函数
 // *any 只支持路由段级别的设置
@@ -165,85 +162,49 @@ func (r *Routes) AddRoute(method, path string, handle Handler, mws ...Handler) *
 // 处理控制器注册的方式
 func (r *Routes) Handle(c ControllerInf) {
 	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
-	r.autoRegisterService(c, refVal)
 	r.autoRegisterControllerRoute(refVal, refType, c)
 }
 
 // 自动注册控制器映射路由
 func (r *Routes) autoRegisterControllerRoute(refVal reflect.Value, refType reflect.Type, c ControllerInf) {
 	method := refVal.MethodByName("UrlMapping")
-	_, ok := refVal.Interface().(UrlMappingInf)
+	_, ok := refVal.Interface().(ControllerRouteMappingInf)
 	if method.IsValid() && ok {
 		method.Call([]reflect.Value{reflect.ValueOf(newUrlMappingRoute(r, c))}) // 如果实现了UrlMapping接口, 则调用函数
 	} else { // 自动根据前缀注册路由
-		methodNum := refType.NumMethod()
+		methodNum, routeWrapper := refType.NumMethod(), newUrlMappingRoute(r, c)
 		for i := 0; i < methodNum; i++ {
 			name := refType.Method(i).Name
-			m := refVal.MethodByName(name)
-			if r.isHandler(&m) {
-				r.autoMatchHttpMethod(name, m.Interface().(func(*Context)))
+			if m := refVal.MethodByName(name); r.isHandler(&m) {
+				r.autoMatchHttpMethod(name, routeWrapper.warpControllerHandler(name, c))
 			}
 		}
 	}
 }
-
-//
-//
-//// 自动注册控制器映射路由
-//func (r *Routes) autoRegisterControllerRoute(refVal reflect.Value, refType reflect.Type) {
-//	// todo  不在依托固定接口模板 ctx怎么注入到controller函数并且最小化修改
-//	method := refVal.MethodByName("UrlMapping")
-//	_, ok := refVal.Interface().(UrlMappingInf)
-//	if method.IsValid() && ok {
-//		method.Call([]reflect.Value{reflect.ValueOf(RouteInf(r))}) // 如果实现了UrlMapping接口, 则调用函数
-//	} else { // 自动根据前缀注册路由
-//		methodNum := refType.NumMethod()
-//		for i := 0; i < methodNum; i++ {
-//			name := refType.Method(i).Name
-//			m := refVal.MethodByName(name)
-//			if r.isHandler(&m) {
-//				r.autoMatchHttpMethod(name, m.Interface().(func(*Context)))
-//			}
-//		}
-//	}
-//}
 
 // 自动注册映射处理函数的http请求方法
 func (r *Routes) autoMatchHttpMethod(path string, handle Handler) {
 	var methods = map[string]routeMaker{"Get": r.GET, "Post": r.POST, "Head": r.HEAD, "Delete": r.DELETE, "Put": r.PUT}
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
-			routeMaker(urlSeparator+r.upperCharToUnderLine(strings.TrimLeft(path, method)), handle)
-		} else {
-			r.ANY(urlSeparator+r.upperCharToUnderLine(path), handle)
-		}
-	}
-}
 
-// 从di中自动解析并注册controller的其他字段类型.
-// 目前是直接覆写字段类型.  todo 需要检测字段值是否为空再进行赋值
-func (r *Routes) autoRegisterService(c ControllerInf, val reflect.Value) {
-	fieldNum := reflect.TypeOf(c).Elem().NumField()
-	for i := 0; i < fieldNum; i++ {
-		fieldType := reflect.TypeOf(c).Elem().Field(i).Type.String()
-		fieldName := reflect.TypeOf(c).Elem().Field(i).Name
-		service, err := di.Get(fieldType)
-		if fieldName != "Controller" && err == nil {
-			val.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
+			routeMaker(urlSeparator+r.upperCharToUnderLine(strings.TrimLeft(path, method)), handle)
+		} else if strings.HasPrefix(path, "Any") {
+			r.ANY(urlSeparator+r.upperCharToUnderLine(path), handle)
 		}
 	}
 }
 
 // 大写字母变分隔符
 func (r *Routes) upperCharToUnderLine(path string) string {
-	return strings.TrimLeft("_", regexp.MustCompile("([A-Z])").ReplaceAllStringFunc(path, func(s string) string {
+	return strings.TrimLeft(regexp.MustCompile("([A-Z])").ReplaceAllStringFunc(path, func(s string) string {
 		return strings.ToLower("_" + strings.ToLower(s))
-	}))
+	}), "_")
 }
 
 // 只支持一个参数类型
 func (r *Routes) isHandler(m *reflect.Value) bool {
-	return m.Type().NumIn() == 1 && m.Type().In(0).String() == "*core.Context"
+	return m.IsValid() && m.Type().NumIn() == 0
 }
 
 // 获取地址匹配符

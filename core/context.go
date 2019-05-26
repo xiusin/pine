@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/gorilla/sessions"
-	"github.com/mholt/binding"
 	"github.com/xiusin/router/core/components/di"
 	"github.com/xiusin/router/core/components/di/interfaces"
 )
@@ -45,9 +44,9 @@ func (c *Context) reset(res http.ResponseWriter, req *http.Request) {
 	c.tplData = ViewData{}
 }
 
-func (c *Context) App() *Router {
-	return c.app
-}
+//func (c *Context) App() *Router {
+//	return c.app
+//}
 
 // 获取请求
 func (c *Context) Request() *http.Request {
@@ -104,12 +103,12 @@ func (c *Context) Next() {
 		return
 	}
 	c.middlewareIndex++
-	middlewares := c.route.ExtendsMiddleWare
-	middlewares = append(middlewares, c.route.Middleware...)
-	length := len(middlewares)
+	mws := c.route.ExtendsMiddleWare
+	mws = append(mws, c.route.Middleware...)
+	length := len(mws)
 	if length > c.middlewareIndex {
 		idx := c.middlewareIndex
-		middlewares[c.middlewareIndex](c)
+		mws[c.middlewareIndex](c)
 		if length == idx {
 			c.route.Handle(c)
 			return
@@ -182,11 +181,6 @@ func (c *Context) SetCookie(name, value string, maxAge int) {
 		cookie.HttpOnly = opt.HttpOnly
 	}
 	c.req.AddCookie(cookie)
-}
-
-// 绑定表单数据 todo 抽离做成依赖
-func (c *Context) Bind(req *http.Request, formData binding.FieldMapper) error {
-	return binding.Bind(req, formData)
 }
 
 // 判断是不是ajax请求
@@ -291,7 +285,7 @@ func (c *Context) Data(v string) error {
 }
 
 // 设置模板数据, 仅服务于HTML
-func (c *Context) ViewData(key string, val interface{})  {
+func (c *Context) ViewData(key string, val interface{}) {
 	c.tplData[key] = val
 }
 
