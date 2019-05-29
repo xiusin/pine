@@ -6,14 +6,22 @@ import (
 )
 
 type BuildHandler func(builder BuilderInf) (interface{}, error)
+type BuildWithHandler func(builder BuilderInf, params ...interface{}) (interface{}, error)
 
+/**
+@todo
+1. 带参数解析的服务必须是不共享的,否则会出现异常.
+2. 参数必须按顺序传入
+*/
 type BuilderInf interface {
-	Set(serviceName string, handler BuildHandler, shared bool) *Definition
-	Add(definition *Definition)
-	Get(serviceName string, receiver ...interface{}) (interface{}, error)
-	MustGet(serviceName string) interface{}
-	GetDefinition(serviceName string) (*Definition, error)
-	Delete(serviceName string)
+	Set(string, BuildHandler, bool) *Definition
+	SetWithParams(string, BuildWithHandler) *Definition
+	Add(*Definition)
+	Get(string, ...interface{}) (interface{}, error)
+	GetWithParams(string, ...interface{}) (interface{}, error)
+	MustGet(string, ...interface{}) interface{}
+	GetDefinition(string) (*Definition, error)
+	Delete(string)
 	Exists(string) bool
 }
 
@@ -27,7 +35,7 @@ func (b *builder) GetDefinition(serviceName string) (*Definition, error) {
 	service, ok := b.services[serviceName]
 	b.mu.RUnlock()
 	if !ok {
-		return nil, errors.New("service "+serviceName+" not exists")
+		return nil, errors.New("service " + serviceName + " not exists")
 	}
 	return service, nil
 }
@@ -40,8 +48,18 @@ func (b *builder) Set(serviceName string, handler BuildHandler, shared bool) *De
 	return def
 }
 
+func (b *builder) SetWithParams(serviceName string, handler BuildWithHandler) *Definition {
+	b.mu.Lock()
+	def := NewParamsDefinition(serviceName, handler)
+	b.services[serviceName] = def
+	b.mu.Unlock()
+	return def
+}
+
 func (b *builder) Add(definition *Definition) {
+	b.mu.Lock()
 	b.services[definition.ServiceName()] = definition
+	b.mu.Unlock()
 }
 
 func (b *builder) Get(serviceName string, receiver ...interface{}) (interface{}, error) {
@@ -49,9 +67,9 @@ func (b *builder) Get(serviceName string, receiver ...interface{}) (interface{},
 	service, ok := b.services[serviceName]
 	b.mu.RUnlock()
 	if !ok {
-		return nil, errors.New("service "+serviceName+" not exists")
+		return nil, errors.New("service " + serviceName + " not exists")
 	}
-	s, err := service.Resolve(b)
+	s, err := service.resolve(b)
 	if err != nil {
 		return nil, err
 	}
@@ -61,8 +79,31 @@ func (b *builder) Get(serviceName string, receiver ...interface{}) (interface{},
 	return s, nil
 }
 
-func (b *builder) MustGet(serviceName string) interface{} {
-	s, err := b.Get(serviceName)
+func (b *builder) GetWithParams(serviceName string, params ...interface{}) (interface{}, error) {
+	b.mu.RLock()
+	service, ok := b.services[serviceName]
+	b.mu.RUnlock()
+	if !ok {
+		return nil, errors.New("service " + serviceName + " not exists")
+	}
+	if service.IsShared() == false {
+		return nil, errors.New("service is not shared, cannot get it with GetWithParams")
+	}
+	s, err := service.resolveWithParams(b, params...)
+	if err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+func (b *builder) MustGet(serviceName string, params ...interface{}) interface{} {
+	var s interface{}
+	var err error
+	if len(params) == 0 {
+		s, err = b.Get(serviceName)
+	} else {
+		s, err = b.GetWithParams(serviceName, params...)
+	}
 	if err != nil {
 		panic(err)
 	}
@@ -84,14 +125,6 @@ func (b *builder) Delete(serviceName string) {
 
 var diDefault = &builder{services: map[string]*Definition{}}
 
-func GetDefinition(serviceName string) (*Definition, error) {
-	return diDefault.GetDefinition(serviceName)
-}
-
-func Set(serviceName string, handler BuildHandler, shared bool) *Definition {
-	return diDefault.Set(serviceName, handler, shared)
-}
-
 func Add(definition *Definition) {
 	diDefault.Add(definition)
 }
@@ -100,8 +133,8 @@ func Get(serviceName string, receiver ...interface{}) (interface{}, error) {
 	return diDefault.Get(serviceName, receiver...)
 }
 
-func MustGet(serviceName string) interface{} {
-	return diDefault.MustGet(serviceName)
+func MustGet(serviceName string, params ...interface{}) interface{} {
+	return diDefault.MustGet(serviceName, params...)
 }
 
 func Exists(serviceName string) bool {
@@ -111,3 +144,20 @@ func Exists(serviceName string) bool {
 func Delete(serviceName string) {
 	diDefault.Delete(serviceName)
 }
+
+func GetDefinition(serviceName string) (*Definition, error) {
+	return diDefault.GetDefinition(serviceName)
+}
+
+func Set(serviceName string, handler BuildHandler, shared bool) *Definition {
+	return diDefault.Set(serviceName, handler, shared)
+}
+
+func SetWithParams(serviceName string, handler BuildWithHandler) *Definition {
+	return diDefault.SetWithParams(serviceName, handler)
+}
+
+func GetWithParams(serviceName string, params ...interface{}) (interface{}, error) {
+	return diDefault.GetWithParams(serviceName, params...)
+}
+
