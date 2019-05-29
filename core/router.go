@@ -23,9 +23,9 @@ import (
 )
 
 type Router struct {
-	Routes
+	RouteCollection
 	renderer     *render.Render
-	groups       map[string]*Routes // 分组路由保存
+	groups       map[string]*RouteCollection // 分组路由保存
 	pool         *sync.Pool
 	option       *option.Option
 	ErrorHandler Errors
@@ -49,7 +49,7 @@ type Handler func(*Context)
 func NewRouter(opt *option.Option) *Router {
 	r := &Router{
 		option: opt,
-		groups: map[string]*Routes{},
+		groups: map[string]*RouteCollection{},
 		pool: &sync.Pool{
 			New: func() interface{} {
 				ctx := &Context{
@@ -59,7 +59,7 @@ func NewRouter(opt *option.Option) *Router {
 				return ctx
 			},
 		},
-		Routes: Routes{
+		RouteCollection: RouteCollection{
 			methodRoutes: defaultRouteMap(),
 			RouteNotFoundHandler: func(ctx *Context) {
 				_, _ = ctx.Writer().Write([]byte("Not Found"))
@@ -83,7 +83,7 @@ func (*Router) staticHandler(path, dir string) Handler {
 }
 
 // 匹配路由
-func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *Route {
+func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *RouteEntry {
 	pathInfos := strings.Split(urlParsed.Path, urlSeparator)
 	l := len(pathInfos)
 	for i := 1; i <= l; i++ {
@@ -141,8 +141,8 @@ func (r *Router) StaticFile(path, file string) {
 }
 
 // 路由分组
-func (r *Router) Group(prefix string, middleWares ...Handler) *Routes {
-	g := &Routes{Prefix: prefix}
+func (r *Router) Group(prefix string, middleWares ...Handler) *RouteCollection {
+	g := &RouteCollection{Prefix: prefix}
 	g.methodRoutes = defaultRouteMap()
 	g.middleWares = append(g.middleWares, middleWares...)
 	r.groups[prefix] = g
@@ -219,7 +219,7 @@ func (r *Router) handle(c *Context, urlParsed *url.URL) {
 		c.setRoute(route)
 		c.Next()
 	} else {
-		c.status = http.StatusNotFound
+		c.SetStatus(http.StatusNotFound)
 		r.RouteNotFoundHandler(c)
 	}
 }
@@ -249,8 +249,8 @@ func (r *Router) queryLog(c *Context, start *time.Time) {
 }
 
 // 初始化RouteMap todo tree替代
-func defaultRouteMap() map[string]map[string]*Route {
-	return map[string]map[string]*Route{
+func defaultRouteMap() map[string]map[string]*RouteEntry {
+	return map[string]map[string]*RouteEntry{
 		http.MethodGet:     {},
 		http.MethodPost:    {},
 		http.MethodPut:     {},

@@ -23,7 +23,7 @@ type Context struct {
 	params          map[string]string       // 路由参数
 	res             http.ResponseWriter     // 响应对象
 	stopped         bool                    // 是否停止传播中间件
-	route           *Route                  // 当前context匹配到的路由
+	route           *RouteEntry                  // 当前context匹配到的路由
 	middlewareIndex int                     // 中间件起始索引
 	render          *interfaces.RendererInf // 模板渲染
 	app             *Router
@@ -92,7 +92,7 @@ func (c *Context) Redirect(url string, statusHeader ...int) {
 }
 
 // 获取命名参数内容
-func (c *Context) GetRoute(name string) *Route {
+func (c *Context) GetRoute(name string) *RouteEntry {
 	r, _ := namedRoutes[name]
 	return r
 }
@@ -124,7 +124,7 @@ func (c *Context) Flush(content string) {
 }
 
 // 设置当前处理路由对象
-func (c *Context) setRoute(route *Route) {
+func (c *Context) setRoute(route *RouteEntry) {
 	c.route = route
 }
 
@@ -139,7 +139,7 @@ func (c *Context) Stop() {
 }
 
 // 获取当前路由对象
-func (c *Context) getRoute() *Route {
+func (c *Context) getRoute() *RouteEntry {
 	return c.route
 }
 

@@ -5,12 +5,10 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
-
-	"github.com/xiusin/router/core/components/di"
 )
 
 type (
-	Route struct {
+	RouteEntry struct {
 		Method            string
 		Middleware        []Handler
 		ExtendsMiddleWare []Handler
@@ -22,88 +20,18 @@ type (
 		controller        ControllerInf
 	}
 
-	Routes struct {
+	RouteCollection struct {
 		Prefix               string
 		RouteNotFoundHandler Handler                      //NotFound的默认处理函数
-		methodRoutes         map[string]map[string]*Route //分类命令规则
+		methodRoutes         map[string]map[string]*RouteEntry //分类命令规则
 		middleWares          []Handler                    // 中间件列表
 	}
-
-	ControllerRouteMappingInf interface {
-		GET(path string, handle string, mws ...Handler)
-		POST(path string, handle string, mws ...Handler)
-		PUT(path string, handle string, mws ...Handler)
-		HEAD(path string, handle string, mws ...Handler)
-		DELETE(path string, handle string, mws ...Handler)
-		ANY(path string, handle string, mws ...Handler)
-	}
-
-	urlMappingRoute struct {
-		r *Routes
-		c ControllerInf
-	}
-
-	routeMaker func(path string, handle Handler, mws ...Handler) *Route
 )
-
-func newUrlMappingRoute(r *Routes, c ControllerInf) *urlMappingRoute {
-	return &urlMappingRoute{r: r, c: c}
-}
-
-func (u *urlMappingRoute) warpControllerHandler(method string, c ControllerInf) Handler {
-	refValCtrl := reflect.ValueOf(c)
-	// 分析函数参数?todo 查看iris怎么实现参数解析的
-	return func(context *Context) {
-		c := reflect.New(refValCtrl.Elem().Type()) // 利用反射构建变量
-		c.MethodByName("SetCtx").Call([]reflect.Value{reflect.ValueOf(context)})
-		u.autoRegisterService(&c)
-		c.MethodByName(method).Call([]reflect.Value{})
-	}
-}
-
-func (u *urlMappingRoute) autoRegisterService(val *reflect.Value) {
-	e := val.Type().Elem()
-	fieldNum := e.NumField()
-	for i := 0; i < fieldNum; i++ {
-		fieldType := e.Field(i).Type.String()
-		fieldName := e.Field(i).Name
-		service, err := di.Get(fieldType)
-		if fieldName != "Controller" && err == nil {
-			val.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
-		}
-	}
-}
-
-func (u *urlMappingRoute) GET(path, method string, mws ...Handler) {
-	u.r.GET(path, u.warpControllerHandler(method, u.c), mws...)
-
-}
-
-func (u *urlMappingRoute) POST(path, method string, mws ...Handler) {
-	u.r.POST(path, u.warpControllerHandler(method, u.c), mws...)
-}
-
-func (u *urlMappingRoute) PUT(path, method string, mws ...Handler) {
-	u.r.PUT(path, u.warpControllerHandler(method, u.c), mws...)
-
-}
-
-func (u *urlMappingRoute) HEAD(path, method string, mws ...Handler) {
-	u.r.HEAD(path, u.warpControllerHandler(method, u.c), mws...)
-}
-
-func (u *urlMappingRoute) DELETE(path, method string, mws ...Handler) {
-	u.r.DELETE(path, u.warpControllerHandler(method, u.c), mws...)
-}
-
-func (u *urlMappingRoute) ANY(path, method string, mws ...Handler) {
-	u.r.ANY(path, u.warpControllerHandler(method, u.c), mws...)
-}
 
 var (
 	urlSeparator         = "/"                                                  // url地址分隔符
-	patternRoutes        = map[string][]*Route{}                                // 记录匹配路由映射
-	namedRoutes          = map[string]*Route{}                                  // 命名路由保存
+	patternRoutes        = map[string][]*RouteEntry{}                                // 记录匹配路由映射
+	namedRoutes          = map[string]*RouteEntry{}                                  // 命名路由保存
 	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_]+)(<.+?>)?") // 正则匹配规则
 	patternMap           = map[string]string{
 		":int":    "<\\d+>",
@@ -114,7 +42,7 @@ var (
 // 添加路由, 内部函数
 // *any 只支持路由段级别的设置
 // :param 支持路由段内嵌
-func (r *Routes) AddRoute(method, path string, handle Handler, mws ...Handler) *Route {
+func (r *RouteCollection) AddRoute(method, path string, handle Handler, mws ...Handler) *RouteEntry {
 	originName := r.Prefix + path
 	for cons, str := range patternMap { //替换正则匹配映射
 		path = strings.Replace(path, cons, str, -1)
@@ -142,7 +70,7 @@ func (r *Routes) AddRoute(method, path string, handle Handler, mws ...Handler) *
 		pattern = "^" + pattern + "$"
 	}
 
-	route := &Route{
+	route := &RouteEntry{
 		Method:     method,
 		Handle:     handle,
 		Middleware: mws,
@@ -160,13 +88,13 @@ func (r *Routes) AddRoute(method, path string, handle Handler, mws ...Handler) *
 }
 
 // 处理控制器注册的方式
-func (r *Routes) Handle(c ControllerInf) {
+func (r *RouteCollection) Handle(c ControllerInf) {
 	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
 	r.autoRegisterControllerRoute(refVal, refType, c)
 }
 
 // 自动注册控制器映射路由
-func (r *Routes) autoRegisterControllerRoute(refVal reflect.Value, refType reflect.Type, c ControllerInf) {
+func (r *RouteCollection) autoRegisterControllerRoute(refVal reflect.Value, refType reflect.Type, c ControllerInf) {
 	method := refVal.MethodByName("UrlMapping")
 	_, ok := refVal.Interface().(ControllerRouteMappingInf)
 	if method.IsValid() && ok {
@@ -183,7 +111,7 @@ func (r *Routes) autoRegisterControllerRoute(refVal reflect.Value, refType refle
 }
 
 // 自动注册映射处理函数的http请求方法
-func (r *Routes) autoMatchHttpMethod(path string, handle Handler) {
+func (r *RouteCollection) autoMatchHttpMethod(path string, handle Handler) {
 	var methods = map[string]routeMaker{"Get": r.GET, "Post": r.POST, "Head": r.HEAD, "Delete": r.DELETE, "Put": r.PUT}
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
@@ -196,19 +124,19 @@ func (r *Routes) autoMatchHttpMethod(path string, handle Handler) {
 }
 
 // 大写字母变分隔符
-func (r *Routes) upperCharToUnderLine(path string) string {
+func (r *RouteCollection) upperCharToUnderLine(path string) string {
 	return strings.TrimLeft(regexp.MustCompile("([A-Z])").ReplaceAllStringFunc(path, func(s string) string {
 		return strings.ToLower("_" + strings.ToLower(s))
 	}), "_")
 }
 
 // 只支持一个参数类型
-func (r *Routes) isHandler(m *reflect.Value) bool {
+func (*RouteCollection) isHandler(m *reflect.Value) bool {
 	return m.IsValid() && m.Type().NumIn() == 0
 }
 
 // 获取地址匹配符
-func (r *Routes) getPattern(str string) (paramName, pattern string) {
+func (r *RouteCollection) getPattern(str string) (paramName, pattern string) {
 	params := patternRouteCompiler.FindAllStringSubmatch(str, 1)
 	if params[0][2] == "" {
 		params[0][2] = patternMap[":string"]
@@ -221,28 +149,28 @@ func (r *Routes) getPattern(str string) (paramName, pattern string) {
 	return
 }
 
-func (r *Routes) GET(path string, handle Handler, mws ...Handler) *Route {
+func (r *RouteCollection) GET(path string, handle Handler, mws ...Handler) *RouteEntry {
 	return r.AddRoute(http.MethodGet, path, handle, mws...)
 }
 
-func (r *Routes) POST(path string, handle Handler, mws ...Handler) *Route {
+func (r *RouteCollection) POST(path string, handle Handler, mws ...Handler) *RouteEntry {
 	return r.AddRoute(http.MethodPost, path, handle, mws...)
 }
 
-func (r *Routes) PUT(path string, handle Handler, mws ...Handler) *Route {
+func (r *RouteCollection) PUT(path string, handle Handler, mws ...Handler) *RouteEntry {
 	return r.AddRoute(http.MethodPut, path, handle, mws...)
 }
 
-func (r *Routes) HEAD(path string, handle Handler, mws ...Handler) *Route {
+func (r *RouteCollection) HEAD(path string, handle Handler, mws ...Handler) *RouteEntry {
 	return r.AddRoute(http.MethodHead, path, handle, mws...)
 }
 
-func (r *Routes) DELETE(path string, handle Handler, mws ...Handler) *Route {
+func (r *RouteCollection) DELETE(path string, handle Handler, mws ...Handler) *RouteEntry {
 	return r.AddRoute(http.MethodDelete, path, handle, mws...)
 }
 
-func (r *Routes) ANY(path string, handle Handler, mws ...Handler) []*Route {
-	var routes []*Route
+func (r *RouteCollection) ANY(path string, handle Handler, mws ...Handler) []*RouteEntry {
+	var routes []*RouteEntry
 	routes = append(routes, r.GET(path, handle, mws...))
 	routes = append(routes, r.POST(path, handle, mws...))
 	routes = append(routes, r.HEAD(path, handle, mws...))
