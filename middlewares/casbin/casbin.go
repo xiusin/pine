@@ -11,7 +11,7 @@ import (
 func New(e *casbin.Enforcer) core.Handler {
 	a := &BasicAuthorizer{enforcer: e}
 	return func(c *core.Context) {
-		if !a.CheckPermission(c.Request()) {
+		if !a.CheckPermission(c.Request().GetHttpRequest()) {
 			a.RequirePermission(c)
 		}
 	}

@@ -18,6 +18,6 @@
  6. 路由扩展, 包含group->group->group的功能
  7. ~~针对di反射植入到controller的属性使用tag标签标记类型如: "service:session".~~
  8. 参考symfony的依赖注入方式看是否可实现[最后处理]
- 9. 封装request和response对象
+ 9. ~~封装request和response对象~~
 ## 参考文档  ##
  - [使用Go实现一个LRU](https://www.jianshu.com/p/970f1a8dd9cf) 

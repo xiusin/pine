@@ -7,6 +7,7 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/xiusin/router/core/components/di"
 	"github.com/xiusin/router/core/components/di/interfaces"
+	"github.com/xiusin/router/core/http"
 )
 
 type (
@@ -19,7 +20,7 @@ type (
 		SetCtx(*Context)
 		Session(string) *sessions.Session
 		SaveSession()
-		View() interfaces.RendererInf
+		View() *http.View
 		Logger() interfaces.LoggerInf
 	}
 
@@ -61,7 +62,7 @@ func (c *Controller) Session(name string) *sessions.Session {
 	return sess
 }
 
-func (c *Controller) View() interfaces.RendererInf {
+func (c *Controller) View() *http.View {
 	return c.ctx.View()
 }
 
@@ -98,10 +99,12 @@ func (u *controllerMappingRoute) autoRegisterService(val *reflect.Value) {
 		fieldName := e.Field(i).Name
 		serviceName := e.Field(i).Tag.Get("service")
 		service, err := di.Get(serviceName)
-		if fieldName != "Controller" && err == nil {
-			// 根据tag反射对应的di类型
-			val.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
+		if err != nil {
+			panic("服务" + serviceName + "不存在")
+		} else if fieldName != "Controller" {
+			panic("controller字段不能设置serviceTag")
 		}
+		val.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
 	}
 }
 

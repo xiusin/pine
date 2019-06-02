@@ -5,7 +5,7 @@ import (
 )
 
 func validateCsrfToken(c *core.Context) bool {
-	tokenInCookie, err := c.GetCookie("csrf_token")
+	tokenInCookie, err := c.Request().GetCookie("csrf_token")
 	if err != nil {
 		return false
 	}
@@ -25,7 +25,7 @@ func validateCsrfToken(c *core.Context) bool {
 
 func New(callback func(c *core.Context)) core.Handler {
 	return func(c *core.Context) {
-		if c.IsPost() && !validateCsrfToken(c) {
+		if c.Request().IsPost() && !validateCsrfToken(c) {
 			callback(c)
 		} else {
 			c.Next()

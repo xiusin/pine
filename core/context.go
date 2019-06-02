@@ -15,37 +15,30 @@ import (
 	coreHttp "github.com/xiusin/router/core/http"
 )
 
-type ViewData map[string]interface{}
-
 type Context struct {
-	req             *coreHttp.Request       // 请求对象
-	params          *coreHttp.Params        // 路由参数
-	res             *coreHttp.Response      // 响应对象
-	stopped         bool                    // 是否停止传播中间件
-	route           *RouteEntry             // 当前context匹配到的路由
-	middlewareIndex int                     // 中间件起始索引
-	render          *interfaces.RendererInf // 模板渲染
+	req             *coreHttp.Request  // 请求对象
+	params          *coreHttp.Params   // 路由参数
+	res             *coreHttp.Response // 响应对象
+	render          *coreHttp.View     // 模板渲染
+	stopped         bool               // 是否停止传播中间件
+	route           *RouteEntry        // 当前context匹配到的路由
+	middlewareIndex int                // 中间件起始索引
 	app             *Router
 	status          int
 	Keys            map[string]interface{}
-	tplData         ViewData
 }
 
 // 重置Context对象
 func (c *Context) reset(res http.ResponseWriter, req *http.Request) {
+	c.params = coreHttp.NewParams(map[string]string{})
 	c.req = coreHttp.NewRequest(req)
 	c.res = coreHttp.NewResponse(res)
+	c.render = coreHttp.NewView(res)
 	c.middlewareIndex = -1
 	c.route = nil
 	c.stopped = false
 	c.status = http.StatusOK
-	c.params = coreHttp.NewParams(map[string]string{})
-	c.tplData = ViewData{}
 }
-
-//func (c *Context) App() *Router {
-//	return c.app
-//}
 
 // 获取请求
 func (c *Context) Request() *coreHttp.Request {
@@ -60,6 +53,11 @@ func (c *Context) Params() *coreHttp.Params {
 // 获取响应
 func (c *Context) Writer() http.ResponseWriter {
 	return c.res
+}
+
+// 获取模板引擎
+func (c *Context) View() *coreHttp.View {
+	return c.render
 }
 
 // 重定向
@@ -179,19 +177,6 @@ func (c *Context) Status() int {
 	return c.status
 }
 
-func (c *Context) ReqHeader(key string) string {
-	return c.Request().Header.Get(key)
-}
-
-// 获取模板渲染对象
-func (c *Context) View() interfaces.RendererInf {
-	rendererInf, ok := di.MustGet(di.RENDER).(interfaces.RendererInf)
-	if !ok {
-		panic(di.RENDER + "组件类型不正确")
-	}
-	return rendererInf
-}
-
 // 日志对象
 func (c *Context) Logger() (loggerInf interfaces.LoggerInf) {
 	ok := di.Exists(di.LOGGER)
@@ -210,40 +195,6 @@ func (c *Context) SessionManger() sessions.Store {
 		panic(di.SESSION + "组件类型不正确")
 	}
 	return sessionInf
-}
-
-// 渲染data
-func (c *Context) Data(v string) error {
-	return c.View().Data(c.Writer(), v)
-}
-
-// 设置模板数据, 仅服务于HTML
-func (c *Context) ViewData(key string, val interface{}) {
-	c.tplData[key] = val
-}
-
-func (c *Context) HTML(name string) error {
-	return c.View().HTML(c.Writer(), name, c.tplData)
-}
-
-// 渲染json
-func (c *Context) JSON(v interface{}) error {
-	return c.View().JSON(c.Writer(), v)
-}
-
-// 渲染jsonp
-func (c *Context) JSONP(callback string, v interface{}) error {
-	return c.View().JSONP(c.Writer(), callback, v)
-}
-
-// 渲染text
-func (c *Context) Text(v string) error {
-	return c.View().Text(c.Writer(), v)
-}
-
-// 渲染xml
-func (c *Context) XML(v interface{}) error {
-	return c.View().XML(c.Writer(), v)
 }
 
 // 官方context的继承实现, 后续改进使用

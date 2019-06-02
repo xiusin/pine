@@ -208,9 +208,9 @@ func AllowAll() *Cors {
 // as necessary.
 func (c *Cors) New() core.Handler {
 	return func(ctx *core.Context) {
-		if ctx.Request().Method == http.MethodOptions && ctx.Request().Header.Get("Access-Control-Request-Method") != "" {
+		if ctx.Request().Method == http.MethodOptions && ctx.Request().Header("Access-Control-Request-Method") != "" {
 			c.logf("Handler: Preflight request")
-			c.handlePreflight(ctx.Writer(), ctx.Request())
+			c.handlePreflight(ctx.Writer(), ctx.Request().GetHttpRequest())
 			// Preflight requests are standalone and should stop the chain as some other
 			// middleware may not handle OPTIONS requests correctly. One typical example
 			// is authentication middleware ; OPTIONS requests won't carry authentication
@@ -222,7 +222,7 @@ func (c *Cors) New() core.Handler {
 			}
 		} else {
 			c.logf("Handler: Actual request")
-			c.handleActualRequest(ctx.Writer(), ctx.Request())
+			c.handleActualRequest(ctx.Writer(), ctx.Request().GetHttpRequest())
 			ctx.Next()
 		}
 	}

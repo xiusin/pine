@@ -244,7 +244,7 @@ func (r *Router) queryLog(c *Context, start *time.Time) {
 			statusInfo = color.YellowString("%d", status)
 		}
 		logrus.Infof(logQueryFormat, statusInfo, color.YellowString("%s", c.Request().Method),
-			c.ClientIP(), time.Now().Sub(*start).String(), c.Request().URL.Path,
+			c.Request().ClientIP(), time.Now().Sub(*start).String(), c.Request().URL.Path,
 		)
 	}
 }

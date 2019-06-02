@@ -8,8 +8,9 @@ import (
 )
 
 func main() {
-	di.Set("field1", func(builder di.BuilderInf) (i interface{}, e error) {
-		return &controller.Field{Name: "ref"}, nil
+	// 自动注入service名称
+	di.Set("injectService", func(builder di.BuilderInf) (i interface{}, e error) {
+		return controller.Field{Name: "ref"}, nil
 	}, true)
 
 	handler := core.NewRouter(nil)

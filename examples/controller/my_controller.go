@@ -11,10 +11,8 @@ type Field struct {
 }
 
 type MyController struct {
-	//todo 从DI中反射出来类型
 	core.Controller
-	F1 Field `service:"field1"`
-	F2 *Field
+	F1 Field `service:"injectService"`
 }
 
 // 优先执行此函数执行映射
@@ -24,7 +22,7 @@ func (m *MyController) UrlMapping(r core.ControllerRouteMappingInf) {
 }
 
 func (m *MyController) GetHello() {
-	_, _ = m.Ctx().Writer().Write([]byte(m.F1.Name + m.F2.Name))
+	_, _ = m.Ctx().Writer().Write([]byte(m.F1.Name))
 }
 
 func (m *MyController) PostHello() {
