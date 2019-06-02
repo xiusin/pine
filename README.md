@@ -1,6 +1,6 @@
 2. ~~嵌套路由`:int`, `:string`指定匹配类型~~
 3. 兼容路由匹配
-    -  ~~`doing -> cms_:id<\d+>.html`~~
+    - ~~doing -> cms_:id<\d+>.html~~
     - ~~同一路由段支持多自定义规则~~
     - ~~cms/:id:int => cms/1 !cms/id~~
     - ~~可以根据前缀或后缀自动兼容注册类型,比如: GetEdit PostEdit~~
@@ -16,7 +16,7 @@
  4. queue sendJob -> doJob
  5. cacheOptHandler废弃->修改为反射通用函数 [最后处理]
  6. 路由扩展, 包含group->group->group的功能
- 7. 针对di反射植入到controller的属性使用tag标签标记类型如: "service:session".
+ 7. ~~针对di反射植入到controller的属性使用tag标签标记类型如: "service:session".~~
  8. 参考symfony的依赖注入方式看是否可实现[最后处理]
  9. 封装request和response对象
 ## 参考文档  ##

@@ -54,7 +54,7 @@ func (c *Controller) Ctx() *Context {
 }
 
 func (c *Controller) Session(name string) *sessions.Session {
-	sess, err := c.ctx.SessionManger().Get(c.ctx.req, name)
+	sess, err := c.ctx.SessionManger().Get(c.ctx.req.GetHttpRequest(), name)
 	if err != nil {
 		panic(err)
 	}
@@ -70,7 +70,7 @@ func (c *Controller) Logger() interfaces.LoggerInf {
 }
 
 func (c *Controller) SaveSession() {
-	err := sessions.Save(c.ctx.req, c.ctx.res)
+	err := sessions.Save(c.ctx.req.GetHttpRequest(), c.ctx.res)
 	if err != nil {
 		panic(err)
 	}
@@ -95,10 +95,11 @@ func (u *controllerMappingRoute) autoRegisterService(val *reflect.Value) {
 	e := val.Type().Elem()
 	fieldNum := e.NumField()
 	for i := 0; i < fieldNum; i++ {
-		fieldType := e.Field(i).Type.String()
 		fieldName := e.Field(i).Name
-		service, err := di.Get(fieldType)
+		serviceName := e.Field(i).Tag.Get("service")
+		service, err := di.Get(serviceName)
 		if fieldName != "Controller" && err == nil {
+			// 根据tag反射对应的di类型
 			val.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
 		}
 	}

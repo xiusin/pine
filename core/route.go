@@ -22,16 +22,16 @@ type (
 
 	RouteCollection struct {
 		Prefix               string
-		RouteNotFoundHandler Handler                      //NotFound的默认处理函数
+		RouteNotFoundHandler Handler                           //NotFound的默认处理函数
 		methodRoutes         map[string]map[string]*RouteEntry //分类命令规则
-		middleWares          []Handler                    // 中间件列表
+		middleWares          []Handler                         // 中间件列表
 	}
 )
 
 var (
 	urlSeparator         = "/"                                                  // url地址分隔符
-	patternRoutes        = map[string][]*RouteEntry{}                                // 记录匹配路由映射
-	namedRoutes          = map[string]*RouteEntry{}                                  // 命名路由保存
+	patternRoutes        = map[string][]*RouteEntry{}                           // 记录匹配路由映射
+	namedRoutes          = map[string]*RouteEntry{}                             // 命名路由保存
 	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_]+)(<.+?>)?") // 正则匹配规则
 	patternMap           = map[string]string{
 		":int":    "<\\d+>",
@@ -96,8 +96,8 @@ func (r *RouteCollection) Handle(c ControllerInf) {
 // 自动注册控制器映射路由
 func (r *RouteCollection) autoRegisterControllerRoute(refVal reflect.Value, refType reflect.Type, c ControllerInf) {
 	method := refVal.MethodByName("UrlMapping")
-	_, ok := refVal.Interface().(ControllerRouteMappingInf)
-	if method.IsValid() && ok {
+	//_, ok := refVal.Interface().(ControllerRouteMappingInf) todo判断是否可以转型
+	if method.IsValid() {
 		method.Call([]reflect.Value{reflect.ValueOf(newUrlMappingRoute(r, c))}) // 如果实现了UrlMapping接口, 则调用函数
 	} else { // 自动根据前缀注册路由
 		methodNum, routeWrapper := refType.NumMethod(), newUrlMappingRoute(r, c)
@@ -115,7 +115,6 @@ func (r *RouteCollection) autoMatchHttpMethod(path string, handle Handler) {
 	var methods = map[string]routeMaker{"Get": r.GET, "Post": r.POST, "Head": r.HEAD, "Delete": r.DELETE, "Put": r.PUT}
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
-
 			routeMaker(urlSeparator+r.upperCharToUnderLine(strings.TrimLeft(path, method)), handle)
 		} else if strings.HasPrefix(path, "Any") {
 			r.ANY(urlSeparator+r.upperCharToUnderLine(path), handle)

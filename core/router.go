@@ -20,6 +20,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/unrolled/render"
 	"github.com/xiusin/router/core/components/option"
+	http2 "github.com/xiusin/router/core/http"
 )
 
 type Router struct {
@@ -53,8 +54,8 @@ func NewRouter(opt *option.Option) *Router {
 		pool: &sync.Pool{
 			New: func() interface{} {
 				ctx := &Context{
-					params:          map[string]string{}, //保存路由参数
-					middlewareIndex: -1,                  // 初始化中间件索引. 默认从0开始索引.
+					params:          http2.NewParams(map[string]string{}), //保存路由参数
+					middlewareIndex: -1,                                   // 初始化中间件索引. 默认从0开始索引.
 				}
 				return ctx
 			},
@@ -78,7 +79,7 @@ func (*Router) staticHandler(path, dir string) Handler {
 	return func(c *Context) {
 		// 去除前缀启动文件服务
 		fileServer := http.StripPrefix(path, http.FileServer(http.Dir(dir)))
-		fileServer.ServeHTTP(c.Writer(), c.Request())
+		fileServer.ServeHTTP(c.Writer(), c.Request().GetHttpRequest())
 	}
 }
 
@@ -119,7 +120,7 @@ func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *RouteEntry {
 			}
 			subMatched := matched[0][1:]
 			for k, param := range route.Param {
-				ctx.SetParam(param, subMatched[k])
+				ctx.Params().Set(param, subMatched[k])
 			}
 			route.ExtendsMiddleWare = r.middleWares
 			return route
@@ -136,7 +137,7 @@ func (r *Router) Static(path, dir string) {
 // 处理静态文件
 func (r *Router) StaticFile(path, file string) {
 	r.GET(path, func(c *Context) {
-		http.ServeFile(c.Writer(), c.Request(), file)
+		http.ServeFile(c.Writer(), c.Request().GetHttpRequest(), file)
 	})
 }
 

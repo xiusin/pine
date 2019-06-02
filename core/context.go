@@ -5,25 +5,24 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
-	"net"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/gorilla/sessions"
 	"github.com/xiusin/router/core/components/di"
 	"github.com/xiusin/router/core/components/di/interfaces"
+	coreHttp "github.com/xiusin/router/core/http"
 )
 
 type ViewData map[string]interface{}
 
 type Context struct {
-	req             *http.Request           // 请求对象
-	params          map[string]string       // 路由参数
-	res             http.ResponseWriter     // 响应对象
+	req             *coreHttp.Request       // 请求对象
+	params          *coreHttp.Params        // 路由参数
+	res             *coreHttp.Response      // 响应对象
 	stopped         bool                    // 是否停止传播中间件
-	route           *RouteEntry                  // 当前context匹配到的路由
+	route           *RouteEntry             // 当前context匹配到的路由
 	middlewareIndex int                     // 中间件起始索引
 	render          *interfaces.RendererInf // 模板渲染
 	app             *Router
@@ -34,13 +33,13 @@ type Context struct {
 
 // 重置Context对象
 func (c *Context) reset(res http.ResponseWriter, req *http.Request) {
-	c.req = req
-	c.res = res
+	c.req = coreHttp.NewRequest(req)
+	c.res = coreHttp.NewResponse(res)
 	c.middlewareIndex = -1
 	c.route = nil
 	c.stopped = false
 	c.status = http.StatusOK
-	c.params = map[string]string{}
+	c.params = coreHttp.NewParams(map[string]string{})
 	c.tplData = ViewData{}
 }
 
@@ -49,33 +48,13 @@ func (c *Context) reset(res http.ResponseWriter, req *http.Request) {
 //}
 
 // 获取请求
-func (c *Context) Request() *http.Request {
+func (c *Context) Request() *coreHttp.Request {
 	return c.req
 }
 
-// 设置路由参数
-func (c *Context) SetParam(key, value string) {
-	c.params[key] = value
-}
-
 // 获取路由参数
-func (c *Context) Params() map[string]string {
+func (c *Context) Params() *coreHttp.Params {
 	return c.params
-}
-
-// 获取路由参数
-func (c *Context) GetParam(key string) string {
-	value, _ := c.params[key]
-	return value
-}
-
-// 获取路由参数,如果为空字符串则返回 defaultVal
-func (c *Context) GetParamDefault(key, defaultVal string) string {
-	val := c.GetParam(key)
-	if val != "" {
-		return val
-	}
-	return defaultVal
 }
 
 // 获取响应
@@ -88,7 +67,7 @@ func (c *Context) Redirect(url string, statusHeader ...int) {
 	if len(statusHeader) == 0 {
 		statusHeader[0] = http.StatusFound
 	}
-	http.Redirect(c.res, c.req, url, statusHeader[0])
+	http.Redirect(c.res.GetHttpResponse(), c.req.GetHttpRequest(), url, statusHeader[0])
 }
 
 // 获取命名参数内容
@@ -118,11 +97,6 @@ func (c *Context) Next() {
 	}
 }
 
-func (c *Context) Flush(content string) {
-	_, _ = c.res.Write([]byte(content + "\n"))
-	c.res.(http.Flusher).Flush()
-}
-
 // 设置当前处理路由对象
 func (c *Context) setRoute(route *RouteEntry) {
 	c.route = route
@@ -150,16 +124,7 @@ func (c *Context) Set(key string, value interface{}) {
 
 // 发送file
 func (c *Context) File(filepath string) {
-	http.ServeFile(c.Writer(), c.Request(), filepath)
-}
-
-// 获取cookie
-func (c *Context) GetCookie(name string) (cookie string, err error) {
-	cok, err := c.req.Cookie(name)
-	if err == nil {
-		cookie = cok.Value
-	}
-	return
+	http.ServeFile(c.Writer(), c.req.GetHttpRequest(), filepath)
 }
 
 // 设置cookie
@@ -181,21 +146,6 @@ func (c *Context) SetCookie(name, value string, maxAge int) {
 		cookie.HttpOnly = opt.HttpOnly
 	}
 	c.req.AddCookie(cookie)
-}
-
-// 判断是不是ajax请求
-func (c *Context) IsAjax() bool {
-	return c.req.Header.Get("X-Requested-With") == "XMLHttpRequest"
-}
-
-// 判断是不是Get请求
-func (c *Context) IsGet() bool {
-	return c.req.Method == http.MethodGet
-}
-
-// 判断是不是Post请求
-func (c *Context) IsPost() bool {
-	return c.req.Method == http.MethodPost
 }
 
 func (c *Context) Abort(statusCode int, msg string) {
@@ -227,23 +177,6 @@ func (c *Context) SetStatus(statusCode int) {
 
 func (c *Context) Status() int {
 	return c.status
-}
-
-// 获取客户端IP
-func (c *Context) ClientIP() string {
-	clientIP := c.ReqHeader("X-Forwarded-For")
-	clientIP = strings.TrimSpace(strings.Split(clientIP, ",")[0])
-	if clientIP == "" {
-		clientIP = strings.TrimSpace(c.ReqHeader("X-Real-Ip"))
-	}
-	if clientIP != "" {
-		return clientIP
-	}
-
-	if ip, _, err := net.SplitHostPort(strings.TrimSpace(c.Request().RemoteAddr)); err == nil {
-		return ip
-	}
-	return ""
 }
 
 func (c *Context) ReqHeader(key string) string {
