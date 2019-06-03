@@ -23,8 +23,9 @@ func init() {
 	cache.Register("nutsdb", func(option cache.Option) cache.Cache {
 		var err error
 		opt := nutsdb.DefaultOptions
-		opt.Dir, err = cache.OptHandler.GetString(option, "Path") //这边数据库会自动创建这个目录文件
-		if err != nil {
+		revOpt := option.(*Option)
+		opt.Dir = revOpt.Path
+		if opt.Dir == "" {
 			panic("Nutsdb: 请设置dir")
 		}
 		db, err := nutsdb.Open(opt)
@@ -33,8 +34,8 @@ func init() {
 		}
 		mem := &Nutsdb{
 			client:     db,
-			option:     option,
-			prefix:     cache.OptHandler.GetDefaultString(option, "Prefix", ""),
+			option:     revOpt,
+			prefix:     revOpt.Path,
 			bucketName: "butsdb_bucket",
 		}
 		return mem
@@ -42,7 +43,7 @@ func init() {
 }
 
 type Nutsdb struct {
-	option     cache.Option
+	option     *Option
 	prefix     string
 	client     *nutsdb.DB
 	bucketName string
@@ -68,7 +69,7 @@ func (c *Nutsdb) SetCachePrefix(prefix string) {
 
 func (c *Nutsdb) Save(key, val string) bool {
 	if err := c.client.Update(func(tx *nutsdb.Tx) error {
-		if err := tx.Put(c.bucketName, []byte(c.prefix+key), []byte(val), uint32(cache.OptHandler.GetDefaultInt(c.option, "TTL", 0))); err != nil {
+		if err := tx.Put(c.bucketName, []byte(c.prefix+key), []byte(val), uint32(c.option.TTL)); err != nil {
 			return err
 		}
 		return nil
@@ -108,7 +109,7 @@ func (c *Nutsdb) SaveAll(data map[string]string) bool {
 		return false
 	}
 	for key, val := range data {
-		ttl := uint32(cache.OptHandler.GetDefaultInt(c.option, "TTL", 0))
+		ttl := uint32(c.option.TTL)
 		if err = tx.Put(c.bucketName, []byte(c.prefix+key), []byte(val), ttl); err != nil {
 			_ = tx.Rollback()
 			return false

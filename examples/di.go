@@ -8,14 +8,13 @@ import (
 )
 
 func main() {
-
 	di.Set(di.RENDER, func(builder di.BuilderInf) (i interface{}, e error) {
 		return renderer.New(renderer.Options{}), nil
 	}, true)
 
 	handler := core.NewRouter(nil)
 	handler.GET("/hello/:name", func(c *core.Context) {
-		_ = c.Text("hello world")
+		_ = c.View().Text("hello world")
 	})
 	handler.Serve()
 }

@@ -22,7 +22,7 @@ type (
 	Memory struct {
 		prefix    string
 		totalSize int32
-		option    cache.Option
+		option    *Option
 		store     sync.Map
 	}
 	entry struct {
@@ -40,10 +40,17 @@ var (
 
 func init() {
 	cache.Register("memory", func(option cache.Option) cache.Cache {
+		opt := option.(*Option)
 		once.Do(func() {
+			if opt.maxMemSize == 0 {
+				opt.maxMemSize = 500*1024*1024
+			}
+			if opt.GCInterval == 0 {
+				opt.GCInterval = 30
+			}
 			defaultMem = &Memory{
-				prefix: cache.OptHandler.GetDefaultString(option, "Prefix", ""),
-				option: option,
+				prefix: opt.Prefix,
+				option: opt,
 			}
 			go defaultMem.expirationCheck()
 		})
@@ -58,7 +65,7 @@ func (o *Option) ToString() string {
 }
 
 func (m *Memory) getExpireAt() time.Time {
-	return time.Now().Add(time.Duration(cache.OptHandler.GetDefaultInt(m.option, "TTL", 0)))
+	return time.Now().Add(time.Duration(m.option.TTL))
 }
 
 func (m *Memory) Get(key string) (string, error) {
@@ -89,7 +96,7 @@ func (m *Memory) Save(key string, val string) bool {
 	}
 	size := unsafe.Sizeof(data)
 	data.size = int32(size) + 4
-	if int32(cache.OptHandler.GetDefaultInt(m.option, "maxMemSize", 500*1024*1024)) > m.totalSize {
+	if int32(m.option.maxMemSize) > m.totalSize {
 		atomic.AddInt32(&m.totalSize, data.size)
 		m.store.Store(m.getKey(key), data)
 	} else {
@@ -136,7 +143,7 @@ func (m *Memory) Clear() {
 
 // 简单化实现, 定时清理辣鸡数据
 func (m *Memory) expirationCheck() {
-	tick := time.Tick(time.Duration(cache.OptHandler.GetDefaultInt(m.option, "GCInterval", 30)) * time.Second)
+	tick := time.Tick(time.Duration(m.option.GCInterval) * time.Second)
 	for _ = range tick {
 		func() {
 			now := time.Now()

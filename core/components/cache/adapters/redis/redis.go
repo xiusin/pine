@@ -2,10 +2,12 @@ package redis
 
 import (
 	"encoding/json"
+	"fmt"
+	"time"
+
 	"github.com/gomodule/redigo/redis"
 	"github.com/sirupsen/logrus"
 	"github.com/xiusin/router/core/components/cache"
-	"time"
 )
 
 type Option struct {
@@ -13,6 +15,7 @@ type Option struct {
 	MaxActive      int
 	MaxIdleTimeout int
 	Host           string
+	Port           uint
 	Password       string
 	DbIndex        int
 	ConnectTimeout int
@@ -31,7 +34,7 @@ func (o *Option) ToString() string {
 }
 
 type Cache struct {
-	option cache.Option
+	option *Option
 	prefix string
 	ttl    int
 	pool   *redis.Pool
@@ -109,22 +112,29 @@ func (cache *Cache) SaveAll(data map[string]string) bool {
 
 func init() {
 	cache.Register("redis", func(option cache.Option) cache.Cache {
+		opt := option.(*Option)
+		if opt.Host == "" {
+			opt.Host = "127.0.0.1"
+		}
+		if opt.Port == 0 {
+			opt.Port = 6379
+		}
 		return &Cache{
 			prefix: "",
-			option: option,
-			ttl:    cache.OptHandler.GetDefaultInt(option, "TTL", 3600),
+			option: opt,
+			ttl:    opt.TTL,
 			pool: &redis.Pool{
-				MaxIdle:     cache.OptHandler.GetDefaultInt(option, "MaxIdle", 10),
-				MaxActive:   cache.OptHandler.GetDefaultInt(option, "MaxActive", 100),
-				IdleTimeout: time.Duration(cache.OptHandler.GetDefaultInt(option, "MaxIdleTimeout", 30)) * time.Second,
-				Wait:        cache.OptHandler.GetDefaultBool(option, "Wait", true),
+				MaxIdle:     opt.MaxIdle,
+				MaxActive:   opt.MaxActive,
+				IdleTimeout: time.Duration(opt.MaxIdleTimeout) * time.Second,
+				Wait:        opt.Wait,
 				Dial: func() (redis.Conn, error) {
-					con, err := redis.Dial("tcp", cache.OptHandler.GetDefaultString(option, "Host", "127.0.0.1:6379"),
-						redis.DialPassword(cache.OptHandler.GetDefaultString(option, "Password", "")),
-						redis.DialDatabase(cache.OptHandler.GetDefaultInt(option, "DbIndex", 0)),
-						redis.DialConnectTimeout(time.Duration(cache.OptHandler.GetDefaultInt(option, "ConnectTimeout", 30))*time.Second),
-						redis.DialReadTimeout(time.Duration(cache.OptHandler.GetDefaultInt(option, "ReadTimeout", 30))*time.Second),
-						redis.DialWriteTimeout(time.Duration(cache.OptHandler.GetDefaultInt(option, "WriteTimeout", 30))*time.Second))
+					con, err := redis.Dial("tcp", fmt.Sprintf("%s:%d", opt.Host, opt.Port),
+						redis.DialPassword(opt.Password),
+						redis.DialDatabase(opt.DbIndex),
+						redis.DialConnectTimeout(time.Duration(opt.ConnectTimeout)*time.Second),
+						redis.DialReadTimeout(time.Duration(opt.ReadTimeout)*time.Second),
+						redis.DialWriteTimeout(time.Duration(opt.WriteTimeout)*time.Second))
 					if err != nil {
 						logrus.Error("Dial error", err.Error())
 						return nil, err

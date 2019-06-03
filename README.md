@@ -12,9 +12,8 @@
 ## feature ##
  1. router使用tree
  2. crontab 
- 3. rpc
  4. queue sendJob -> doJob
- 5. cacheOptHandler废弃->修改为反射通用函数 [最后处理]
+ 5. ~~cacheOptHandler废弃[最后处理]~~
  6. 路由扩展, 包含group->group->group的功能
  7. ~~针对di反射植入到controller的属性使用tag标签标记类型如: "service:session".~~
  8. 参考symfony的依赖注入方式看是否可实现[最后处理]
