@@ -79,7 +79,7 @@ func (*Router) staticHandler(path, dir string) Handler {
 	return func(c *Context) {
 		// 去除前缀启动文件服务
 		fileServer := http.StripPrefix(path, http.FileServer(http.Dir(dir)))
-		fileServer.ServeHTTP(c.Writer(), c.Request().GetHttpRequest())
+		fileServer.ServeHTTP(c.Writer(), c.Request().GetRequest())
 	}
 }
 
@@ -137,7 +137,7 @@ func (r *Router) Static(path, dir string) {
 // 处理静态文件
 func (r *Router) StaticFile(path, file string) {
 	r.GET(path, func(c *Context) {
-		http.ServeFile(c.Writer(), c.Request().GetHttpRequest(), file)
+		http.ServeFile(c.Writer(), c.Request().GetRequest(), file)
 	})
 }
 

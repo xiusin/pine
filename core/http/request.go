@@ -17,7 +17,7 @@ func NewRequest(handler *http.Request) *Request {
 }
 
 // 判断是不是ajax请求
-func (c *Request) GetHttpRequest() *http.Request {
+func (c *Request) GetRequest() *http.Request {
 	return c.Request
 }
 
@@ -56,7 +56,7 @@ func (c *Request) ClientIP() string {
 		return clientIP
 	}
 
-	if ip, _, err := net.SplitHostPort(strings.TrimSpace(c.GetHttpRequest().RemoteAddr)); err == nil {
+	if ip, _, err := net.SplitHostPort(strings.TrimSpace(c.GetRequest().RemoteAddr)); err == nil {
 		return ip
 	}
 	return ""

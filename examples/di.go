@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	di.Set(di.RENDER, func(builder di.BuilderInf) (i interface{}, e error) {
+	di.Set("render", func(builder di.BuilderInf) (i interface{}, e error) {
 		return renderer.New(renderer.Options{}), nil
 	}, true)
 
