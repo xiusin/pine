@@ -197,7 +197,6 @@ func (r *Router) Serve() {
 	}
 	if r.option.Env == option.DevMode {
 		fmt.Println(logo)
-		r.List()
 	}
 	go r.gracefulShutdown(srv, quit, done)
 	logrus.Println("server run on: http://" + addr)
@@ -205,7 +204,6 @@ func (r *Router) Serve() {
 	if err != nil && err != http.ErrServerClosed {
 		logrus.Fatalf("server was error: %s", err.Error())
 	}
-	logrus.Println("server stopped")
 	<-done
 }
 
