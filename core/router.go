@@ -51,8 +51,8 @@ ____  __.__            .__      __________               __
       \_/            \/        \/       \/                        \/   	  Version: ` + Version
 )
 
-func RegisterOnInterrupt(call func()) {
-	shutdownCallFunc = append(shutdownCallFunc, call)
+func RegisterOnInterrupt(eventCall func()) {
+	shutdownCallFunc = append(shutdownCallFunc, eventCall)
 }
 
 // 实例化路由
