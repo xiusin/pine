@@ -23,27 +23,37 @@ import (
 	http2 "github.com/xiusin/router/core/http"
 )
 
-type Router struct {
-	RouteCollection
-	renderer     *render.Render
-	groups       map[string]*RouteCollection // 分组路由保存
-	pool         *sync.Pool
-	option       *option.Option
-	ErrorHandler Errors
-}
+type (
+	Router struct {
+		RouteCollection
+		renderer     *render.Render
+		groups       map[string]*RouteCollection // 分组路由保存
+		pool         *sync.Pool
+		option       *option.Option
+		ErrorHandler Errors
+	}
 
-const Version = "dev"
-const logQueryFormat = "| %s | %s | %s | %s | Path: %s"
-const logo = `
+	// 定义路由处理函数类型
+	Handler func(*Context)
+)
+
+var shutdownCallFunc []func()
+
+const (
+	Version        = "dev"
+	logQueryFormat = "| %s | %s | %s | %s | Path: %s"
+	logo           = `
 ____  __.__            .__      __________               __                
 \   \/  |__|__ __ _____|__| ____\______   \ ____  __ ___/  |_  ___________ 
  \     /|  |  |  /  ___|  |/    \|       _//  _ \|  |  \   ___/ __ \_  __ \
  /     \|  |  |  \___ \|  |   |  |    |   (  <_> |  |  /|  | \  ___/|  | \/
 /___/\  |__|____/____  |__|___|  |____|_  /\____/|____/ |__|  \___  |__|   
       \_/            \/        \/       \/                        \/   	  Version: ` + Version
+)
 
-// 定义路由处理函数类型
-type Handler func(*Context)
+func RegisterOnInterrupt(call func()) {
+	shutdownCallFunc = append(shutdownCallFunc, call)
+}
 
 // 实例化路由
 // 如果传入nil 则使用默认配置
@@ -159,12 +169,14 @@ func (r *Router) Use(middleWares ...Handler) *Router {
 // 优雅关闭服务器
 func (_ *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal, done chan<- bool) {
 	<-quit
-	logrus.Println("server is shutting down...")
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	srv.SetKeepAlivesEnabled(false)
 	if err := srv.Shutdown(ctx); err != nil {
 		logrus.Fatalf("could not gracefully shutdown the server: %v\n", err)
+	}
+	for _, funcCall := range shutdownCallFunc {
+		funcCall()
 	}
 	close(done)
 }
