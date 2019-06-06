@@ -65,7 +65,7 @@ func (c *Context) Redirect(url string, statusHeader ...int) {
 	if len(statusHeader) == 0 {
 		statusHeader[0] = http.StatusFound
 	}
-	http.Redirect(c.res.GetHttpResponse(), c.req.GetHttpRequest(), url, statusHeader[0])
+	http.Redirect(c.res.GetResponse(), c.req.GetRequest(), url, statusHeader[0])
 }
 
 // 获取命名参数内容
@@ -122,7 +122,7 @@ func (c *Context) Set(key string, value interface{}) {
 
 // 发送file
 func (c *Context) File(filepath string) {
-	http.ServeFile(c.Writer(), c.req.GetHttpRequest(), filepath)
+	http.ServeFile(c.Writer(), c.req.GetRequest(), filepath)
 }
 
 // 设置cookie
@@ -179,20 +179,20 @@ func (c *Context) Status() int {
 
 // 日志对象
 func (c *Context) Logger() (loggerInf interfaces.LoggerInf) {
-	ok := di.Exists(di.LOGGER)
+	ok := di.Exists("logger")
 	if !ok {
 		loggerInf = log.New(os.Stdout, "[ROUTER-DEBUG]", log.LstdFlags)
 	} else {
-		loggerInf = di.MustGet(di.LOGGER).(interfaces.LoggerInf)
+		loggerInf = di.MustGet("logger").(interfaces.LoggerInf)
 	}
 	return
 }
 
 // 获取session管理组件， 目前先依赖第三方
 func (c *Context) SessionManger() sessions.Store {
-	sessionInf, ok := di.MustGet(di.SESSION).(sessions.Store)
+	sessionInf, ok := di.MustGet("sessionStore").(sessions.Store)
 	if !ok {
-		panic(di.SESSION + "组件类型不正确")
+		panic("sessionStore组件类型不正确")
 	}
 	return sessionInf
 }

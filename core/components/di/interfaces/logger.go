@@ -3,7 +3,6 @@ package interfaces
 import "io"
 
 type LoggerInf interface {
-
 	Print(args ...interface{})
 
 	Fatal(args ...interface{})

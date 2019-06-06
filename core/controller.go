@@ -55,7 +55,7 @@ func (c *Controller) Ctx() *Context {
 }
 
 func (c *Controller) Session(name string) *sessions.Session {
-	sess, err := c.ctx.SessionManger().Get(c.ctx.req.GetHttpRequest(), name)
+	sess, err := c.ctx.SessionManger().Get(c.ctx.req.GetRequest(), name)
 	if err != nil {
 		panic(err)
 	}
@@ -71,7 +71,7 @@ func (c *Controller) Logger() interfaces.LoggerInf {
 }
 
 func (c *Controller) SaveSession() {
-	err := sessions.Save(c.ctx.req.GetHttpRequest(), c.ctx.res)
+	err := sessions.Save(c.ctx.req.GetRequest(), c.ctx.res)
 	if err != nil {
 		panic(err)
 	}

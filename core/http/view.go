@@ -17,8 +17,8 @@ type View struct {
 
 func NewView(writer http.ResponseWriter) *View {
 	var rendererInf interfaces.RendererInf
-	if di.Exists(di.RENDER) {
-		rendererInf, _ = di.MustGet(di.RENDER).(interfaces.RendererInf)
+	if di.Exists("render") {
+		rendererInf, _ = di.MustGet("render").(interfaces.RendererInf)
 	}
 	return &View{rendererInf, writer, map[string]interface{}{}}
 }
