@@ -2,17 +2,18 @@ package main
 
 import "fmt"
 
-func main() {
-	call(func() {
-
-	})
+type lili struct {
+	Name string
 }
 
-func call(a func())  {
-	fmt.Printf("%p", a)
-	runcall(a)
+func (lili *lili) fmtPointer()  {
+	fmt.Println("pointer")
 }
 
-func runcall(a func())  {
-	fmt.Printf("%p", a)
+func (lili lili) fmtRef() {
+	fmt.Println("fmtRef")
+}
+
+func main()  {
+	(lili{}).fmtRef()
 }
