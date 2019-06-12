@@ -7,18 +7,14 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
-	"reflect"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/rodaine/table"
 	"github.com/sirupsen/logrus"
-	"github.com/unrolled/render"
 	"github.com/xiusin/router/core/components/option"
 	http2 "github.com/xiusin/router/core/http"
 )
@@ -26,18 +22,20 @@ import (
 type (
 	Router struct {
 		RouteCollection
-		renderer     *render.Render
-		groups       map[string]*RouteCollection // 分组路由保存
-		pool         *sync.Pool
-		option       *option.Option
-		ErrorHandler Errors
+		groups         map[string]*RouteCollection // 分组路由保存
+		pool           *sync.Pool
+		option         *option.Option
+		recoverHandler Handler
 	}
 
 	// 定义路由处理函数类型
 	Handler func(*Context)
 )
 
-var shutdownCallFunc []func()
+var (
+	shutdownBeforeHandler []func()
+	errCodeCallHandler     = make(map[int]Handler)
+)
 
 const (
 	Version        = "dev"
@@ -51,8 +49,22 @@ ____  __.__            .__      __________               __
       \_/            \/        \/       \/                        \/   	  Version: ` + Version
 )
 
-func RegisterOnInterrupt(eventCall func()) {
-	shutdownCallFunc = append(shutdownCallFunc, eventCall)
+func RegisterOnInterrupt(handler func()) {
+	shutdownBeforeHandler = append(shutdownBeforeHandler, handler)
+}
+
+// 注册
+func RegisterErrorCodeHandler(code int, handler Handler) {
+	if code != http.StatusOK {
+		errCodeCallHandler[code] = handler
+	}
+}
+
+func init() {
+	// 注册一些默认的error code解析函数
+	RegisterErrorCodeHandler(http.StatusNotFound, func(i *Context) {
+		http.NotFoundHandler()
+	})
 }
 
 // 实例化路由
@@ -72,16 +84,19 @@ func NewRouter(opt *option.Option) *Router {
 		},
 		RouteCollection: RouteCollection{
 			methodRoutes: defaultRouteMap(),
-			RouteNotFoundHandler: func(ctx *Context) {
-				_, _ = ctx.Writer().Write([]byte("Not Found"))
-			},
 		},
-		ErrorHandler: DefaultErrorHandler,
+		recoverHandler: Recover,
 	}
 	if r.option == nil {
 		r.option = option.Default()
 	}
 	return r
+}
+
+func (r *Router) SetRecoverHandler(handler Handler) {
+	if handler != nil {
+		r.recoverHandler = handler
+	}
 }
 
 // 创建一个静态资源处理函数
@@ -175,16 +190,15 @@ func (_ *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal, done 
 	if err := srv.Shutdown(ctx); err != nil {
 		logrus.Fatalf("could not gracefully shutdown the server: %v\n", err)
 	}
-	for _, funcCall := range shutdownCallFunc {
-		funcCall()
+	for _, beforeHandler := range shutdownBeforeHandler {
+		beforeHandler()
 	}
 	close(done)
 }
 
 // 启动服务
 func (r *Router) Serve() {
-	done := make(chan bool, 1)
-	quit := make(chan os.Signal, 1)
+	done, quit := make(chan bool, 1), make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	addr := r.option.Host + ":" + strconv.Itoa(r.option.Port)
 	srv := &http.Server{
@@ -213,10 +227,8 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	defer r.pool.Put(c)
 	c.reset(res, req)
 	c.app = r
-	if r.ErrorHandler != nil {
-		defer r.ErrorHandler.Recover(c)()
-	}
 	res.Header().Set("Server", r.option.ServerName)
+	defer r.recoverHandler(c)
 	r.dispatch(c, res, req)
 }
 
@@ -231,7 +243,7 @@ func (r *Router) handle(c *Context, urlParsed *url.URL) {
 		c.Next()
 	} else {
 		c.SetStatus(http.StatusNotFound)
-		r.RouteNotFoundHandler(c)
+		errCodeCallHandler[http.StatusNotFound](c)
 	}
 }
 
@@ -240,23 +252,24 @@ func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request
 	urlParsed, _ := url.ParseRequestURI(req.RequestURI) // 解析地址参数
 	start := time.Now()
 	r.handle(c, urlParsed)
-	r.queryLog(c, &start)
+	//todo 这个提取为单独的中间件?
+	if r.option.Env == option.DevMode {
+		r.requestLog(c, start)
+	}
 }
 
-func (r *Router) queryLog(c *Context, start *time.Time) {
-	if r.option.Env == option.DevMode {
-		statusInfo, status := "", c.Status()
-		if status == http.StatusOK {
-			statusInfo = color.GreenString("%d", status)
-		} else if status > http.StatusBadRequest && status < http.StatusInternalServerError {
-			statusInfo = color.RedString("%d", status)
-		} else {
-			statusInfo = color.YellowString("%d", status)
-		}
-		logrus.Infof(logQueryFormat, statusInfo, color.YellowString("%s", c.Request().Method),
-			c.Request().ClientIP(), time.Now().Sub(*start).String(), c.Request().URL.Path,
-		)
+func (r *Router) requestLog(c *Context, start time.Time) {
+	statusInfo, status := "", c.Status()
+	if status == http.StatusOK {
+		statusInfo = color.GreenString("%d", status)
+	} else if status > http.StatusBadRequest && status < http.StatusInternalServerError {
+		statusInfo = color.RedString("%d", status)
+	} else {
+		statusInfo = color.YellowString("%d", status)
 	}
+	logrus.Infof(logQueryFormat, statusInfo, color.YellowString("%s", c.Request().Method),
+		c.Request().ClientIP(), time.Now().Sub(start).String(), c.Request().URL.Path,
+	)
 }
 
 // 初始化RouteMap todo tree替代
@@ -274,29 +287,28 @@ func defaultRouteMap() map[string]map[string]*RouteEntry {
 }
 
 // 打印所有的路由列表
-func (r *Router) List() {
-	return
-	headerFmt := color.New(color.FgGreen, color.Underline).SprintfFunc()
-	columnFmt := color.New(color.FgRed).SprintfFunc()
-	tbl := table.New("Method     ", "Path    ", "Func    ")
-	tbl.WithHeaderFormatter(headerFmt).WithFirstColumnFormatter(columnFmt)
-	for _, routes := range r.methodRoutes {
-		for path, v := range routes {
-			tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
-		}
-	}
-	for prefix, routeGroup := range r.groups {
-		for _, routes := range routeGroup.methodRoutes {
-			for path, v := range routes {
-				tbl.AddRow(v.Method, prefix+path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
-			}
-		}
-	}
-
-	for _, routes := range patternRoutes {
-		for _, v := range routes {
-			tbl.AddRow(v.Method, v.OriginStr, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
-		}
-	}
-	tbl.Print()
-}
+//func (r *Router) List() {
+//	headerFmt := color.New(color.FgGreen, color.Underline).SprintfFunc()
+//	columnFmt := color.New(color.FgRed).SprintfFunc()
+//	tbl := table.New("Method     ", "Path    ", "Func    ")
+//	tbl.WithHeaderFormatter(headerFmt).WithFirstColumnFormatter(columnFmt)
+//	for _, routes := range r.methodRoutes {
+//		for path, v := range routes {
+//			tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
+//		}
+//	}
+//	for prefix, routeGroup := range r.groups {
+//		for _, routes := range routeGroup.methodRoutes {
+//			for path, v := range routes {
+//				tbl.AddRow(v.Method, prefix+path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
+//			}
+//		}
+//	}
+//
+//	for _, routes := range patternRoutes {
+//		for _, v := range routes {
+//			tbl.AddRow(v.Method, v.OriginStr, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
+//		}
+//	}
+//	tbl.Print()
+//}

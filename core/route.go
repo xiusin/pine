@@ -22,7 +22,6 @@ type (
 
 	RouteCollection struct {
 		Prefix               string
-		RouteNotFoundHandler Handler                           //NotFound的默认处理函数
 		methodRoutes         map[string]map[string]*RouteEntry //分类命令规则
 		middleWares          []Handler                         // 中间件列表
 	}

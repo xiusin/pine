@@ -25,6 +25,7 @@ type Context struct {
 	middlewareIndex int                // 中间件起始索引
 	app             *Router
 	status          int
+	Msg             string
 	Keys            map[string]interface{}
 }
 
@@ -148,13 +149,12 @@ func (c *Context) SetCookie(name, value string, maxAge int) {
 
 func (c *Context) Abort(statusCode int, msg string) {
 	c.SetStatus(statusCode)
-	if c.app.ErrorHandler != nil {
-		if statusCode >= http.StatusBadRequest && statusCode < http.StatusInternalServerError {
-			c.app.ErrorHandler.Error40x(c, msg)
-		} else if statusCode >= http.StatusInternalServerError {
-			c.app.ErrorHandler.Error50x(c, msg)
-			panic(msg)
-		}
+	c.Msg = msg
+	handler, ok := errCodeCallHandler[statusCode]
+	if ok {
+		handler(c)
+	} else {
+		panic(msg)
 	}
 }
 
