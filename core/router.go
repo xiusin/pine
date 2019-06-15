@@ -34,7 +34,7 @@ type (
 
 var (
 	shutdownBeforeHandler []func()
-	errCodeCallHandler     = make(map[int]Handler)
+	errCodeCallHandler    = make(map[int]Handler)
 )
 
 const (
@@ -181,7 +181,6 @@ func (r *Router) Use(middleWares ...Handler) *Router {
 	return r
 }
 
-// 优雅关闭服务器
 func (_ *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal, done chan<- bool) {
 	<-quit
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

@@ -1,14 +1,3 @@
-2. ~~嵌套路由`:int`, `:string`指定匹配类型~~
-3. 兼容路由匹配
-    - ~~doing -> cms_:id<\d+>.html~~
-    - ~~同一路由段支持多自定义规则~~
-    - ~~cms/:id:int => cms/1 !cms/id~~
-    - ~~可以根据前缀或后缀自动兼容注册类型,比如: GetEdit PostEdit~~
-    
-5. ~~自动反射字段类型， 如反射类型， （在DI上注入依赖）, 具体参考案例~~
-6. 优化代码
- -  ~~UrlMapping 使用传入接口方式来解决~~
- 
 ## feature ##
  1. router使用tree
  2. crontab 
@@ -20,5 +9,6 @@
  9. ~~封装request和response对象~~
  10. 添加资源打包 Packr [](github.com/gobuffalo/packr)
  11. 添加数据库迁移功能. 数据库采用GORM 或 fizz 
+ 12. ~~组件类配置去除、 只保留框架需要配置~~
 ## 参考文档  ##
  - [使用Go实现一个LRU](https://www.jianshu.com/p/970f1a8dd9cf) 

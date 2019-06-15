@@ -39,12 +39,13 @@ type (
 
 func Default() *Option {
 	return &Option{
-		Port:       9528,
-		Host:       "0.0.0.0",
-		TimeOut:    time.Second * 60,
-		Env:        DevMode,
-		ServerName: "xiusin/router",
-		CsrfName:   "csrf_token",
+		Port:               9528,
+		Host:               "0.0.0.0",
+		TimeOut:            time.Second * 60,
+		Env:                DevMode,
+		ServerName:         "xiusin/router",
+		CsrfName:           "csrf_token",
+		CsrfLifeTime:       time.Second * 60,
 		MaxMultipartMemory: 8 << 20,
 		Cookie: &cookieOption{
 			Secure: true,

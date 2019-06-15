@@ -12,7 +12,7 @@ func main() {
 	})
 
 	handler.POST("/post", func(c *core.Context) {
-		_, _ = c.Writer().Write([]byte("Hello " + c.GetParamDefault("name", "world")))
+		_, _ = c.Writer().Write([]byte("Hello " + c.Params().GetDefault("name", "world")))
 	})
 	handler.Serve()
 }

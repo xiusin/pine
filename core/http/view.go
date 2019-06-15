@@ -7,12 +7,10 @@ import (
 	"github.com/xiusin/router/core/components/di/interfaces"
 )
 
-type ViewData map[string]interface{}
-
 type View struct {
 	engine  interfaces.RendererInf
 	writer  http.ResponseWriter
-	tplData ViewData
+	tplData map[string]interface{}
 }
 
 func NewView(writer http.ResponseWriter) *View {
@@ -21,11 +19,6 @@ func NewView(writer http.ResponseWriter) *View {
 		rendererInf, _ = di.MustGet("render").(interfaces.RendererInf)
 	}
 	return &View{rendererInf, writer, map[string]interface{}{}}
-}
-
-// 渲染data
-func (c *View) Data(v string) error {
-	return c.engine.Data(c.writer, v)
 }
 
 func (c *View) ViewData(key string, val interface{}) {
@@ -37,21 +30,21 @@ func (c *View) HTML(name string) error {
 }
 
 // 渲染json
-func (c *View) JSON(v interface{}) error {
+func (c *View) JSON(v map[string]interface{}) error {
 	return c.engine.JSON(c.writer, v)
 }
 
 // 渲染jsonp
-func (c *View) JSONP(callback string, v interface{}) error {
+func (c *View) JSONP(callback string, v map[string]interface{}) error {
 	return c.engine.JSONP(c.writer, callback, v)
 }
 
 // 渲染text
-func (c *View) Text(v string) error {
+func (c *View) Text(v []byte) error {
 	return c.engine.Text(c.writer, v)
 }
 
 // 渲染xml
-func (c *View) XML(v interface{}) error {
+func (c *View) XML(v map[string]interface{}) error {
 	return c.engine.XML(c.writer, v)
 }

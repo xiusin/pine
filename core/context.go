@@ -38,6 +38,7 @@ func (c *Context) reset(res http.ResponseWriter, req *http.Request) {
 	c.middlewareIndex = -1
 	c.route = nil
 	c.stopped = false
+	c.Msg = ""
 	c.status = http.StatusOK
 }
 

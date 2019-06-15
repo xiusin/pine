@@ -55,7 +55,7 @@ func (c *Controller) Ctx() *Context {
 }
 
 func (c *Controller) Session(name string) *sessions.Session {
-	sess, err := c.ctx.SessionManger().Get(c.ctx.req.GetRequest(), name)
+	sess, err := c.ctx.SessionManger().Get(c.ctx.Request().GetRequest(), name)
 	if err != nil {
 		panic(err)
 	}
@@ -71,7 +71,7 @@ func (c *Controller) Logger() interfaces.LoggerInf {
 }
 
 func (c *Controller) SaveSession() {
-	err := sessions.Save(c.ctx.req.GetRequest(), c.ctx.res)
+	err := sessions.Save(c.ctx.Request().GetRequest(), c.ctx.Writer())
 	if err != nil {
 		panic(err)
 	}
@@ -98,10 +98,13 @@ func (u *controllerMappingRoute) autoRegisterService(val *reflect.Value) {
 	for i := 0; i < fieldNum; i++ {
 		fieldName := e.Field(i).Name
 		serviceName := e.Field(i).Tag.Get("service")
+		if serviceName == "" {
+			continue
+		}
 		service, err := di.Get(serviceName)
 		if err != nil {
-			panic("服务" + serviceName + "不存在")
-		} else if fieldName != "Controller" {
+			panic("自动解析服务：" + serviceName + "失败")
+		} else if fieldName == "Controller" {
 			panic("controller字段不能设置serviceTag")
 		}
 		val.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))

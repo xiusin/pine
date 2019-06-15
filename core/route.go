@@ -21,21 +21,18 @@ type (
 	}
 
 	RouteCollection struct {
-		Prefix               string
-		methodRoutes         map[string]map[string]*RouteEntry //分类命令规则
-		middleWares          []Handler                         // 中间件列表
+		Prefix       string
+		methodRoutes map[string]map[string]*RouteEntry //分类命令规则
+		middleWares  []Handler                         // 中间件列表
 	}
 )
 
 var (
-	urlSeparator         = "/"                                                  // url地址分隔符
-	patternRoutes        = map[string][]*RouteEntry{}                           // 记录匹配路由映射
-	namedRoutes          = map[string]*RouteEntry{}                             // 命名路由保存
-	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_]+)(<.+?>)?") // 正则匹配规则
-	patternMap           = map[string]string{
-		":int":    "<\\d+>",
-		":string": "<[\\w0-9\\_\\.\\+\\-]+>",
-	} //规则字段映射
+	urlSeparator         = "/"                                                                       // url地址分隔符
+	patternRoutes        = map[string][]*RouteEntry{}                                                // 记录匹配路由映射
+	namedRoutes          = map[string]*RouteEntry{}                                                  // 命名路由保存
+	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_]+)(<.+?>)?")                      // 正则匹配规则
+	patternMap           = map[string]string{":int": "<\\d+>", ":string": "<[\\w0-9\\_\\.\\+\\-]+>"} //规则字段映射
 )
 
 // 添加路由, 内部函数

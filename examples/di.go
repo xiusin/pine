@@ -14,7 +14,7 @@ func main() {
 
 	handler := core.NewRouter(nil)
 	handler.GET("/hello/:name", func(c *core.Context) {
-		_ = c.View().Text("hello world")
+		_ = c.View().Text([]byte("hello world"))
 	})
 	handler.Serve()
 }
