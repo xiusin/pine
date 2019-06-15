@@ -6,6 +6,9 @@ import (
 
 type RendererInf interface {
 
+	// 添加模板函数
+	AddFunc(string, interface{})
+
 	// 渲染html
 	HTML(writer io.Writer, name string, binding map[string]interface{}) error
 

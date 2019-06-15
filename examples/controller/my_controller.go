@@ -1,7 +1,7 @@
 package controller
 
 import (
-	"fmt"
+	"net/http"
 
 	"github.com/xiusin/router/core"
 )
@@ -23,7 +23,7 @@ func (m *MyController) UrlMapping(r core.ControllerRouteMappingInf) {
 func (m *MyController) GetHello() {
 	//_, _ = m.Ctx().Writer().Write([]byte(m.F1.Name))
 	m.View().ViewData("name", "万一不错")
-	fmt.Println(m.View().HTML("index.tpl"))
+	http.Error(m.Ctx().Writer(), "错误", 500)
 }
 
 func (m *MyController) PostHello() {
