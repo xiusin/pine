@@ -1,10 +1,12 @@
 package view
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
 	"html/template"
 	"io"
+	"reflect"
 	"sync"
 )
 
@@ -18,13 +20,21 @@ type Template struct {
 }
 
 func New(viewDir string, debug bool) *Template {
-	return &Template{debug: debug, cache: map[string]*template.Template{}, dir: viewDir}
+	return &Template{
+		debug: debug,
+		cache: map[string]*template.Template{},
+		dir:   viewDir,
+	}
 }
 
 func (c *Template) AddFunc(funcName string, funcEntry interface{}) {
-	c.l.Lock()
-	funcMap[funcName] = funcEntry
-	c.l.Unlock()
+	// 只接受函数参数
+	// .kind大类型  .type 具体类型
+	if reflect.ValueOf(funcEntry).Kind() == reflect.Func {
+		c.l.Lock()
+		funcMap[funcName] = funcEntry
+		c.l.Unlock()
+	}
 }
 
 func (c *Template) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
@@ -58,7 +68,16 @@ func (_ *Template) JSON(writer io.Writer, v map[string]interface{}) error {
 }
 
 func (_ *Template) JSONP(writer io.Writer, callback string, v map[string]interface{}) error {
-	return nil
+	var ret bytes.Buffer
+	b, err := json.Marshal(v)
+	if err == nil {
+		ret.Write([]byte(callback))
+		ret.Write([]byte("("))
+		ret.Write(b)
+		ret.Write([]byte(")"))
+		_, err = writer.Write(ret.Bytes())
+	}
+	return err
 }
 
 func (_ *Template) Text(writer io.Writer, v []byte) error {

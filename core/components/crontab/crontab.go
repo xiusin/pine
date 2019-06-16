@@ -11,13 +11,13 @@ import (
 	"time"
 )
 
-// Crontab struct representing cron table
+// 表示cron表的Crontab结构
 type Crontab struct {
 	ticker *time.Ticker
 	jobs   []job
 }
 
-// job in cron table
+// 在cron表中工作
 type job struct {
 	min       map[int]struct{}
 	hour      map[int]struct{}
@@ -29,7 +29,7 @@ type job struct {
 	args []interface{}
 }
 
-// tick is individual tick that occures each minute
+// 每分钟打点器
 type tick struct {
 	min       int
 	hour      int
@@ -38,7 +38,7 @@ type tick struct {
 	dayOfWeek int
 }
 
-// New initializes and returns new cron table
+// 初始化并且返回一个任务表
 func New() *Crontab {
 	c := &Crontab{
 		ticker: time.NewTicker(time.Minute),
@@ -53,15 +53,14 @@ func New() *Crontab {
 	return c
 }
 
-// AddJob to cron table
+// 添加任务到任务表
 //
-// Returns error if:
+// 如果发生以下信息则返回错误：
+// * Cron语法无法解析或超出范围
 //
-// * Cron syntax can't be parsed or out of bounds
+// * fn 不是一个函数
 //
-// * fn is not function
-//
-// * Provided args don't match the number and/or the type of fn args
+// * 提供的参数不能匹配数量或者无法匹配参数类型
 func (c *Crontab) AddJob(schedule string, fn interface{}, args ...interface{}) error {
 	j, err := parseSchedule(schedule)
 	if err != nil {
@@ -92,51 +91,40 @@ func (c *Crontab) AddJob(schedule string, fn interface{}, args ...interface{}) e
 		}
 	}
 
-	// all checked, add job to cron tab
+	// 检查完成， 添加到任务表内
 	j.fn = fn
 	j.args = args
 	c.jobs = append(c.jobs, j)
 	return nil
 }
 
-// MustAddJob is like AddJob but panics if there is an problem with job
-//
-// It simplifies initialization, since we usually add jobs at the beggining so you won't have to check for errors (it will panic when program starts).
-// It is a similar aproach as go's std lib package `regexp` and `regexp.Compile()` `regexp.MustCompile()`
-// MustAddJob will panic if:
-//
-// * Cron syntax can't be parsed or out of bounds
-//
-// * fn is not function
-//
-// * Provided args don't match the number and/or the type of fn args
+//对AddJob添加panic的认证
 func (c *Crontab) MustAddJob(schedule string, fn interface{}, args ...interface{}) {
 	if err := c.AddJob(schedule, fn, args...); err != nil {
 		panic(err)
 	}
 }
 
-// Shutdown the cron table schedule
-//
-// Once stopped, it can't be restarted.
-// This function is pre-shuttdown helper for your app, there is no Start/Stop functionallity with crontab package.
+// 关闭任务表的调度
+// 一次关闭， 不会重启
+// 此函数是应用程序的预先关闭帮助程序，crontab程序包没有启动/停止功能。
 func (c *Crontab) Shutdown() {
 	c.ticker.Stop()
 }
 
-// Clear all jobs from cron table
+// 清除cron表中的所有作业
 func (c *Crontab) Clear() {
 	c.jobs = []job{}
 }
 
-// RunAll jobs in cron table, shcheduled or not
+// 运行任务表内的所有任务
 func (c *Crontab) RunAll() {
 	for _, j := range c.jobs {
 		go j.run()
 	}
 }
 
-// RunScheduled jobs
+// 运行调度
 func (c *Crontab) runScheduled(t time.Time) {
 	tick := getTick(t)
 	for _, j := range c.jobs {
@@ -146,8 +134,8 @@ func (c *Crontab) runScheduled(t time.Time) {
 	}
 }
 
-// run the job using reflection
-// Recover from panic although all functions and params are checked by AddJob, but you never know.
+// 使用反射执行任务
+// 尽管AddJob检查了所有函数和参数，有些异常是无法预知的，所以需要添加检查函数
 func (j job) run() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -162,7 +150,7 @@ func (j job) run() {
 	v.Call(rargs)
 }
 
-// tick decides should the job be lauhcned at the tick
+// 决定任务是否应该被启动
 func (j job) tick(t tick) bool {
 	if _, ok := j.min[t.min]; !ok {
 		return false
@@ -172,7 +160,7 @@ func (j job) tick(t tick) bool {
 		return false
 	}
 
-	// cummulative day and dayOfWeek, as it should be
+	// 每天或每周
 	_, day := j.day[t.day]
 	_, dayOfWeek := j.dayOfWeek[t.dayOfWeek]
 	if !day && !dayOfWeek {
@@ -186,14 +174,14 @@ func (j job) tick(t tick) bool {
 	return true
 }
 
-// regexps for parsing schedyle string
+// 用于解析schedyle字符串的regexp
 var (
 	matchSpaces = regexp.MustCompile("\\s+")
 	matchN      = regexp.MustCompile("(.*)/(\\d+)")
 	matchRange  = regexp.MustCompile("^(\\d+)-(\\d+)$")
 )
 
-// parseSchedule string and creates job struct with filled times to launch, or error if synthax is wrong
+// 从字符串创建填充时间的任务结构数据并且启动， 或者语法错误失败
 func parseSchedule(s string) (j job, err error) {
 	s = matchSpaces.ReplaceAllLiteralString(s, " ")
 	parts := strings.Split(s, " ")
@@ -226,7 +214,7 @@ func parseSchedule(s string) (j job, err error) {
 		return j, err
 	}
 
-	//  day/dayOfWeek combination
+	//  day/dayOfWeek 组合
 	switch {
 	case len(j.day) < 31 && len(j.dayOfWeek) == 7: // day set, but not dayOfWeek, clear dayOfWeek
 		j.dayOfWeek = make(map[int]struct{})
@@ -304,7 +292,7 @@ func parsePart(s string, min, max int) (map[int]struct{}, error) {
 	return r, nil
 }
 
-// getTick returns the tick struct from time
+// getTick 从时间对象内获取tick结构
 func getTick(t time.Time) tick {
 	return tick{
 		min:       t.Minute(),

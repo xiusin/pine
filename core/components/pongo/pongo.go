@@ -1,9 +1,9 @@
 package pongo
 
 import (
+	"bytes"
 	"encoding/json"
 	"encoding/xml"
-	"html/template"
 	"io"
 	"sync"
 
@@ -12,12 +12,10 @@ import (
 
 type Pongo struct {
 	ts *pongo2.TemplateSet
-	// 需要确定使用用一个单例渲染是否会出现问题
+	// @todo 需要确定使用用一个单例渲染是否会出现问题
 	cache map[string]*pongo2.Template
 	l     sync.RWMutex
 }
-
-var funcMap = template.FuncMap{}
 
 func New(tplName, dir string, debug bool) *Pongo {
 	t := &Pongo{ts: pongo2.NewSet(tplName, pongo2.MustNewLocalFileSystemLoader(dir))}
@@ -65,7 +63,16 @@ func (_ *Pongo) JSON(writer io.Writer, v map[string]interface{}) error {
 }
 
 func (_ *Pongo) JSONP(writer io.Writer, callback string, v map[string]interface{}) error {
-	return nil
+	var ret bytes.Buffer
+	b, err := json.Marshal(v)
+	if err == nil {
+		ret.Write([]byte(callback))
+		ret.Write([]byte("("))
+		ret.Write(b)
+		ret.Write([]byte(")"))
+		_, err = writer.Write(ret.Bytes())
+	}
+	return err
 }
 
 func (_ *Pongo) Text(writer io.Writer, v []byte) error {

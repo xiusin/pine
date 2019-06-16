@@ -1,6 +1,6 @@
 ## feature ##
  1. router使用tree
- 2. crontab 
+ 2. crontab 【需要重新写】
  4. queue sendJob -> doJob
  5. ~~cacheOptHandler废弃~~
  6. 路由扩展, 包含group->group->group的功能 [后置]
