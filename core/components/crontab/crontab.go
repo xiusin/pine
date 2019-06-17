@@ -13,12 +13,14 @@ import (
 
 // 表示cron表的Crontab结构
 type Crontab struct {
-	ticker *time.Ticker
-	jobs   []job
+	ticker *time.Ticker // 任务打点器
+	jobs   []job  //任务列表
 }
 
-// 在cron表中工作
+// job数据结构
 type job struct {
+	// 根据表达式 解析到每个点的时间结构
+	sec       map[int]struct{}
 	min       map[int]struct{}
 	hour      map[int]struct{}
 	day       map[int]struct{}
@@ -29,8 +31,9 @@ type job struct {
 	args []interface{}
 }
 
-// 每分钟打点器
+// 每次打点的时间结构
 type tick struct {
+	sec       int
 	min       int
 	hour      int
 	day       int
@@ -41,25 +44,15 @@ type tick struct {
 // 初始化并且返回一个任务表
 func New() *Crontab {
 	c := &Crontab{
-		ticker: time.NewTicker(time.Minute),
+		ticker: time.NewTicker(time.Second), // 每分钟打点
 	}
-
-	go func() {
-		for t := range c.ticker.C {
-			c.runScheduled(t)
-		}
-	}()
-
 	return c
 }
 
 // 添加任务到任务表
-//
 // 如果发生以下信息则返回错误：
-// * Cron语法无法解析或超出范围
-//
+// * Cron语法无法解析
 // * fn 不是一个函数
-//
 // * 提供的参数不能匹配数量或者无法匹配参数类型
 func (c *Crontab) AddJob(schedule string, fn interface{}, args ...interface{}) error {
 	j, err := parseSchedule(schedule)
@@ -98,16 +91,20 @@ func (c *Crontab) AddJob(schedule string, fn interface{}, args ...interface{}) e
 	return nil
 }
 
-//对AddJob添加panic的认证
+//对AddJob添加panic
 func (c *Crontab) MustAddJob(schedule string, fn interface{}, args ...interface{}) {
 	if err := c.AddJob(schedule, fn, args...); err != nil {
 		panic(err)
 	}
 }
 
+func (c *Crontab) Start() {
+	for t := range c.ticker.C {
+		c.startScheduled(t)
+	}
+}
+
 // 关闭任务表的调度
-// 一次关闭， 不会重启
-// 此函数是应用程序的预先关闭帮助程序，crontab程序包没有启动/停止功能。
 func (c *Crontab) Shutdown() {
 	c.ticker.Stop()
 }
@@ -117,15 +114,8 @@ func (c *Crontab) Clear() {
 	c.jobs = []job{}
 }
 
-// 运行任务表内的所有任务
-func (c *Crontab) RunAll() {
-	for _, j := range c.jobs {
-		go j.run()
-	}
-}
-
 // 运行调度
-func (c *Crontab) runScheduled(t time.Time) {
+func (c *Crontab) startScheduled(t time.Time) {
 	tick := getTick(t)
 	for _, j := range c.jobs {
 		if j.tick(tick) {
@@ -134,8 +124,7 @@ func (c *Crontab) runScheduled(t time.Time) {
 	}
 }
 
-// 使用反射执行任务
-// 尽管AddJob检查了所有函数和参数，有些异常是无法预知的，所以需要添加检查函数
+// 使用反射执行任务有些异常是无法预知的，需要添加检查函数
 func (j job) run() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -150,8 +139,13 @@ func (j job) run() {
 	v.Call(rargs)
 }
 
-// 决定任务是否应该被启动
+// 判断当前时间点是否符合执行条件
 func (j job) tick(t tick) bool {
+	fmt.Println(j, t)
+	if _, ok := j.sec[t.sec]; !ok {
+		return false
+	}
+
 	if _, ok := j.min[t.min]; !ok {
 		return false
 	}
@@ -185,31 +179,36 @@ var (
 func parseSchedule(s string) (j job, err error) {
 	s = matchSpaces.ReplaceAllLiteralString(s, " ")
 	parts := strings.Split(s, " ")
-	if len(parts) != 5 {
-		return job{}, errors.New("Schedule string must have five components like * * * * *")
+	if len(parts) != 6 {
+		return job{}, errors.New("Schedule string must have five components like * * * * * *")
 	}
 
-	j.min, err = parsePart(parts[0], 0, 59)
+	j.sec, err = parsePart(parts[0], 0, 59)
 	if err != nil {
 		return j, err
 	}
 
-	j.hour, err = parsePart(parts[1], 0, 23)
+	j.min, err = parsePart(parts[1], 0, 59)
 	if err != nil {
 		return j, err
 	}
 
-	j.day, err = parsePart(parts[2], 1, 31)
+	j.hour, err = parsePart(parts[2], 0, 23)
 	if err != nil {
 		return j, err
 	}
 
-	j.month, err = parsePart(parts[3], 1, 12)
+	j.day, err = parsePart(parts[3], 1, 31)
 	if err != nil {
 		return j, err
 	}
 
-	j.dayOfWeek, err = parsePart(parts[4], 0, 6)
+	j.month, err = parsePart(parts[4], 1, 12)
+	if err != nil {
+		return j, err
+	}
+
+	j.dayOfWeek, err = parsePart(parts[5], 0, 6)
 	if err != nil {
 		return j, err
 	}
@@ -292,13 +291,29 @@ func parsePart(s string, min, max int) (map[int]struct{}, error) {
 	return r, nil
 }
 
-// getTick 从时间对象内获取tick结构
+// getTick 结构化时间
 func getTick(t time.Time) tick {
 	return tick{
+		sec:       t.Second(),
 		min:       t.Minute(),
 		hour:      t.Hour(),
 		day:       t.Day(),
 		month:     int(t.Month()),
 		dayOfWeek: int(t.Weekday()),
 	}
+}
+
+func PrintDoc() {
+	fmt.Println(`符合crontab表达式: 
+
+			*	 *     *     *     *     *
+			^	 ^     ^     ^     ^     ^
+			|	 |     |     |     |     |
+			|	 |     |     |     |     +----- day of week (0-6) (Sunday=0)
+			|	 |     |     |     +------- month (1-12)
+			|	 |     |     +--------- day of month (1-31)
+			|	 |     +----------- hour (0-23)
+			|	 +------------- min (0-59)
+			+------------- sec (0-59)
+	`)
 }
