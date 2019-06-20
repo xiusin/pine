@@ -9,7 +9,6 @@
  9. ~~封装request和response对象~~
  10. 添加资源打包 Packr [](github.com/gobuffalo/packr)
  11. 添加数据库迁移功能. 数据库采用GORM 或 fizz 
- 13. 自动捕捉响应状态码
  14. 将组件分成单个仓库， 防止初始化代码依赖太多
 
 ## 参考文档  ##

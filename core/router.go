@@ -38,7 +38,7 @@ var (
 )
 
 const (
-	Version        = "dev"
+	Version        = "dev 0.0.2"
 	logQueryFormat = "| %s | %s | %s | %s | Path: %s"
 	logo           = `
 ____  __.__            .__      __________               __                
@@ -61,9 +61,9 @@ func RegisterErrorCodeHandler(code int, handler Handler) {
 }
 
 func init() {
-	// 注册一些默认的error code解析函数
-	RegisterErrorCodeHandler(http.StatusNotFound, func(i *Context) {
-		http.NotFoundHandler()
+	// 注册默认的404
+	RegisterErrorCodeHandler(http.StatusNotFound, func(ctx *Context) {
+		http.NotFound(ctx.Writer(),ctx.Request().GetRequest())
 	})
 }
 

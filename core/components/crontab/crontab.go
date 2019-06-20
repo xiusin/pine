@@ -11,34 +11,47 @@ import (
 	"time"
 )
 
+// https://github.com/robfig/cron
 // 表示cron表的Crontab结构
-type Crontab struct {
-	ticker *time.Ticker // 任务打点器
-	jobs   []job  //任务列表
-}
 
-// job数据结构
-type job struct {
-	// 根据表达式 解析到每个点的时间结构
-	sec       map[int]struct{}
-	min       map[int]struct{}
-	hour      map[int]struct{}
-	day       map[int]struct{}
-	month     map[int]struct{}
-	dayOfWeek map[int]struct{}
+var alias = make(map[string]Entry)
 
-	fn   interface{}
-	args []interface{}
-}
 
-// 每次打点的时间结构
-type tick struct {
-	sec       int
-	min       int
-	hour      int
-	day       int
-	month     int
-	dayOfWeek int
+
+type (
+	Crontab struct {
+		ticker *time.Ticker // 任务打点器
+		jobs   []Entry      //任务列表
+	}
+
+	// job数据结构
+	Entry struct {
+		// 根据表达式 解析到每个点的时间结构
+		sec       map[int]struct{}
+		min       map[int]struct{}
+		hour      map[int]struct{}
+		day       map[int]struct{}
+		month     map[int]struct{}
+		dayOfWeek map[int]struct{}
+
+		fn   interface{}
+		args []interface{}
+	}
+
+	// 每次打点的时间结构
+	tick struct {
+		sec       int
+		min       int
+		hour      int
+		day       int
+		month     int
+		dayOfWeek int
+	}
+)
+
+
+func init()  {
+	AddAlias("@everysec", "* * * * * *")
 }
 
 // 初始化并且返回一个任务表
@@ -55,9 +68,13 @@ func New() *Crontab {
 // * fn 不是一个函数
 // * 提供的参数不能匹配数量或者无法匹配参数类型
 func (c *Crontab) AddJob(schedule string, fn interface{}, args ...interface{}) error {
-	j, err := parseSchedule(schedule)
-	if err != nil {
-		return err
+	var err error
+	entry , ok := alias[schedule]
+	if !ok {
+		entry, err = parseSchedule(schedule)
+		if err != nil {
+			return err
+		}
 	}
 
 	if fn == nil || reflect.ValueOf(fn).Kind() != reflect.Func {
@@ -85,9 +102,9 @@ func (c *Crontab) AddJob(schedule string, fn interface{}, args ...interface{}) e
 	}
 
 	// 检查完成， 添加到任务表内
-	j.fn = fn
-	j.args = args
-	c.jobs = append(c.jobs, j)
+	entry.fn = fn
+	entry.args = args
+	c.jobs = append(c.jobs, entry)
 	return nil
 }
 
@@ -111,57 +128,57 @@ func (c *Crontab) Shutdown() {
 
 // 清除cron表中的所有作业
 func (c *Crontab) Clear() {
-	c.jobs = []job{}
+	c.jobs = []Entry{}
 }
 
 // 运行调度
 func (c *Crontab) startScheduled(t time.Time) {
 	tick := getTick(t)
-	for _, j := range c.jobs {
-		if j.tick(tick) {
-			go j.run()
+	for _, entry := range c.jobs {
+		if entry.tick(tick) {
+			go entry.run()
 		}
 	}
 }
 
 // 使用反射执行任务有些异常是无法预知的，需要添加检查函数
-func (j job) run() {
+func (entry Entry) run() {
 	defer func() {
 		if r := recover(); r != nil {
 			log.Println("Crontab error", r)
 		}
 	}()
-	v := reflect.ValueOf(j.fn)
-	rargs := make([]reflect.Value, len(j.args))
-	for i, a := range j.args {
+	v := reflect.ValueOf(entry.fn)
+	rargs := make([]reflect.Value, len(entry.args))
+	for i, a := range entry.args {
 		rargs[i] = reflect.ValueOf(a)
 	}
 	v.Call(rargs)
 }
 
 // 判断当前时间点是否符合执行条件
-func (j job) tick(t tick) bool {
-	fmt.Println(j, t)
-	if _, ok := j.sec[t.sec]; !ok {
+func (entry Entry) tick(t tick) bool {
+	fmt.Println(entry, t)
+	if _, ok := entry.sec[t.sec]; !ok {
 		return false
 	}
 
-	if _, ok := j.min[t.min]; !ok {
+	if _, ok := entry.min[t.min]; !ok {
 		return false
 	}
 
-	if _, ok := j.hour[t.hour]; !ok {
+	if _, ok := entry.hour[t.hour]; !ok {
 		return false
 	}
 
 	// 每天或每周
-	_, day := j.day[t.day]
-	_, dayOfWeek := j.dayOfWeek[t.dayOfWeek]
+	_, day := entry.day[t.day]
+	_, dayOfWeek := entry.dayOfWeek[t.dayOfWeek]
 	if !day && !dayOfWeek {
 		return false
 	}
 
-	if _, ok := j.month[t.month]; !ok {
+	if _, ok := entry.month[t.month]; !ok {
 		return false
 	}
 
@@ -176,55 +193,55 @@ var (
 )
 
 // 从字符串创建填充时间的任务结构数据并且启动， 或者语法错误失败
-func parseSchedule(s string) (j job, err error) {
+func parseSchedule(s string) (entry Entry, err error) {
 	s = matchSpaces.ReplaceAllLiteralString(s, " ")
 	parts := strings.Split(s, " ")
 	if len(parts) != 6 {
-		return job{}, errors.New("Schedule string must have five components like * * * * * *")
+		return Entry{}, errors.New("Schedule string must have five components like * * * * * *")
 	}
 
-	j.sec, err = parsePart(parts[0], 0, 59)
+	entry.sec, err = parsePart(parts[0], 0, 59)
 	if err != nil {
-		return j, err
+		return entry, err
 	}
 
-	j.min, err = parsePart(parts[1], 0, 59)
+	entry.min, err = parsePart(parts[1], 0, 59)
 	if err != nil {
-		return j, err
+		return entry, err
 	}
 
-	j.hour, err = parsePart(parts[2], 0, 23)
+	entry.hour, err = parsePart(parts[2], 0, 23)
 	if err != nil {
-		return j, err
+		return entry, err
 	}
 
-	j.day, err = parsePart(parts[3], 1, 31)
+	entry.day, err = parsePart(parts[3], 1, 31)
 	if err != nil {
-		return j, err
+		return entry, err
 	}
 
-	j.month, err = parsePart(parts[4], 1, 12)
+	entry.month, err = parsePart(parts[4], 1, 12)
 	if err != nil {
-		return j, err
+		return entry, err
 	}
 
-	j.dayOfWeek, err = parsePart(parts[5], 0, 6)
+	entry.dayOfWeek, err = parsePart(parts[5], 0, 6)
 	if err != nil {
-		return j, err
+		return entry, err
 	}
 
 	//  day/dayOfWeek 组合
 	switch {
-	case len(j.day) < 31 && len(j.dayOfWeek) == 7: // day set, but not dayOfWeek, clear dayOfWeek
-		j.dayOfWeek = make(map[int]struct{})
-	case len(j.dayOfWeek) < 7 && len(j.day) == 31: // dayOfWeek set, but not day, clear day
-		j.day = make(map[int]struct{})
+	case len(entry.day) < 31 && len(entry.dayOfWeek) == 7: // day set, but not dayOfWeek, clear dayOfWeek
+		entry.dayOfWeek = make(map[int]struct{})
+	case len(entry.dayOfWeek) < 7 && len(entry.day) == 31: // dayOfWeek set, but not day, clear day
+		entry.day = make(map[int]struct{})
 	default:
 		// both day and dayOfWeek are * or both are set, use combined
 		// i.e. don't do anything here
 	}
 
-	return j, nil
+	return entry, nil
 }
 
 // parsePart parse individual schedule part from schedule string
@@ -303,6 +320,20 @@ func getTick(t time.Time) tick {
 	}
 }
 
+// 打印成列表
+func (c *Crontab) PrintList() {
+}
+
+// 字符串别名
+
+func AddAlias(aliasName string, pattern string) {
+	entry, err := parseSchedule(pattern)
+	if err == nil {
+		alias[aliasName] = entry
+	}
+}
+
+//打印文档
 func PrintDoc() {
 	fmt.Println(`符合crontab表达式: 
 
