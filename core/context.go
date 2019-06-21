@@ -9,7 +9,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/gorilla/sessions"
 	"github.com/xiusin/router/core/components/di"
 	"github.com/xiusin/router/core/components/di/interfaces"
 	coreHttp "github.com/xiusin/router/core/http"
@@ -189,9 +188,8 @@ func (c *Context) Logger() (loggerInf interfaces.LoggerInf) {
 	return
 }
 
-// 获取session管理组件， 目前先依赖第三方
-func (c *Context) SessionManger() sessions.Store {
-	sessionInf, ok := di.MustGet("sessionStore").(sessions.Store)
+func (c *Context) SessionManger() interfaces.SessionManagerInf {
+	sessionInf, ok := di.MustGet("sessionManager").(interfaces.SessionManagerInf)
 	if !ok {
 		panic("sessionStore组件类型不正确")
 	}
@@ -213,7 +211,9 @@ func (c *Context) Err() error {
 
 func (c *Context) Value(key interface{}) interface{} {
 	if keyAsString, ok := key.(string); ok {
-		return c.Keys[keyAsString]
+		if val, ok := c.Keys[keyAsString]; ok {
+			return val
+		}
 	}
 	return nil
 }

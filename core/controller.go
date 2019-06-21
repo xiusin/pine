@@ -54,8 +54,8 @@ func (c *Controller) Ctx() *Context {
 	return c.ctx
 }
 
-func (c *Controller) Session(name string) *sessions.Session {
-	sess, err := c.ctx.SessionManger().Get(c.ctx.Request().GetRequest(), name)
+func (c *Controller) Session(name string) interfaces.SessionInf {
+	sess, err := c.ctx.SessionManger().Session(c.ctx.Request().GetRequest(), c.ctx.Writer())
 	if err != nil {
 		panic(err)
 	}

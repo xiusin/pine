@@ -16,8 +16,6 @@ import (
 
 var alias = make(map[string]Entry)
 
-
-
 type (
 	Crontab struct {
 		ticker *time.Ticker // 任务打点器
@@ -49,8 +47,7 @@ type (
 	}
 )
 
-
-func init()  {
+func init() {
 	AddAlias("@everysec", "* * * * * *")
 }
 
@@ -69,7 +66,7 @@ func New() *Crontab {
 // * 提供的参数不能匹配数量或者无法匹配参数类型
 func (c *Crontab) AddJob(schedule string, fn interface{}, args ...interface{}) error {
 	var err error
-	entry , ok := alias[schedule]
+	entry, ok := alias[schedule]
 	if !ok {
 		entry, err = parseSchedule(schedule)
 		if err != nil {
@@ -336,7 +333,7 @@ func AddAlias(aliasName string, pattern string) {
 //打印文档
 func PrintDoc() {
 	fmt.Println(`符合crontab表达式: 
-
+-----------------------------------------------------------------------------
 			*	 *     *     *     *     *
 			^	 ^     ^     ^     ^     ^
 			|	 |     |     |     |     |
