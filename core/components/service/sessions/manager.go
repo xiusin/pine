@@ -5,23 +5,18 @@ import (
 	"github.com/xiusin/router/core/components/di/interfaces"
 	"net/http"
 	"sync"
+	"time"
 )
 
 type Manager struct {
-	l     sync.Mutex
-	store interfaces.SessionStoreInf
-	name  string
-}
-
-func (m *Manager) SessionName(name ...string) string {
-	if len(name) > 0 {
-		m.name = name[0]
-	}
-	return m.name
+	l       sync.Mutex
+	counter int
+	store   interfaces.SessionStoreInf
+	name    string
 }
 
 func New(store interfaces.SessionStoreInf) *Manager {
-	return &Manager{name: "XS_SESSION_ID", store: store}
+	return &Manager{store: store}
 }
 
 func GetSessionId() string {
@@ -30,18 +25,30 @@ func GetSessionId() string {
 }
 
 func (m *Manager) Session(r *http.Request, w http.ResponseWriter) (interfaces.SessionInf, error) {
+	config := m.store.GetConfig()
 	m.l.Lock()
 	defer m.l.Unlock()
-	name := m.SessionName()
+	//m.counter += 1
+	//if m.counter/config.GetGcDivisor() == 1 {
+	//	go m.ClearExpiredFile()
+	//	m.counter = 0
+	//}
+	name := config.GetCookieName()
 	cookie, err := r.Cookie(name)
 	if err != nil {
 		if cookie == nil {
-			// @todo 这里使用统一化配置, 配置统一
-			cookie = &http.Cookie{Name: name, Value: GetSessionId()}
+			cookie = &http.Cookie{
+				Name:     name,
+				Value:    GetSessionId(),
+				HttpOnly: config.GetHttpOnly(),
+				Secure:   config.GetSecure(),
+			}
 		} else {
 			cookie.Value = name
 		}
-		http.SetCookie(w, cookie)
 	}
+	cookie.Expires = time.Now().Add(config.GetExpires())
+	cookie.Path = "/"         // SESSION保持为全局
+	http.SetCookie(w, cookie) //重新设置cookie
 	return newSession(cookie.Value, r, w, m.store)
 }

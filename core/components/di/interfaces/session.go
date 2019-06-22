@@ -1,15 +1,28 @@
 package interfaces
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+)
 
 type SessionManagerInf interface {
-	SessionName(...string) string
 	Session(*http.Request, http.ResponseWriter) (SessionInf, error)
 }
 
+type SessionConfigInf interface {
+	GetCookieName() string
+	GetExpires() time.Duration
+	GetHttpOnly() bool
+	GetSecure() bool
+	GetGcMaxLiftTime() int
+	GetGcDivisor() int
+}
+
 type SessionStoreInf interface {
-	Read(string) ([]byte, error)
+	GetConfig() SessionConfigInf
+	Read(string, interface{}) error
 	Save(string, interface{}) error
+	Clear(string) error
 }
 
 type SessionInf interface {
@@ -18,4 +31,5 @@ type SessionInf interface {
 	AddFlush(string, interface{}) error
 	Remove(string) error
 	Save() error
+	Clear() error
 }

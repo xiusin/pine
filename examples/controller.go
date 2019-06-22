@@ -4,8 +4,11 @@ import (
 	"github.com/xiusin/router/core"
 	_ "github.com/xiusin/router/core/components/cache/adapters/redis"
 	"github.com/xiusin/router/core/components/di"
+	"github.com/xiusin/router/core/components/service/sessions"
+	"github.com/xiusin/router/core/components/service/sessions/store"
 	"github.com/xiusin/router/core/components/template/view"
 	"github.com/xiusin/router/examples/controller"
+	"time"
 )
 
 func main() {
@@ -16,6 +19,14 @@ func main() {
 
 	di.Set("render", func(builder di.BuilderInf) (i interface{}, e error) {
 		return view.New("views", false), nil
+	}, true)
+
+	di.Set("sessionManager", func(builder di.BuilderInf) (i interface{}, e error) {
+		return sessions.New(store.NewFileStore(&store.Config{
+			SessionPath:   ".",
+			CookieName:    "SESSIONID",
+			CookieExpires: time.Minute,
+		})), nil
 	}, true)
 
 	handler := core.NewRouter(nil)

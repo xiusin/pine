@@ -18,7 +18,7 @@ type (
 	ControllerInf interface {
 		Ctx() *Context
 		SetCtx(*Context)
-		Session(string) *sessions.Session
+		Session() interfaces.SessionInf
 		SaveSession()
 		View() *http.View
 		Logger() interfaces.LoggerInf
@@ -54,7 +54,7 @@ func (c *Controller) Ctx() *Context {
 	return c.ctx
 }
 
-func (c *Controller) Session(name string) interfaces.SessionInf {
+func (c *Controller) Session() interfaces.SessionInf {
 	sess, err := c.ctx.SessionManger().Session(c.ctx.Request().GetRequest(), c.ctx.Writer())
 	if err != nil {
 		panic(err)

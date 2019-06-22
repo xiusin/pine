@@ -131,15 +131,12 @@ func (c *Context) SetCookie(name, value string, maxAge int) {
 	cookie := &http.Cookie{
 		Name:   name,
 		Value:  value,
-		MaxAge: maxAge,
+		MaxAge: maxAge, //todo 最大生命周期 与 Excprie的区别是？
 	}
 	opt := c.app.option.Cookie
 	if opt != nil {
 		if opt.Path == "" {
 			cookie.Path = opt.Path
-		}
-		if opt.Domain == "" {
-			cookie.Domain = opt.Domain
 		}
 		cookie.Secure = opt.Secure
 		cookie.HttpOnly = opt.HttpOnly
@@ -191,7 +188,7 @@ func (c *Context) Logger() (loggerInf interfaces.LoggerInf) {
 func (c *Context) SessionManger() interfaces.SessionManagerInf {
 	sessionInf, ok := di.MustGet("sessionManager").(interfaces.SessionManagerInf)
 	if !ok {
-		panic("sessionStore组件类型不正确")
+		panic("sessionManager组件类型不正确")
 	}
 	return sessionInf
 }

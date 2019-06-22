@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 )
 
 func TestGetSessionId(t *testing.T) {
@@ -12,8 +13,13 @@ func TestGetSessionId(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	m := New(store.NewFileStore("."))
-	m.SessionName("xiusin-session")
+	m := New(store.NewFileStore(&store.Config{
+		SessionPath:    ".",
+		CookieName:     "xiusin_session",
+		CookieExpires:  time.Minute,
+		CookieHttpOnly: true,
+		CookieSecure:   true,
+	}))
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
@@ -24,6 +30,7 @@ func TestNew(t *testing.T) {
 		if err != nil {
 			t.Error(err)
 		}
+
 		t.Log("Set", sess.Set("name", "xiusin"))
 		val, err := sess.Get("name")
 		if err != nil {
@@ -33,14 +40,13 @@ func TestNew(t *testing.T) {
 		if err = sess.Save(); err != nil {
 			t.Error(err)
 		}
+		sess2, err := m.Session(r, w)
+		val, _ = sess2.Get("name")
+		t.Log("sess2 Get", val)
 
 	}))
 	defer ts.Close()
-
 	api := ts.URL
-
 	res, _ := ts.Client().Get(api)
-
 	t.Log(res.Cookies())
-
 }

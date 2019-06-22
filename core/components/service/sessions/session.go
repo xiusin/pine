@@ -1,7 +1,6 @@
 package sessions
 
 import (
-	"encoding/json"
 	"errors"
 	"github.com/xiusin/router/core/components/di/interfaces"
 	"net/http"
@@ -23,12 +22,8 @@ type Session struct {
 }
 
 func newSession(id string, r *http.Request, w http.ResponseWriter, store interfaces.SessionStoreInf) (*Session, error) {
-	val, err := store.Read(id)
-	if err != nil {
-		return nil, err
-	}
 	sess := &Session{request: r, writer: w, data: make(map[string]entry), store: store, id: id}
-	if err := json.Unmarshal(val, &sess.data); err != nil {
+	if err := store.Read(id, &sess.data); err != nil {
 		return nil, err
 	}
 	return sess, nil
@@ -62,6 +57,16 @@ func (sess *Session) Remove(key string) error {
 	delete(sess.data, key)
 	sess.l.Unlock()
 	return nil
+}
+
+func (sess *Session) Clear() error {
+	sess.l.Lock()
+	err := sess.store.Clear(sess.id)
+	if err == nil {
+		sess.data = map[string]entry{}
+	}
+	sess.l.Unlock()
+	return err
 }
 
 func (sess *Session) Save() error {

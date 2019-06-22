@@ -17,10 +17,10 @@ var NotKeyStoreErr = errors.New("no key store")
 
 type (
 	cookieOption struct {
-		Path     string
-		Domain   string
+		Name     string
 		Secure   bool
 		HttpOnly bool
+		Path     string
 	}
 
 	Option struct {
@@ -48,7 +48,9 @@ func Default() *Option {
 		CsrfLifeTime:       time.Second * 60,
 		MaxMultipartMemory: 8 << 20,
 		Cookie: &cookieOption{
+			Name:   "XIUSIN_SESSIONID",
 			Secure: true,
+			Path:   "/",
 		},
 		Setter: viper.New(),
 	}
