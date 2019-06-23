@@ -48,7 +48,9 @@ type (
 )
 
 func init() {
-	AddAlias("@everysec", "* * * * * *")
+	AddAlias("@second", "* * * * * *")
+	AddAlias("@minute", "0 * * * * *")
+	AddAlias("@hour", "0 0 * * * *")
 }
 
 // 初始化并且返回一个任务表
