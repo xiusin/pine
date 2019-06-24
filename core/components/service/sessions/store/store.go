@@ -6,11 +6,17 @@ import (
 	"github.com/xiusin/router/core/components/di/interfaces"
 	"io/ioutil"
 	"os"
+	"path"
 	"strings"
+	"sync"
+	"sync/atomic"
+	"time"
 )
 
 type FileStore struct {
-	config *Config
+	config  *Config
+	once    sync.Once
+	counter uint32
 }
 
 func NewFileStore(config *Config) *FileStore {
@@ -22,30 +28,50 @@ func NewFileStore(config *Config) *FileStore {
 		config.SessionPath = str
 	}
 	config.SessionPath = strings.TrimRight(config.SessionPath, "/")
-	return &FileStore{config: config}
+	store := &FileStore{config: config}
+	store.once.Do(func() {
+		go store.ClearExpiredFile()
+	})
+	return store
 }
 
 func (store *FileStore) GetConfig() interfaces.SessionConfigInf {
 	return store.config
 }
 
-//todo 这里合理化配置， 排除配置的依赖
 func (store *FileStore) ClearExpiredFile() {
-	//liftTime := m.store.GetConfig().GetGcMaxLiftTime()// 最大时差
-	//path :=
+	d := uint32(store.config.GcDivisor)
+	for {
+		if d > store.counter || store.counter > 0 && store.counter%d == 0 {
+			now := time.Now()
+			// 执行清理
+			files, err := ioutil.ReadDir(store.config.SessionPath)
+			if err != nil {
+				continue //忽略错误 todo 修改可追溯
+			}
+			for _, file := range files {
+				if now.Sub(file.ModTime().Add(time.Duration(store.config.GcMaxLiftTime)*time.Second)) >= 0 {
+					_ = os.Remove(path.Join(store.config.SessionPath, file.Name()))
+				}
+			}
+			atomic.StoreUint32(&store.counter, 1) //重置counter为1
+		}
+	}
 }
 
 func (store *FileStore) Read(id string, recver interface{}) error {
 	f, err := os.Open(store.getFilePath(id))
 	if err != nil && os.IsNotExist(err) {
+		atomic.AddUint32(&store.counter, 1)
 		return nil
 	}
 	defer f.Close()
 	decoder := gob.NewDecoder(f)
-	if err := decoder.Decode(recver); err != nil {
-		return err
+	if err := decoder.Decode(recver); err == nil {
+		atomic.AddUint32(&store.counter, 1)
+		return nil
 	}
-	return nil
+	return err
 }
 
 func (store *FileStore) getFilePath(id string) string {

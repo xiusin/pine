@@ -14,8 +14,6 @@ type SessionConfigInf interface {
 	GetExpires() time.Duration
 	GetHttpOnly() bool
 	GetSecure() bool
-	GetGcMaxLiftTime() int
-	GetGcDivisor() int
 }
 
 type SessionStoreInf interface {

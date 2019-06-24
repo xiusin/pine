@@ -28,11 +28,6 @@ func (m *Manager) Session(r *http.Request, w http.ResponseWriter) (interfaces.Se
 	config := m.store.GetConfig()
 	m.l.Lock()
 	defer m.l.Unlock()
-	//m.counter += 1
-	//if m.counter/config.GetGcDivisor() == 1 {
-	//	go m.ClearExpiredFile()
-	//	m.counter = 0
-	//}
 	name := config.GetCookieName()
 	cookie, err := r.Cookie(name)
 	if err != nil {
