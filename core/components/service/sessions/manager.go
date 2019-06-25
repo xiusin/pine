@@ -1,11 +1,12 @@
 package sessions
 
 import (
-	uuid "github.com/satori/go.uuid"
-	"github.com/xiusin/router/core/components/di/interfaces"
 	"net/http"
 	"sync"
 	"time"
+
+	uuid "github.com/satori/go.uuid"
+	"github.com/xiusin/router/core/components/di/interfaces"
 )
 
 type Manager struct {

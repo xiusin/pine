@@ -1,4 +1,4 @@
-package store
+package file
 
 import (
 	"bytes"
@@ -13,13 +13,13 @@ import (
 	"time"
 )
 
-type FileStore struct {
+type Store struct {
 	config  *Config
 	once    sync.Once
 	counter uint32
 }
 
-func NewFileStore(config *Config) *FileStore {
+func NewStore(config *Config) *Store {
 	if config.SessionPath == "" {
 		str, err := os.UserCacheDir()
 		if err != nil {
@@ -28,18 +28,18 @@ func NewFileStore(config *Config) *FileStore {
 		config.SessionPath = str
 	}
 	config.SessionPath = strings.TrimRight(config.SessionPath, "/")
-	store := &FileStore{config: config}
+	store := &Store{config: config}
 	store.once.Do(func() {
 		go store.ClearExpiredFile()
 	})
 	return store
 }
 
-func (store *FileStore) GetConfig() interfaces.SessionConfigInf {
+func (store *Store) GetConfig() interfaces.SessionConfigInf {
 	return store.config
 }
 
-func (store *FileStore) ClearExpiredFile() {
+func (store *Store) ClearExpiredFile() {
 	d := uint32(store.config.GcDivisor)
 	for {
 		if d > store.counter || store.counter > 0 && store.counter%d == 0 {
@@ -59,7 +59,7 @@ func (store *FileStore) ClearExpiredFile() {
 	}
 }
 
-func (store *FileStore) Read(id string, recver interface{}) error {
+func (store *Store) Read(id string, recver interface{}) error {
 	f, err := os.Open(store.getFilePath(id))
 	if err != nil && os.IsNotExist(err) {
 		atomic.AddUint32(&store.counter, 1)
@@ -74,11 +74,11 @@ func (store *FileStore) Read(id string, recver interface{}) error {
 	return err
 }
 
-func (store *FileStore) getFilePath(id string) string {
+func (store *Store) getFilePath(id string) string {
 	return store.config.SessionPath + "/sess-" + id
 }
 
-func (store *FileStore) Save(id string, val interface{}) error {
+func (store *Store) Save(id string, val interface{}) error {
 	var buf bytes.Buffer
 	enc := gob.NewEncoder(&buf)
 	if err := enc.Encode(val); err != nil {
@@ -88,7 +88,7 @@ func (store *FileStore) Save(id string, val interface{}) error {
 	return ioutil.WriteFile(fileName, buf.Bytes(), os.ModePerm)
 }
 
-func (store *FileStore) Clear(id string) error {
+func (store *Store) Clear(id string) error {
 	if err := os.Remove(store.getFilePath(id)); !os.IsNotExist(err) {
 		return err
 	}

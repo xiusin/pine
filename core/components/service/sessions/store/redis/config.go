@@ -1,10 +1,14 @@
-package store
+package redis
 
-import "time"
+import (
+	"time"
+
+	"github.com/xiusin/router/core/components/cache"
+)
 
 // 统一化配置， 如果不需要的可以不配置
 type Config struct {
-	SessionPath    string
+	Cache           cache.Cache
 	CookieName     string
 	CookieExpires  time.Duration
 	CookieSecure   bool
@@ -13,25 +17,6 @@ type Config struct {
 	GcDivisor      int // 清理频次
 }
 
-func (c *Config) GetSessionPath() string {
-	return c.SessionPath
-}
-
-func (c *Config) GetGcMaxLiftTime() int {
-	if c.GcMaxLiftTime == 0 {
-		return 1440
-	} else {
-		return c.GcMaxLiftTime
-	}
-}
-
-func (c *Config) GetGcDivisor() int {
-	if c.GcMaxLiftTime == 0 {
-		return 1000
-	} else {
-		return c.GcDivisor
-	}
-}
 
 func (c *Config) GetCookieName() string {
 	return c.CookieName

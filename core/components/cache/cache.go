@@ -6,12 +6,12 @@ import (
 )
 
 type Cache interface {
-	Get(string) (string, error)
+	Get(string) (string, error)	//todo 修改为return []byte
 	SetCachePrefix(string)
 	Save(string, string) bool
 	Delete(string) bool
 	Exists(string) bool
-	SaveAll(map[string]string) bool
+	SaveAll(map[string]string) bool // 修改为map[string][]byte
 }
 
 var adapters = make(map[string]AdapterBuilder)
