@@ -47,7 +47,7 @@ func (store *Store) ClearExpiredFile() {
 			// 执行清理
 			files, err := ioutil.ReadDir(store.config.SessionPath)
 			if err != nil {
-				continue //忽略错误 todo 修改可追溯
+				panic(err)
 			}
 			for _, file := range files {
 				if now.Sub(file.ModTime().Add(time.Duration(store.config.GcMaxLiftTime)*time.Second)) >= 0 {

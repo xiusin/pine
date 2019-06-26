@@ -17,7 +17,7 @@ type (
 		TTL        int
 		GCInterval int //sec
 		Prefix     string
-		maxMemSize int	// bit
+		maxMemSize int // bit
 	}
 	Memory struct {
 		prefix    string
@@ -26,7 +26,7 @@ type (
 		store     sync.Map
 	}
 	entry struct {
-		data      string
+		data      []byte
 		size      int32
 		ExpiresAt time.Time
 	}
@@ -43,7 +43,7 @@ func init() {
 		opt := option.(*Option)
 		once.Do(func() {
 			if opt.maxMemSize == 0 {
-				opt.maxMemSize = 500*1024*1024
+				opt.maxMemSize = 500 * 1024 * 1024
 			}
 			if opt.GCInterval == 0 {
 				opt.GCInterval = 30
@@ -64,21 +64,21 @@ func (o *Option) ToString() string {
 	return string(s)
 }
 
-func (m *Memory) getExpireAt() time.Time {
-	return time.Now().Add(time.Duration(m.option.TTL))
+func (m *Memory) getExpireAt(ttl int) time.Time {
+	return time.Now().Add(time.Duration(ttl))
 }
 
-func (m *Memory) Get(key string) (string, error) {
+func (m *Memory) Get(key string) ([]byte, error) {
 	if data, ok := m.store.Load(m.getKey(key)); ok {
 		d, ok := data.(*entry)
 		if ok && time.Now().Sub(d.ExpiresAt) > 0 {
-			d.ExpiresAt = m.getExpireAt()
+			//d.ExpiresAt = m.getExpireAt()	/
 			return d.data, nil
 		} else {
 			m.store.Delete(m.getKey(key))
 		}
 	}
-	return "", keyNotExistsError
+	return []byte(""), keyNotExistsError
 }
 
 func (m *Memory) getKey(key string) string {
@@ -89,10 +89,13 @@ func (m *Memory) SetCachePrefix(prefix string) {
 	m.prefix = prefix
 }
 
-func (m *Memory) Save(key string, val string) bool {
+func (m *Memory) Save(key string, val []byte, ttl ...int) bool {
+	if len(ttl) == 0 {
+		ttl[0] = m.option.TTL
+	}
 	data := &entry{
 		data:      val,
-		ExpiresAt: m.getExpireAt(),
+		ExpiresAt: m.getExpireAt(ttl[0]),
 	}
 	size := unsafe.Sizeof(data)
 	data.size = int32(size) + 4
@@ -130,9 +133,12 @@ func (m *Memory) Exists(key string) bool {
 	return false
 }
 
-func (m *Memory) SaveAll(data map[string]string) bool {
+func (m *Memory) SaveAll(data map[string][]byte, ttl ...int) bool {
+	if len(ttl) == 0 {
+		ttl[0] = m.option.TTL
+	}
 	for k, v := range data {
-		m.Save(k, v)
+		m.Save(k, v, ttl[0])
 	}
 	return true
 }

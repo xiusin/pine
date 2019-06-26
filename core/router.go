@@ -63,7 +63,7 @@ func RegisterErrorCodeHandler(code int, handler Handler) {
 func init() {
 	// 注册默认的404
 	RegisterErrorCodeHandler(http.StatusNotFound, func(ctx *Context) {
-		http.NotFound(ctx.Writer(),ctx.Request().GetRequest())
+		http.NotFound(ctx.Writer(), ctx.Request().GetRequest())
 	})
 }
 
@@ -251,7 +251,6 @@ func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request
 	urlParsed, _ := url.ParseRequestURI(req.RequestURI) // 解析地址参数
 	start := time.Now()
 	r.handle(c, urlParsed)
-	//todo 这个提取为单独的中间件?
 	if r.option.Env == option.DevMode {
 		r.requestLog(c, start)
 	}
@@ -271,7 +270,7 @@ func (r *Router) requestLog(c *Context, start time.Time) {
 	)
 }
 
-// 初始化RouteMap todo tree替代
+// 初始化RouteMap
 func defaultRouteMap() map[string]map[string]*RouteEntry {
 	return map[string]map[string]*RouteEntry{
 		http.MethodGet:     {},

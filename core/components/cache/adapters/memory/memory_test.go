@@ -19,7 +19,7 @@ func init() {
 	if err != nil {
 		panic(err)
 	}
-	mem.Save("name", "xiusin")
+	mem.Save("name", []byte("xiusin"))
 }
 
 func TestMemory_Get(t *testing.T) {
@@ -52,15 +52,15 @@ func TestMemory_Exists(t *testing.T) {
 }
 
 func TestMemory_Save(t *testing.T) {
-	mem.Save("age", "18")
+	mem.Save("age", []byte("18"))
 	age, _ := mem.Get("age")
 	t.Log("get age", age)
 }
 
 func TestMemory_SaveAll(t *testing.T) {
-	mem.SaveAll(map[string]string{
-		"name1": "zhaoliu",
-		"name2": "lisi",
+	mem.SaveAll(map[string][]byte{
+		"name1": []byte("zhaoliu"),
+		"name2": []byte("lisi"),
 	})
 
 	name1, _ := mem.Get("name1")

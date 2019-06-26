@@ -49,16 +49,16 @@ type Nutsdb struct {
 	bucketName string
 }
 
-func (c *Nutsdb) Get(key string) (val string, err error) {
+func (c *Nutsdb) Get(key string) (val []byte, err error) {
 	if err = c.client.View(func(tx *nutsdb.Tx) error {
 		if e, err := tx.Get(c.bucketName, []byte(c.prefix+key)); err != nil {
 			return err
 		} else {
-			val = string(e.Value)
+			val = e.Value
 		}
 		return nil
 	}); err != nil {
-		return "", err
+		return []byte(""), err
 	}
 	return
 }
@@ -67,9 +67,12 @@ func (c *Nutsdb) SetCachePrefix(prefix string) {
 	c.prefix = prefix
 }
 
-func (c *Nutsdb) Save(key, val string) bool {
+func (c *Nutsdb) Save(key string, val []byte, ttl ...int) bool {
+	if len(ttl) == 0 {
+		ttl[0] = c.option.TTL
+	}
 	if err := c.client.Update(func(tx *nutsdb.Tx) error {
-		if err := tx.Put(c.bucketName, []byte(c.prefix+key), []byte(val), uint32(c.option.TTL)); err != nil {
+		if err := tx.Put(c.bucketName, []byte(c.prefix+key), val, uint32(ttl[0])); err != nil {
 			return err
 		}
 		return nil
@@ -103,14 +106,17 @@ func (c *Nutsdb) Exists(key string) bool {
 	return true
 }
 
-func (c *Nutsdb) SaveAll(data map[string]string) bool {
+func (c *Nutsdb) SaveAll(data map[string][]byte, ttl ...int) bool {
+	if len(ttl) == 0 {
+		ttl[0] = c.option.TTL
+	}
 	tx, err := c.client.Begin(true)
 	if err != nil {
 		return false
 	}
 	for key, val := range data {
-		ttl := uint32(c.option.TTL)
-		if err = tx.Put(c.bucketName, []byte(c.prefix+key), []byte(val), ttl); err != nil {
+		ttl := uint32(ttl[0])
+		if err = tx.Put(c.bucketName, []byte(c.prefix+key), val, ttl); err != nil {
 			_ = tx.Rollback()
 			return false
 		}

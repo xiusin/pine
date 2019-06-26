@@ -48,17 +48,17 @@ func (cache *Cache) Pool() *redis.Pool {
 	return cache.pool
 }
 
-func (cache *Cache) Get(key string) (string, error) {
+func (cache *Cache) Get(key string) ([]byte, error) {
 	client := cache.pool.Get()
-	s, err := redis.String(client.Do("GET", cache.getCacheKey(key)))
-	client.Close()
+	s, err := redis.Bytes(client.Do("GET", cache.getCacheKey(key)))
+	_ = client.Close()
 	return s, err
 }
 
 func (cache *Cache) GetAny(callback func(*redis.Conn)) {
 	client := cache.pool.Get()
 	callback(&client)
-	client.Close()
+	_ = client.Close()
 }
 
 func (cache *Cache) SetCachePrefix(prefix string) {
@@ -69,10 +69,13 @@ func (cache *Cache) SetTTL(ttl int) {
 	cache.ttl = ttl
 }
 
-func (cache *Cache) Save(key string, val string) bool {
+func (cache *Cache) Save(key string, val []byte, ttl ...int) bool {
+	if len(ttl) == 0 {
+		ttl[0] = cache.ttl
+	}
 	client := cache.pool.Get()
-	_, err := client.Do("SET", cache.getCacheKey(key), val, "EX", cache.ttl)
-	client.Close()
+	_, err := client.Do("SET", cache.getCacheKey(key), val, "EX", ttl[0])
+	_ = client.Close()
 	if err != nil {
 		return false
 	}
@@ -82,28 +85,31 @@ func (cache *Cache) Save(key string, val string) bool {
 func (cache *Cache) Delete(key string) bool {
 	client := cache.pool.Get()
 	_, _ = client.Do("DEL", cache.getCacheKey(key))
-	client.Close()
+	_ = client.Close()
 	return true
 }
 
 func (cache *Cache) Exists(key string) bool {
 	client := cache.pool.Get()
 	isKeyExit, _ := redis.Bool(client.Do("EXISTS", cache.getCacheKey(key)))
-	client.Close()
+	_ = client.Close()
 	if isKeyExit {
 		return true
 	}
 	return false
 }
 
-func (cache *Cache) SaveAll(data map[string]string) bool {
+func (cache *Cache) SaveAll(data map[string][]byte, ttl ...int) bool {
+	if len(ttl) == 0 {
+		ttl[0] = cache.ttl
+	}
 	client := cache.pool.Get()
 	_ = client.Send("MULTI") // 事务
 	for key, val := range data {
-		_ = client.Send("SET", cache.getCacheKey(key), val, "EX", cache.ttl)
+		_ = client.Send("SET", cache.getCacheKey(key), val, "EX", ttl[0])
 	}
 	_, err := client.Do("EXEC")
-	client.Close()
+	_ = client.Close()
 	if err != nil {
 		return false
 	}

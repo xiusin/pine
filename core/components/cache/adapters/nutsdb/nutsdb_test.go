@@ -11,14 +11,14 @@ var mem cache.Cache
 
 func init() {
 	mem, err = cache.NewCache("nutsdb", &Option{
-		TTL:        5,
-		Prefix:     "mem_",
-		Path: "/tmp/nutsdb",
+		TTL:    5,
+		Prefix: "mem_",
+		Path:   "/tmp/nutsdb",
 	})
 	if err != nil {
 		panic(err)
 	}
-	mem.Save("name", "xiusin")
+	mem.Save("name", []byte("xiusin"))
 }
 
 func TestNutsdb_Get(t *testing.T) {
@@ -36,19 +36,19 @@ func TestNutsdb_Get(t *testing.T) {
 }
 
 func TestNutsdb_SaveAll(t *testing.T) {
-	t.Log("saveAll", mem.SaveAll(map[string]string{
-		"location": "河南",
-		"age": "29",
-		"sex": "男",
+	t.Log("saveAll", mem.SaveAll(map[string][]byte{
+		"location": []byte("河南"),
+		"age":      []byte("29"),
+		"sex":      []byte("男"),
 	}))
-	loc,_ :=  mem.Get("location")
-	t.Log("get loc",loc)
+	loc, _ := mem.Get("location")
+	t.Log("get loc", loc)
 
-	age,_ :=  mem.Get("age")
-	t.Log("get age",age)
+	age, _ := mem.Get("age")
+	t.Log("get age", age)
 
-	sex,_ :=  mem.Get("sex")
-	t.Log("get sex",sex)
+	sex, _ := mem.Get("sex")
+	t.Log("get sex", sex)
 }
 
 func TestNutsdb_Exists(t *testing.T) {
@@ -67,7 +67,7 @@ func TestNutsdb_SetCachePrefix(t *testing.T) {
 }
 
 func TestNutsdb_Save(t *testing.T) {
-	mem.Save("framework", "xiusin/router")
-	fm ,_ := mem.Get("framework")
-	t.Log("get framework",fm)
+	mem.Save("framework", []byte("xiusin/router"))
+	fm, _ := mem.Get("framework")
+	t.Log("get framework", fm)
 }

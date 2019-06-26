@@ -9,7 +9,6 @@ type BuildHandler func(builder BuilderInf) (interface{}, error)
 type BuildWithHandler func(builder BuilderInf, params ...interface{}) (interface{}, error)
 
 /**
-@todo
 1. 带参数解析的服务必须是不共享的,否则会出现异常.
 2. 参数必须按顺序传入
 */
@@ -160,4 +159,3 @@ func SetWithParams(serviceName string, handler BuildWithHandler) *Definition {
 func GetWithParams(serviceName string, params ...interface{}) (interface{}, error) {
 	return diDefault.GetWithParams(serviceName, params...)
 }
-

@@ -11,7 +11,7 @@ import (
 // 直接保存到内存
 // 支持国人开发
 type Option struct {
-	TTL    int	// sec
+	TTL    int // sec
 	Path   string
 	Prefix string
 }
@@ -35,32 +35,32 @@ func init() {
 			panic(err)
 		}
 		mem := &badger{
-			client:     db,
-			option:     revOpt,
-			prefix:     revOpt.Path,
+			client: db,
+			option: revOpt,
+			prefix: revOpt.Path,
 		}
 		return mem
 	})
 }
 
 type badger struct {
-	option     *Option
-	prefix     string
-	client     *badger2.DB
+	option *Option
+	prefix string
+	client *badger2.DB
 }
 
-func (c *badger) Get(key string) (val string, err error) {
+func (c *badger) Get(key string) (val []byte, err error) {
 	if err = c.client.View(func(tx *badger2.Txn) error {
-		if e, err := tx.Get([]byte(c.prefix+key)); err != nil {
+		if e, err := tx.Get([]byte(c.prefix + key)); err != nil {
 			return err
 		} else {
 			return e.Value(func(v []byte) error {
-				val = string(v)
+				val = v
 				return nil
 			})
 		}
 	}); err != nil {
-		return "", err
+		return val, err
 	}
 	return
 }
@@ -69,9 +69,12 @@ func (c *badger) SetCachePrefix(prefix string) {
 	c.prefix = prefix
 }
 
-func (c *badger) Save(key, val string) bool {
+func (c *badger) Save(key string, val []byte, ttl ...int) bool {
+	if len(ttl) == 0 {
+		ttl[0] = c.option.TTL
+	}
 	if err := c.client.Update(func(tx *badger2.Txn) error {
-		e := badger2.NewEntry([]byte(c.prefix+key), []byte(val)).WithTTL(time.Duration(c.option.TTL) * time.Second)
+		e := badger2.NewEntry([]byte(c.prefix+key), val).WithTTL(time.Duration(ttl[0]) * time.Second)
 		if err := tx.SetEntry(e); err != nil {
 			return err
 		}
@@ -84,7 +87,7 @@ func (c *badger) Save(key, val string) bool {
 
 func (c *badger) Delete(key string) bool {
 	if err := c.client.Update(func(tx *badger2.Txn) error {
-		if err := tx.Delete([]byte(c.prefix+key)); err != nil {
+		if err := tx.Delete([]byte(c.prefix + key)); err != nil {
 			return err
 		}
 		return nil
@@ -96,7 +99,7 @@ func (c *badger) Delete(key string) bool {
 
 func (c *badger) Exists(key string) bool {
 	if err := c.client.View(func(tx *badger2.Txn) error {
-		if _, err := tx.Get([]byte(c.prefix+key)); err != nil {
+		if _, err := tx.Get([]byte(c.prefix + key)); err != nil {
 			return err
 		}
 		return nil
@@ -106,12 +109,15 @@ func (c *badger) Exists(key string) bool {
 	return true
 }
 
-func (c *badger) SaveAll(data map[string]string) bool {
+func (c *badger) SaveAll(data map[string][]byte, ttl ...int) bool {
+	if len(ttl) == 0 {
+		ttl[0] = c.option.TTL
+	}
 	tx := c.client.NewTransaction(true)
 	for key, val := range data {
-		e := badger2.NewEntry([]byte(c.prefix+key), []byte(val)).WithTTL(time.Duration(c.option.TTL) * time.Second)
+		e := badger2.NewEntry([]byte(c.prefix+key), val).WithTTL(time.Duration(ttl[0]) * time.Second)
 		if err := tx.SetEntry(e); err == nil {
-			if err = tx.Commit(); err== nil {
+			if err = tx.Commit(); err == nil {
 				return true
 			}
 		}

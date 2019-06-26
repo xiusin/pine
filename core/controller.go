@@ -47,6 +47,8 @@ func (c *Controller) SetCtx(ctx *Context) {
 			panic(errors.New("ctx参数错误"))
 		}
 		c.ctx = ctx
+	} else {
+		panic("ctx 不可自定义赋值")
 	}
 }
 

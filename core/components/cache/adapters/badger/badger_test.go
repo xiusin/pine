@@ -9,12 +9,12 @@ var mem cache.Cache
 
 func init() {
 	mem, err = cache.NewCache("badger", &Option{
-		TTL:        5,
-		Prefix:     "mem_",
-		Path: "/tmp/badger",
+		TTL:    5,
+		Prefix: "mem_",
+		Path:   "/tmp/badger",
 	})
 	if err != nil {
 		panic(err)
 	}
-	mem.Save("name", "xiusin")
+	mem.Save("name", []byte("xiusin"))
 }
