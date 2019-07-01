@@ -9,5 +9,6 @@
  11. 添加数据库迁移功能. 数据库采用GORM 或 fizz 
  14. 将组件分成单个仓库， 防止初始化代码依赖太多
  15. 全面测试cookie， 生命周期需要兼容-1(过期)，0 不过期
+ 16. router.static无法代理文件BUG
 ## 参考文档  ##
  - [使用Go实现一个LRU](https://www.jianshu.com/p/970f1a8dd9cf) 
