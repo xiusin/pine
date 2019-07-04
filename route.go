@@ -31,7 +31,7 @@ var (
 	urlSeparator         = "/"                                                                       // url地址分隔符
 	patternRoutes        = map[string][]*RouteEntry{}                                                // 记录匹配路由映射
 	namedRoutes          = map[string]*RouteEntry{}                                                  // 命名路由保存
-	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_]+)(<.+?>)?")                      // 正则匹配规则
+	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_/]+)(<.+?>)?")                     // 正则匹配规则
 	patternMap           = map[string]string{":int": "<\\d+>", ":string": "<[\\w0-9\\_\\.\\+\\-]+>"} //规则字段映射
 )
 
@@ -40,30 +40,38 @@ var (
 // :param 支持路由段内嵌
 func (r *RouteCollection) AddRoute(method, path string, handle Handler, mws ...Handler) *RouteEntry {
 	originName := r.Prefix + path
-	for cons, str := range patternMap { //替换正则匹配映射
-		path = strings.Replace(path, cons, str, -1)
-	}
-	isPattern, _ := regexp.MatchString("[:*]", r.Prefix+path)
-	var pattern string
-	var params []string
-	if isPattern {
-		uriPartials := strings.Split(r.Prefix+path, urlSeparator)[1:]
-		for _, v := range uriPartials {
-			if strings.Contains(v, ":") {
-				pattern = pattern + urlSeparator + patternRouteCompiler.ReplaceAllStringFunc(v, func(s string) string {
-					param, patternStr := r.getPattern(s)
-					params = append(params, param)
-					return patternStr
-				})
-			} else if strings.HasPrefix(v, "*") {
-				param, patternStr := r.getPattern(v)
-				pattern += urlSeparator + "?" + patternStr + "?"
-				params = append(params, param)
-			} else {
-				pattern = pattern + urlSeparator + v
-			}
+	var (
+		params    []string
+		pattern   string
+		isPattern bool
+	)
+	if strings.HasSuffix(path, "*file") {
+		// 应对静态目录资源代理
+		isPattern, pattern = true, "^"+strings.TrimSuffix(originName, "/*file")+"/(.+)"
+	} else {
+		for cons, str := range patternMap { //替换正则匹配映射
+			path = strings.Replace(path, cons, str, -1)
 		}
-		pattern = "^" + pattern + "$"
+		isPattern, _ := regexp.MatchString("[:*]", r.Prefix+path)
+		if isPattern {
+			uriPartials := strings.Split(r.Prefix+path, urlSeparator)[1:]
+			for _, v := range uriPartials {
+				if strings.Contains(v, ":") {
+					pattern = pattern + urlSeparator + patternRouteCompiler.ReplaceAllStringFunc(v, func(s string) string {
+						param, patternStr := r.getPattern(s)
+						params = append(params, param)
+						return patternStr
+					})
+				} else if strings.HasPrefix(v, "*") {
+					param, patternStr := r.getPattern(v)
+					pattern += urlSeparator + "?" + patternStr + "?"
+					params = append(params, param)
+				} else {
+					pattern = pattern + urlSeparator + v
+				}
+			}
+			pattern = "^" + pattern + "$"
+		}
 	}
 
 	route := &RouteEntry{

@@ -34,7 +34,8 @@ type (
 
 var (
 	shutdownBeforeHandler []func()
-	errCodeCallHandler    = make(map[int]Handler)
+
+	errCodeCallHandler = make(map[int]Handler)
 )
 
 const (
@@ -99,15 +100,6 @@ func (r *Router) SetRecoverHandler(handler Handler) {
 	}
 }
 
-// 创建一个静态资源处理函数
-func (*Router) staticHandler(path, dir string) Handler {
-	return func(c *Context) {
-		// 去除前缀启动文件服务
-		fileServer := http.StripPrefix(path, http.FileServer(http.Dir(dir)))
-		fileServer.ServeHTTP(c.Writer(), c.Request().GetRequest())
-	}
-}
-
 // 匹配路由
 func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *RouteEntry {
 	pathInfos := strings.Split(urlParsed.Path, urlSeparator)
@@ -134,7 +126,6 @@ func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *RouteEntry {
 			}
 		}
 	}
-
 	// 匹配正则规则
 	for pattern, routes := range patternRoutes {
 		reg := regexp.MustCompile(pattern)
@@ -156,7 +147,12 @@ func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *RouteEntry {
 
 // 处理静态文件夹
 func (r *Router) Static(path, dir string) {
-	r.GET(path, r.staticHandler(path, dir))
+	r.GET(path, func(i *Context) {
+		http.StripPrefix(
+			strings.TrimSuffix(path, "*file"),
+			http.FileServer(http.Dir(dir)),
+		).ServeHTTP(i.Writer(), i.req.GetRequest())
+	})
 }
 
 // 处理静态文件
