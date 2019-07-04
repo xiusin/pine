@@ -37,6 +37,7 @@ var (
 
 // 添加路由, 内部函数
 // *any 只支持路由段级别的设置
+// *file 指定router.Static代理目录下所有文件标志
 // :param 支持路由段内嵌
 func (r *RouteCollection) AddRoute(method, path string, handle Handler, mws ...Handler) *RouteEntry {
 	originName := r.Prefix + path
