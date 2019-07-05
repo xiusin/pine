@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/xiusin/router/components/cache"
+	"github.com/xiusin/router/components/di"
+	"github.com/xiusin/router/components/di/interfaces"
 	"sync"
 	"sync/atomic"
 	"time"
 	"unsafe"
-
-	"github.com/sirupsen/logrus"
 )
 
 type (
@@ -103,7 +103,11 @@ func (m *Memory) Save(key string, val []byte, ttl ...int) bool {
 		atomic.AddInt32(&m.totalSize, data.size)
 		m.store.Store(m.getKey(key), data)
 	} else {
-		logrus.Error("已超出设置内存限制, 无法存储")
+		logger, getErr := di.Get("logger")
+		if getErr != nil {
+			panic(getErr)
+		}
+		(logger.(interfaces.LoggerInf)).Fatalf("已超出设置内存限制, 无法存储")
 		return false
 	}
 	return true

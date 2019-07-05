@@ -14,15 +14,15 @@ type Test struct {
 var que queue.Queue
 
 func init() {
-	cach, _ := cache.NewCache("redis", &redis2.Option{
+	cach, _ := cache.NewCache("cache", &redis2.Option{
 		Host: "127.0.0.1:6379",
 	})
-	queue.ConfigQueue("redis", &Option{
+	queue.ConfigQueue("cache", &Option{
 		QueueName: "test",
 		Pool:      cach.(*redis2.Cache).Pool(),
 	})
 
-	que = queue.Get("redis")
+	que = queue.Get("cache")
 }
 
 func TestRedis_Deliver(t *testing.T) {

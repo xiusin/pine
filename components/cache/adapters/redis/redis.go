@@ -4,10 +4,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/xiusin/router/components/cache"
+	"github.com/xiusin/router/components/di"
+	"github.com/xiusin/router/components/di/interfaces"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
-	"github.com/sirupsen/logrus"
 )
 
 type Option struct {
@@ -117,7 +118,7 @@ func (cache *Cache) SaveAll(data map[string][]byte, ttl ...int) bool {
 }
 
 func init() {
-	cache.Register("redis", func(option cache.Option) cache.Cache {
+	cache.Register("cache", func(option cache.Option) cache.Cache {
 		opt := option.(*Option)
 		if opt.Host == "" {
 			opt.Host = "127.0.0.1"
@@ -142,7 +143,11 @@ func init() {
 						redis.DialReadTimeout(time.Duration(opt.ReadTimeout)*time.Second),
 						redis.DialWriteTimeout(time.Duration(opt.WriteTimeout)*time.Second))
 					if err != nil {
-						logrus.Error("Dial error", err.Error())
+						logger, getErr := di.Get("logger")
+						if getErr != nil {
+							panic(getErr)
+						}
+						(logger.(interfaces.LoggerInf)).Fatalf("Dial error", err.Error())
 						return nil, err
 					}
 					return con, nil

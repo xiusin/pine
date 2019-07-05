@@ -33,10 +33,10 @@ func (queue *Redis) Deliver(job queue.TaskInf) error {
 }
 
 func init() {
-	queue.Register("redis", func(option queue.Option) queue.Queue {
+	queue.Register("cache", func(option queue.Option) queue.Queue {
 		opt, ok := option.(*Option)
 		if !ok {
-			panic("please input redis.option")
+			panic("please input cache.option")
 		}
 		client := &Redis{
 			client: opt.Pool,

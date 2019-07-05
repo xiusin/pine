@@ -3,6 +3,8 @@ package router
 import (
 	"context"
 	"fmt"
+	"github.com/xiusin/router/components/di"
+	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -14,7 +16,6 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/sirupsen/logrus"
 	"github.com/xiusin/router/components/option"
 	http2 "github.com/xiusin/router/http"
 )
@@ -40,7 +41,7 @@ var (
 
 const (
 	Version        = "dev 0.0.2"
-	logQueryFormat = "| %s | %s | %s | %s | Path: %s"
+	logQueryFormat = "| %s | %s | %s | %s | Path: %s\n"
 	logo           = `
 ____  __.__            .__      __________               __                
 \   \/  |__|__ __ _____|__| ____\______   \ ____  __ ___/  |_  ___________ 
@@ -62,6 +63,12 @@ func RegisterErrorCodeHandler(code int, handler Handler) {
 }
 
 func init() {
+	// 注册默认logger组件
+	di.Set("logger", func(builder di.BuilderInf) (i interface{}, e error) {
+		logger := log.New(os.Stdout, "[DEBUG] ", log.LstdFlags)
+		return logger, nil
+	}, true)
+
 	// 注册默认的404
 	RegisterErrorCodeHandler(http.StatusNotFound, func(ctx *Context) {
 		http.NotFound(ctx.Writer(), ctx.Request().GetRequest())
@@ -183,7 +190,7 @@ func (_ *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal, done 
 	defer cancel()
 	srv.SetKeepAlivesEnabled(false)
 	if err := srv.Shutdown(ctx); err != nil {
-		logrus.Fatalf("could not gracefully shutdown the server: %v\n", err)
+		_ = fmt.Errorf("could not gracefully shutdown the server: %v\n", err)
 	}
 	for _, beforeHandler := range shutdownBeforeHandler {
 		beforeHandler()
@@ -208,10 +215,10 @@ func (r *Router) Serve() {
 		fmt.Println(logo)
 	}
 	go r.gracefulShutdown(srv, quit, done)
-	logrus.Println("server run on: http://" + addr)
+	fmt.Println("server run on: http://" + addr)
 	err := srv.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
-		logrus.Fatalf("server was error: %s", err.Error())
+		_ = fmt.Errorf("server was error: %s", err.Error())
 	}
 	<-done
 }
@@ -261,8 +268,13 @@ func (r *Router) requestLog(c *Context, start time.Time) {
 	} else {
 		statusInfo = color.YellowString("%d", status)
 	}
-	logrus.Infof(logQueryFormat, statusInfo, color.YellowString("%s", c.Request().Method),
-		c.Request().ClientIP(), time.Now().Sub(start).String(), c.Request().URL.Path,
+	c.Logger().Printf(
+		logQueryFormat,
+		statusInfo,
+		color.YellowString("%s", c.Request().Method),
+		c.Request().ClientIP(),
+		time.Now().Sub(start).String(),
+		c.Request().URL.Path,
 	)
 }
 

@@ -3,10 +3,8 @@ package router
 import (
 	"context"
 	"fmt"
-	"log"
 	"math/rand"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/xiusin/router/components/di"
@@ -176,13 +174,7 @@ func (c *Context) Status() int {
 
 // 日志对象
 func (c *Context) Logger() (loggerInf interfaces.LoggerInf) {
-	ok := di.Exists("logger")
-	if !ok {
-		loggerInf = log.New(os.Stdout, "[ROUTER-DEBUG]", log.LstdFlags)
-	} else {
-		loggerInf = di.MustGet("logger").(interfaces.LoggerInf)
-	}
-	return
+	return di.MustGet("logger").(interfaces.LoggerInf)
 }
 
 func (c *Context) SessionManger() interfaces.SessionManagerInf {
