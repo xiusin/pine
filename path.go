@@ -3,32 +3,45 @@ package router
 import (
 	"os"
 	"path"
+	"strings"
 )
 
 var (
-	rootPath string
+	rootPath     string
+	aliasMapping map[string]string
 )
 
 func init() {
-	curPath, err := os.Getwd()
-	if err != nil {
+	var curPath string
+	var err error
+	if curPath, err = os.Getwd(); err != nil {
 		panic(err)
 	}
 	rootPath = curPath
-	// 创建文件夹
-	f, err := os.Stat(StoragePath())
-	if err != nil || f.IsDir() != true {
-		_ = os.MkdirAll(StoragePath(), 0644)
-		_ = os.MkdirAll(LogPath(), 0644)
+	if f, err := os.Stat(StoragePath()); err != nil || f.IsDir() != true {
+		os.MkdirAll(StoragePath(), 0644)
+		os.MkdirAll(LogPath(), 0644)
+	}
+	if f, err := os.Stat(PublicPath()); err != nil || f.IsDir() != true {
+		os.MkdirAll(PublicPath(), 0644)
+	}
+	aliasMapping = map[string]string{
+		"@app":    RootPath(),
+		"@log":    LogPath(),
+		"@public": PublicPath(),
 	}
 }
 
-func RootPath() string {
-	return rootPath
+func RootPath(pathOrName ...string) string {
+	pathOrName = append([]string{rootPath}, pathOrName...)
+	return path.Join(pathOrName...)
+}
+
+func PublicPath() string {
+	return path.Join([]string{rootPath, "public"}...)
 }
 
 func StoragePath(pathOrName ...string) string {
-	// 如果目录不存在, 则创建一下
 	pathOrName = append([]string{rootPath, "storage"}, pathOrName...)
 	return path.Join(pathOrName...)
 }
@@ -36,4 +49,21 @@ func StoragePath(pathOrName ...string) string {
 func LogPath(pathOrName ...string) string {
 	pathOrName = append([]string{"logs"}, pathOrName...)
 	return StoragePath(pathOrName...)
+}
+
+func SetAlias(key, value string) bool {
+	if !strings.HasPrefix(key, "@") {
+		return false
+	}
+	aliasMapping[key] = value
+	return true
+}
+
+// 可以解析aliasMapping来生成地址
+func GetPath(pathOrName ...string) string {
+	paths := path.Join(pathOrName...)
+	for alias, entry := range aliasMapping {
+		paths = strings.Replace(paths, alias, entry, -1)
+	}
+	return paths
 }
