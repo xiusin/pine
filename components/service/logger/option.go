@@ -1,4 +1,4 @@
-package renderer
+package logger
 
 type Level uint32
 
