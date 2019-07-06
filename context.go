@@ -3,8 +3,10 @@ package router
 import (
 	"context"
 	"fmt"
+	"log"
 	"math/rand"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/xiusin/router/components/di"
@@ -115,6 +117,7 @@ func (c *Context) getRoute() *RouteEntry {
 }
 
 // 附加数据的context
+//todo 这样是否合理, request 是否会被重新改变
 func (c *Context) Set(key string, value interface{}) {
 	c.req.WithContext(context.WithValue(c.req.Context(), key, value))
 }
@@ -174,7 +177,13 @@ func (c *Context) Status() int {
 
 // 日志对象
 func (c *Context) Logger() (loggerInf interfaces.LoggerInf) {
-	return di.MustGet("logger").(interfaces.LoggerInf)
+	ok := di.Exists("logger")
+	if !ok { // 让使用者自行实现日志加载
+		loggerInf = log.New(os.Stdout, "[DEBUG]: ", log.LstdFlags)
+	} else {
+		loggerInf = di.MustGet("logger").(interfaces.LoggerInf)
+	}
+	return
 }
 
 func (c *Context) SessionManger() interfaces.SessionManagerInf {

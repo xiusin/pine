@@ -3,8 +3,6 @@ package router
 import (
 	"context"
 	"fmt"
-	"github.com/xiusin/router/components/di"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -15,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/fatih/color"
 	"github.com/xiusin/router/components/option"
 	http2 "github.com/xiusin/router/http"
 )
@@ -40,9 +37,8 @@ var (
 )
 
 const (
-	Version        = "dev 0.0.2"
-	logQueryFormat = "| %s | %s | %s | %s | Path: %s\n"
-	logo           = `
+	Version = "dev 0.0.3"
+	logo    = `
 ____  __.__            .__      __________               __                
 \   \/  |__|__ __ _____|__| ____\______   \ ____  __ ___/  |_  ___________ 
  \     /|  |  |  /  ___|  |/    \|       _//  _ \|  |  \   ___/ __ \_  __ \
@@ -63,12 +59,6 @@ func RegisterErrorCodeHandler(code int, handler Handler) {
 }
 
 func init() {
-	// 注册默认logger组件
-	di.Set("logger", func(builder di.BuilderInf) (i interface{}, e error) {
-		logger := log.New(os.Stdout, "[DEBUG] ", log.LstdFlags)
-		return logger, nil
-	}, true)
-
 	// 注册默认的404
 	RegisterErrorCodeHandler(http.StatusNotFound, func(ctx *Context) {
 		http.NotFound(ctx.Writer(), ctx.Request().GetRequest())
@@ -156,8 +146,7 @@ func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *RouteEntry {
 func (r *Router) Static(path, dir string) {
 	r.GET(path, func(i *Context) {
 		http.StripPrefix(
-			strings.TrimSuffix(path, "*file"),
-			http.FileServer(http.Dir(dir)),
+			strings.TrimSuffix(path, "*file"), http.FileServer(http.Dir(dir)),
 		).ServeHTTP(i.Writer(), i.req.GetRequest())
 	})
 }
@@ -252,30 +241,7 @@ func (r *Router) handle(c *Context, urlParsed *url.URL) {
 // 调度路由
 func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request) {
 	urlParsed, _ := url.ParseRequestURI(req.RequestURI) // 解析地址参数
-	start := time.Now()
 	r.handle(c, urlParsed)
-	if r.option.Env == option.DevMode {
-		r.requestLog(c, start)
-	}
-}
-
-func (r *Router) requestLog(c *Context, start time.Time) {
-	statusInfo, status := "", c.Status()
-	if status == http.StatusOK {
-		statusInfo = color.GreenString("%d", status)
-	} else if status > http.StatusBadRequest && status < http.StatusInternalServerError {
-		statusInfo = color.RedString("%d", status)
-	} else {
-		statusInfo = color.YellowString("%d", status)
-	}
-	c.Logger().Printf(
-		logQueryFormat,
-		statusInfo,
-		color.YellowString("%s", c.Request().Method),
-		c.Request().ClientIP(),
-		time.Now().Sub(start).String(),
-		c.Request().URL.Path,
-	)
 }
 
 // 初始化RouteMap
