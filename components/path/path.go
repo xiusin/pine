@@ -1,4 +1,4 @@
-package router
+package path
 
 import (
 	"os"
@@ -19,11 +19,11 @@ func init() {
 	}
 	rootPath = curPath
 	if f, err := os.Stat(StoragePath()); err != nil || f.IsDir() != true {
-		os.MkdirAll(StoragePath(), 0644)
-		os.MkdirAll(LogPath(), 0644)
+		os.MkdirAll(StoragePath(), 0755)
+		os.MkdirAll(LogPath(), 0755)
 	}
 	if f, err := os.Stat(PublicPath()); err != nil || f.IsDir() != true {
-		os.MkdirAll(PublicPath(), 0644)
+		os.MkdirAll(PublicPath(), 0755)
 	}
 	aliasMapping = map[string]string{
 		"@app":    RootPath(),

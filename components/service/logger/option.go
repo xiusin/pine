@@ -1,17 +1,28 @@
 package logger
 
-type Level uint32
+type Level int8
 
 const (
-	PanicLevel Level = iota
-	FatalLevel
-	ErrorLevel
-	WarnLevel
+	DebugLevel Level = iota - 1
 	InfoLevel
-	DebugLevel
+	WarnLevel
+	ErrorLevel
+	DPanicLevel
+	PanicLevel
+	FatalLevel
 )
 
 type Options struct {
 	TimeFormat string
 	Level      Level
+	RotateLogDirFormat string
+}
+
+func DefaultOptions() *Options {
+	return &Options{
+		TimeFormat: "2006-01-02 15:04:05",
+		Level: DebugLevel,
+		RotateLogDirFormat: "%Y-%m-%d",
+
+	}
 }

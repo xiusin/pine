@@ -1,17 +1,9 @@
 package interfaces
 
-import "io"
-
+/**
+为了更好的实现日志， 只需要实现两个方法即可。
+ */
 type LoggerInf interface {
-	Print(msg string, args ...interface{})
-
 	Fatal(msg string, args ...interface{})
-
-	Printf(format string, args ...interface{})
-
-	Fatalf(format string, args ...interface{})
-
-	Println(msg string, args ...interface{})
-
-	SetOutput(output io.Writer)
+	Print(msg string, args ...interface{})
 }

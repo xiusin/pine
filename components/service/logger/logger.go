@@ -1,57 +1,58 @@
 package logger
 
 import (
-	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"io"
 	"time"
+
+	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
+	"github.com/xiusin/router/components/path"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type Logger struct {
 	*zap.Logger
+	config *Options
 }
 
 func (l *Logger) Print(msg string, args ...interface{}) {
 	var fields []zap.Field
-
 	for _, arg := range args {
-		fields = append(fields, zap.Any())
+		fields = append(fields, arg.(zap.Field))
 	}
-
-	l.Logger.Info(msg)
-	l.Logger.Sync()
-
+	l.Logger.Info(msg, fields...)
 }
 
 func (l *Logger) Fatal(msg string, args ...interface{}) {
-	panic("implement me")
+	var fields []zap.Field
+	for _, arg := range args {
+		fields = append(fields, arg.(zap.Field))
+	}
+	l.Logger.Fatal(msg, fields...)
 }
 
 func (l *Logger) Printf(format string, args ...interface{}) {
-	panic("implement me")
+	l.Print(format, args...)
 }
 
 func (l *Logger) Fatalf(format string, args ...interface{}) {
-	panic("implement me")
+	l.Fatal(format, args...)
 }
 
 func (l *Logger) Println(msg string, args ...interface{}) {
-	panic("implement me")
+	l.Print(msg+"\n", args...)
 }
 
-func (l *Logger) SetOutput(output io.Writer) {
-	panic("implement me")
-}
-
-func New() *Logger {
-	encoder := zapcore.NewConsoleEncoder(zapcore.EncoderConfig{
-		MessageKey:  "msg",
+func New(options *Options) *Logger {
+	if options == nil {
+		options = DefaultOptions()
+	}
+	encoder := zapcore.NewJSONEncoder(zapcore.EncoderConfig{
+		MessageKey:  "message",
 		LevelKey:    "level",
 		EncodeLevel: zapcore.CapitalLevelEncoder,
-		TimeKey:     "ts",
-		EncodeTime: func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
-			enc.AppendString(t.Format("2006-01-02 15:04:05"))
+		EncodeTime: func(t time.Time, enc zapcore.PrimitiveArrayEncoder) { //时间格式编码器
+			enc.AppendString(t.Format(options.TimeFormat))
 		},
 		CallerKey:    "file",
 		EncodeCaller: zapcore.ShortCallerEncoder,
@@ -60,37 +61,34 @@ func New() *Logger {
 		},
 	})
 
-	infoLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl < zapcore.WarnLevel
-	})
-
-	warnLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
-		return lvl >= zapcore.WarnLevel
-	})
-
-	infoWriter := getWriter("/path/log/demo.log")
-	warnWriter := getWriter("/path/log/demo_error.log")
+	infoWriter := getWriter("xiusin.log", options)
+	errorWriter := getWriter("xiusin_error.log", options)
 
 	// 最后创建具体的Logger
 	core := zapcore.NewTee(
-		zapcore.NewCore(encoder, zapcore.AddSync(infoWriter), infoLevel),
-		zapcore.NewCore(encoder, zapcore.AddSync(warnWriter), warnLevel),
+		zapcore.NewCore(encoder, zapcore.AddSync(infoWriter), zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+			return lvl < zapcore.WarnLevel
+		})),
+		zapcore.NewCore(encoder, zapcore.AddSync(errorWriter), zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
+			return lvl >= zapcore.WarnLevel
+		})),
 	)
 
-	return &Logger{Logger: zap.New(core, zap.AddCaller())}
+	core.Enabled(zapcore.Level(options.Level)) // 设置日志级别
+
+	return &Logger{Logger: zap.New(core, zap.AddCaller()), config: options}
 }
 
-func getWriter(filename string) io.Writer {
+func  getWriter(filename string,option *Options) io.Writer {
 	// 生成rotatelogs的Logger 实际生成的文件名 demo.log.YYmmddHH
 	// demo.log是指向最新日志的链接
 	// 保存7天内的日志，每1小时(整点)分割一次日志
 	hook, err := rotatelogs.New(
-		filename+".%Y%m%d%H", // 没有使用go风格反人类的format格式
+		path.LogPath(option.RotateLogDirFormat, filename),
 		rotatelogs.WithLinkName(filename),
 		rotatelogs.WithMaxAge(time.Hour*24*7),
-		rotatelogs.WithRotationTime(time.Hour),
+		rotatelogs.WithRotationTime(time.Hour * 24),
 	)
-
 	if err != nil {
 		panic(err)
 	}
