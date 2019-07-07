@@ -12,11 +12,19 @@ type Logger struct {
 	*zap.Logger
 }
 
-func (l *Logger) Print(args ...interface{}) {
-	panic("implement me")
+func (l *Logger) Print(msg string, args ...interface{}) {
+	var fields []zap.Field
+
+	for _, arg := range args {
+		fields = append(fields, zap.Any())
+	}
+
+	l.Logger.Info(msg)
+	l.Logger.Sync()
+
 }
 
-func (l *Logger) Fatal(args ...interface{}) {
+func (l *Logger) Fatal(msg string, args ...interface{}) {
 	panic("implement me")
 }
 
@@ -28,7 +36,7 @@ func (l *Logger) Fatalf(format string, args ...interface{}) {
 	panic("implement me")
 }
 
-func (l *Logger) Println(args ...interface{}) {
+func (l *Logger) Println(msg string, args ...interface{}) {
 	panic("implement me")
 }
 
@@ -52,7 +60,6 @@ func New() *Logger {
 		},
 	})
 
-	// 实现两个判断日志等级的interface
 	infoLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		return lvl < zapcore.WarnLevel
 	})
@@ -61,7 +68,6 @@ func New() *Logger {
 		return lvl >= zapcore.WarnLevel
 	})
 
-	// 获取 info、warn日志文件的io.Writer 抽象 getWriter() 在下方实现
 	infoWriter := getWriter("/path/log/demo.log")
 	warnWriter := getWriter("/path/log/demo_error.log")
 
