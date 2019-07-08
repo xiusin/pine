@@ -147,7 +147,7 @@ func init() {
 						if getErr != nil {
 							panic(getErr)
 						}
-						(logger.(interfaces.LoggerInf)).Fatalf("Dial error", err.Error())
+						(logger.(interfaces.LoggerInf)).Errorf("Dial error: %s", err.Error())
 						return nil, err
 					}
 					return con, nil

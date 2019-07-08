@@ -1,4 +1,4 @@
-package logger
+package zap
 
 type Level int8
 
@@ -13,16 +13,17 @@ const (
 )
 
 type Options struct {
-	TimeFormat string
-	Level      Level
+	TimeFormat         string
+	Level              Level
 	RotateLogDirFormat string
+	LogName            string
 }
 
 func DefaultOptions() *Options {
 	return &Options{
-		TimeFormat: "2006-01-02 15:04:05",
-		Level: DebugLevel,
+		TimeFormat:         "2006-01-02 15:04:05",
+		Level:              DebugLevel,
 		RotateLogDirFormat: "%Y-%m-%d",
-
+		LogName:            "xiusin_info.log",
 	}
 }

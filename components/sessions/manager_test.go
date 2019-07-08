@@ -1,7 +1,7 @@
 package sessions
 
 import (
-	"github.com/xiusin/router/components/service/sessions/store/adapter/file"
+	file2 "github.com/xiusin/router/components/sessions/store/adapter/file"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -13,7 +13,7 @@ func TestGetSessionId(t *testing.T) {
 }
 
 func TestNew(t *testing.T) {
-	m := New(file.NewStore(&file.Config{
+	m := New(file2.NewStore(&file2.Config{
 		SessionPath:    ".",
 		CookieName:     "xiusin_session",
 		CookieExpires:  time.Minute,
@@ -26,7 +26,7 @@ func TestNew(t *testing.T) {
 				t.Error(err)
 			}
 		}()
-		sess, err := m.Session(r, w)
+		sess, err := Session(r, w)
 		if err != nil {
 			t.Error(err)
 		}
@@ -40,7 +40,7 @@ func TestNew(t *testing.T) {
 		if err = sess.Save(); err != nil {
 			t.Error(err)
 		}
-		sess2, err := m.Session(r, w)
+		sess2, err := Session(r, w)
 		val, _ = sess2.Get("name")
 		t.Log("sess2 Get", val)
 
