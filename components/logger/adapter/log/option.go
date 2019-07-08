@@ -6,17 +6,17 @@ import (
 )
 
 type Options struct {
-	Level              logger.Level
-	RotateLogDirFormat string
+	Level              logger.Level //日志级别
+	RotateLogDirFormat string       //日志分割目录格式
 	InfoLogName        string
 	ErrorLogName       string
 	MaxSizeMB          int
 	MaxBackups         int
 	MaxAgeDay          int
-	Compress           bool
-	LogFlag            int
-	HasConsole         bool
-	HasCaller          bool
+	Compress           bool // 压缩日志.(分割时)
+	LogFlag            int  // 日志flag 不建议开启显示文件的flag, 使用HasCaller
+	HasConsole         bool //是否输出到控制台
+	HasCaller          bool //是否显示调用者
 }
 
 func DefaultOptions() *Options {

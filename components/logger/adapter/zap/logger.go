@@ -2,11 +2,12 @@ package zap
 
 import (
 	"fmt"
+	"github.com/natefinch/lumberjack"
 	"go.uber.org/zap/zapcore"
 	"io"
+	"os"
 	"time"
 
-	rotatelogs "github.com/lestrrat-go/file-rotatelogs"
 	"github.com/xiusin/router/components/path"
 	"go.uber.org/zap"
 )
@@ -20,6 +21,9 @@ func New(options *Options) *Logger {
 	if options == nil {
 		options = DefaultOptions()
 	}
+	infoLevelEnabler := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
+		return zapcore.InfoLevel >= zapcore.Level(options.Level)
+	})
 	encoder := zapcore.NewConsoleEncoder(zapcore.EncoderConfig{
 		MessageKey:  "message",
 		LevelKey:    "level",
@@ -34,13 +38,26 @@ func New(options *Options) *Logger {
 			enc.AppendInt64(int64(d) / 1000000)
 		},
 	})
-	// 最后创建具体的Logger
-	core := zapcore.NewTee(
-		zapcore.NewCore(encoder,
-			zapcore.AddSync(writer(options.LogName, options)),
-			zapcore.Level(options.Level),
-		),
-	)
+
+	errLevelEnabler := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
+		return zapcore.InfoLevel < zapcore.Level(options.Level)
+	})
+	var core zapcore.Core
+	if !options.Console {
+		core = zapcore.NewTee(
+			zapcore.NewCore(encoder, zapcore.AddSync(writer(options.InfoLogName, options)), infoLevelEnabler),
+			zapcore.NewCore(encoder, zapcore.AddSync(writer(options.ErrorLogName, options)), errLevelEnabler),
+		)
+	} else {
+		core = zapcore.NewTee(
+			zapcore.NewCore(encoder, zapcore.AddSync(writer(options.InfoLogName, options)), infoLevelEnabler),
+			zapcore.NewCore(encoder, zapcore.AddSync(writer(options.ErrorLogName, options)), errLevelEnabler),
+			zapcore.NewCore(encoder, zapcore.AddSync(os.Stdout), zap.LevelEnablerFunc(func(level zapcore.Level) bool {
+				return level > zapcore.Level(options.Level)
+			})),
+		)
+	}
+
 	return &Logger{Logger: zap.New(core, zap.AddCaller()), config: options}
 }
 
@@ -60,26 +77,12 @@ func (l *Logger) Errorf(msg string, args ...interface{}) {
 	l.Logger.Error(fmt.Sprintf(msg, args...))
 }
 
-func (l *Logger) Debug(msg string, args ...interface{}) {
-	l.Logger.Debug(fmt.Sprintf(msg, args))
-}
-
-func (l *Logger) Wain(msg string, args ...interface{}) {
-	l.Logger.Warn(fmt.Sprintf(msg, args))
-}
-
 func writer(filename string, option *Options) io.Writer {
-	// 生成rotatelogs的Logger 实际生成的文件名 demo.log.YYmmddHH
-	// demo.log是指向最新日志的链接
-	// 保存7天内的日志，每1小时(整点)分割一次日志
-	hook, err := rotatelogs.New(
-		path.LogPath(option.RotateLogDirFormat, filename),
-		rotatelogs.WithLinkName(filename),
-		rotatelogs.WithMaxAge(time.Hour*24*7),
-		rotatelogs.WithRotationTime(time.Hour*24),
-	)
-	if err != nil {
-		panic(err)
+	return &lumberjack.Logger{
+		Filename:   path.LogPath(option.RotateLogDirFormat, filename),
+		MaxSize:    option.MaxSizeMB,
+		MaxBackups: option.MaxBackups,
+		MaxAge:     option.MaxAgeDay,
+		Compress:   option.Compress,
 	}
-	return hook
 }
