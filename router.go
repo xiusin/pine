@@ -3,8 +3,6 @@ package router
 import (
 	"context"
 	"fmt"
-	"github.com/xiusin/router/components/di"
-	"github.com/xiusin/router/components/logger/adapter/log"
 	"net/http"
 	"net/url"
 	"os"
@@ -58,16 +56,6 @@ func RegisterErrorCodeHandler(code int, handler Handler) {
 	if code != http.StatusOK {
 		errCodeCallHandler[code] = handler
 	}
-}
-
-func init() {
-	di.Set("logger", func(builder di.BuilderInf) (i interface{}, e error) {
-		return log.New(nil), nil
-	}, true)
-	// 注册默认的404
-	RegisterErrorCodeHandler(http.StatusNotFound, func(ctx *Context) {
-		http.NotFound(ctx.Writer(), ctx.Request().GetRequest())
-	})
 }
 
 // 实例化路由
