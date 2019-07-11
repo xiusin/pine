@@ -8,10 +8,12 @@ import (
 
 func init()  {
 	RegisterErrorCodeHandler(http.StatusNotFound, func(ctx *Context) {
-		_, _ = ctx.Writer().Write(error404Template())
+		_, _ = ctx.Writer().Write(notFoundTemplate())
 	})
 }
-func error404Template() []byte {
+
+// from
+func notFoundTemplate() []byte {
 	return []byte(`
 <!doctype html>
 <html lang="en">
