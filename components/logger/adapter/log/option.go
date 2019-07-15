@@ -15,8 +15,8 @@ type Options struct {
 	MaxAgeDay          int
 	Compress           bool // 压缩日志.(分割时)
 	LogFlag            int  // 日志flag 不建议开启显示文件的flag, 使用HasCaller
-	HasConsole         bool //是否输出到控制台
-	HasCaller          bool //是否显示调用者
+	OutPutToConsole    bool //是否输出到控制台
+	RecordCaller       bool //是否显示调用者
 }
 
 func DefaultOptions() *Options {
@@ -30,7 +30,7 @@ func DefaultOptions() *Options {
 		MaxBackups:         3,
 		Compress:           true,
 		LogFlag:            log.LstdFlags,
-		HasConsole:         false, //为false不输出到stdout, 开启会损失性能
-		HasCaller:          true,
+		OutPutToConsole:    false, //为false不输出到stdout, 开启会损失性能
+		RecordCaller:       true,
 	}
 }

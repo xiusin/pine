@@ -39,7 +39,8 @@ func New(options *Options) *Logger {
 		}, "[ERROR] ", options.LogFlag),
 		config: options}
 
-	if options.HasConsole {
+	// 输出到控制台
+	if options.OutPutToConsole {
 		l.infoConsole = log.New(os.Stdout, "[INFO] ", options.LogFlag)
 		l.errConsole = log.New(os.Stdout, "[ERROR] ", options.LogFlag)
 	}
@@ -51,7 +52,7 @@ func (l *Logger) Print(msg string, args ...interface{}) {
 	if l.config.Level <= logger.InfoLevel {
 		args = append([]interface{}{l.getCaller(), msg}, args...)
 		l.info.Println(args...)
-		if l.config.HasConsole {
+		if l.config.OutPutToConsole {
 			l.infoConsole.Println(args...)
 		}
 	}
@@ -61,7 +62,7 @@ func (l *Logger) Print(msg string, args ...interface{}) {
 func (l *Logger) Printf(format string, args ...interface{}) {
 	if l.config.Level <= logger.InfoLevel {
 		l.info.Println(l.getCaller(), fmt.Sprintf(format, args...))
-		if l.config.HasConsole {
+		if l.config.OutPutToConsole {
 			l.infoConsole.Println(l.getCaller(), fmt.Sprintf(format, args...))
 		}
 	}
@@ -70,7 +71,7 @@ func (l *Logger) Printf(format string, args ...interface{}) {
 func (l *Logger) Error(msg string, args ...interface{}) {
 	if l.config.Level > logger.InfoLevel {
 		args = append([]interface{}{l.getCaller(), msg}, args...)
-		if l.config.HasConsole {
+		if l.config.OutPutToConsole {
 			l.infoConsole.Println(args...)
 		}
 		l.error.Println(args...)
@@ -79,7 +80,7 @@ func (l *Logger) Error(msg string, args ...interface{}) {
 
 func (l *Logger) Errorf(msg string, args ...interface{}) {
 	if l.config.Level < logger.WarnLevel {
-		if l.config.HasConsole {
+		if l.config.OutPutToConsole {
 			l.infoConsole.Println(l.getCaller(), fmt.Sprintf(msg, args...))
 		}
 		l.error.Println(fmt.Sprintf(msg, args...))
@@ -87,7 +88,7 @@ func (l *Logger) Errorf(msg string, args ...interface{}) {
 }
 
 func (l *Logger) getCaller() string {
-	if l.config.HasCaller {
+	if l.config.RecordCaller {
 		_, callerFile, line, ok := runtime.Caller(2)
 		if ok {
 			return " " + strings.Replace(callerFile, strings.Replace(path.RootPath()+"/", "\\", "/", -1), "", 1) + ":" + strconv.Itoa(line) + ":"

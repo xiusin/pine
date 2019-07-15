@@ -38,7 +38,7 @@ type (
 )
 
 func Default() *Option {
-	return &Option{
+	opt := &Option{
 		Port:               9528,
 		Host:               "0.0.0.0",
 		TimeOut:            time.Second * 60,
@@ -54,6 +54,11 @@ func Default() *Option {
 		},
 		Setter: viper.New(),
 	}
+	// 参数注入到viper内
+	opt.Setter.Set("CsrfName", opt.CsrfName)
+	opt.Setter.Set("CsrfLifeTime", opt.CsrfLifeTime)
+	opt.Setter.Set("Env", opt.Env)
+	return opt
 }
 
 func (o *Option) SetMode(env int) {

@@ -6,10 +6,7 @@ import (
 )
 
 func init() {
-	// 默认日志依赖
 	di.Set("logger", func(builder di.BuilderInf) (i interface{}, e error) {
 		return log.New(nil), nil
 	}, true)
-
-	// 默认模板依赖？？？？？
 }
