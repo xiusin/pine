@@ -64,7 +64,7 @@ func (c *Context) Redirect(url string, statusHeader ...int) {
 	if len(statusHeader) == 0 {
 		statusHeader[0] = http.StatusFound
 	}
-	http.Redirect(c.res.GetResponse(), c.req.GetRequest(), url, statusHeader[0])
+	http.Redirect(c.res.Res(), c.req.Req(), url, statusHeader[0])
 }
 
 // 获取命名参数内容
@@ -122,7 +122,7 @@ func (c *Context) Set(key string, value interface{}) {
 
 // 发送file
 func (c *Context) File(filepath string) {
-	http.ServeFile(c.Writer(), c.req.GetRequest(), filepath)
+	http.ServeFile(c.Writer(), c.req.Req(), filepath)
 }
 
 // 设置cookie

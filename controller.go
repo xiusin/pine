@@ -57,7 +57,7 @@ func (c *Controller) Ctx() *Context {
 }
 
 func (c *Controller) Session() interfaces.SessionInf {
-	sess, err := c.ctx.SessionManger().Session(c.ctx.Request().GetRequest(), c.ctx.Writer())
+	sess, err := c.ctx.SessionManger().Session(c.ctx.Request(), c.ctx.Writer())
 	if err != nil {
 		panic(err)
 	}
@@ -73,7 +73,7 @@ func (c *Controller) Logger() interfaces.LoggerInf {
 }
 
 func (c *Controller) SaveSession() {
-	err := sessions.Save(c.ctx.Request().GetRequest(), c.ctx.Writer())
+	err := sessions.Save(c.ctx.Request(), c.ctx.Writer())
 	if err != nil {
 		panic(err)
 	}

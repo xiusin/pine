@@ -147,7 +147,7 @@ func (r *Router) Static(path, dir string) {
 // 处理静态文件
 func (r *Router) StaticFile(path, file string) {
 	r.GET(path, func(c *Context) {
-		http.ServeFile(c.Writer(), c.Request().GetRequest(), file)
+		http.ServeFile(c.Writer(), c.Request(), file)
 	})
 }
 

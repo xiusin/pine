@@ -5,23 +5,23 @@ import (
 )
 
 func pprofIndex(context *Context) {
-	pprof.Index(context.Writer(), context.Request().GetRequest())
+	pprof.Index(context.Writer(), context.Request())
 }
 
 func pprofProfile(context *Context) {
-	pprof.Profile(context.Writer(), context.Request().GetRequest())
+	pprof.Profile(context.Writer(), context.Request())
 }
 
 func pprofSymbol(context *Context) {
-	pprof.Symbol(context.Writer(), context.Request().GetRequest())
+	pprof.Symbol(context.Writer(), context.Request())
 }
 
 func pprofCmdline(context *Context) {
-	pprof.Cmdline(context.Writer(), context.Request().GetRequest())
+	pprof.Cmdline(context.Writer(), context.Request())
 }
 
 func pprofTrace(context *Context) {
-	pprof.Trace(context.Writer(), context.Request().GetRequest())
+	pprof.Trace(context.Writer(), context.Request())
 }
 
 //https://blog.cyeam.com/golang/2016/08/18/apatternforoptimizinggo

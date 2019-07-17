@@ -10,7 +10,7 @@ func NewResponse(res http.ResponseWriter) *Response {
 	return &Response{res}
 }
 
-func (c *Response) GetResponse() http.ResponseWriter {
+func (c *Response) Res() http.ResponseWriter {
 	return c.ResponseWriter
 }
 
