@@ -4,24 +4,24 @@ import (
 	"net/http/pprof"
 )
 
-func pprofIndex(context *Context) {
-	pprof.Index(context.Writer(), context.Request())
+func pprofIndex(c *Context) {
+	pprof.Index(c.Writer(), c.Request())
 }
 
-func pprofProfile(context *Context) {
-	pprof.Profile(context.Writer(), context.Request())
+func pprofProfile(c *Context) {
+	pprof.Profile(c.Writer(), c.Request())
 }
 
-func pprofSymbol(context *Context) {
-	pprof.Symbol(context.Writer(), context.Request())
+func pprofSymbol(c *Context) {
+	pprof.Symbol(c.Writer(), c.Request())
 }
 
-func pprofCmdline(context *Context) {
-	pprof.Cmdline(context.Writer(), context.Request())
+func pprofCmdline(c *Context) {
+	pprof.Cmdline(c.Writer(), c.Request())
 }
 
-func pprofTrace(context *Context) {
-	pprof.Trace(context.Writer(), context.Request())
+func pprofTrace(c *Context) {
+	pprof.Trace(c.Writer(), c.Request())
 }
 
 //https://blog.cyeam.com/golang/2016/08/18/apatternforoptimizinggo

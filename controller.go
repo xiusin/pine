@@ -7,7 +7,6 @@ import (
 	"github.com/gorilla/sessions"
 	"github.com/xiusin/router/components/di"
 	"github.com/xiusin/router/components/di/interfaces"
-	"github.com/xiusin/router/http"
 )
 
 type (
@@ -20,7 +19,7 @@ type (
 		SetCtx(*Context)
 		Session() interfaces.SessionInf
 		SaveSession()
-		View() *http.View
+		View() *View
 		Logger() interfaces.LoggerInf
 	}
 
@@ -64,7 +63,7 @@ func (c *Controller) Session() interfaces.SessionInf {
 	return sess
 }
 
-func (c *Controller) View() *http.View {
+func (c *Controller) View() *View {
 	return c.ctx.View()
 }
 

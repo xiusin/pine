@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/xiusin/router/components/option"
-	http2 "github.com/xiusin/router/http"
 )
 
 type (
@@ -67,8 +66,8 @@ func NewRouter(opt *option.Option) *Router {
 		pool: &sync.Pool{
 			New: func() interface{} {
 				ctx := &Context{
-					params:          http2.NewParams(map[string]string{}), //保存路由参数
-					middlewareIndex: -1,                                   // 初始化中间件索引. 默认从0开始索引.
+					params:          NewParams(map[string]string{}), //保存路由参数
+					middlewareIndex: -1,                             // 初始化中间件索引. 默认从0开始索引.
 				}
 				return ctx
 			},
