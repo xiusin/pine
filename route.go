@@ -1,6 +1,7 @@
 package router
 
 import (
+	"fmt"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -25,6 +26,8 @@ type (
 		methodRoutes map[string]map[string]*RouteEntry //分类命令规则
 		middleWares  []Handler                         // 中间件列表
 	}
+
+	routeMaker func(path string, handle Handler, mws ...Handler) *RouteEntry
 )
 
 var (
@@ -101,7 +104,6 @@ func (r *RouteCollection) Handle(c ControllerInf) {
 // 自动注册控制器映射路由
 func (r *RouteCollection) autoRegisterControllerRoute(refVal reflect.Value, refType reflect.Type, c ControllerInf) {
 	method := refVal.MethodByName("UrlMapping")
-	//_, ok := refVal.Interface().(ControllerRouteMappingInf) todo判断是否可以转型
 	if method.IsValid() {
 		method.Call([]reflect.Value{reflect.ValueOf(newUrlMappingRoute(r, c))}) // 如果实现了UrlMapping接口, 则调用函数
 	} else { // 自动根据前缀注册路由
@@ -120,6 +122,7 @@ func (r *RouteCollection) autoMatchHttpMethod(path string, handle Handler) {
 	var methods = map[string]routeMaker{"Get": r.GET, "Post": r.POST, "Head": r.HEAD, "Delete": r.DELETE, "Put": r.PUT}
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
+			fmt.Println(urlSeparator + r.upperCharToUnderLine(strings.TrimLeft(path, method)))
 			routeMaker(urlSeparator+r.upperCharToUnderLine(strings.TrimLeft(path, method)), handle)
 		} else if strings.HasPrefix(path, "Any") {
 			r.ANY(urlSeparator+r.upperCharToUnderLine(path), handle)

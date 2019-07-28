@@ -16,17 +16,17 @@ import (
 )
 
 type Context struct {
-	req             *http.Request       // 请求对象
-	params          *Params             // 路由参数
-	res             http.ResponseWriter // 响应对象
-	render          *View               // 模板渲染
-	stopped         bool                // 是否停止传播中间件
-	route           *RouteEntry         // 当前context匹配到的路由
-	middlewareIndex int                 // 中间件起始索引
-	app             *Router
-	status          int
-	Msg             string
-	Keys            map[string]interface{}
+	req             *http.Request          // 请求对象
+	params          *Params                // 路由参数
+	res             http.ResponseWriter    // 响应对象
+	render          *Render                // 模板渲染
+	stopped         bool                   // 是否停止传播中间件
+	route           *RouteEntry            // 当前context匹配到的路由
+	middlewareIndex int                    // 中间件起始索引
+	app             *Router                // router对象
+	status          int                    //保存状态码
+	Msg             string                 // 附加信息（临时方案， 不知道怎么获取设置的值）
+	Keys            map[string]interface{} //设置上下文绑定内容
 }
 
 // 重置Context对象
@@ -58,7 +58,7 @@ func (c *Context) Request() *http.Request {
 }
 
 // 获取模板引擎
-func (c *Context) View() *View {
+func (c *Context) Render() *Render {
 	return c.render
 }
 

@@ -6,15 +6,7 @@ import (
 	"runtime/debug"
 )
 
-func init() {
-	RegisterErrorCodeHandler(http.StatusNotFound, func(ctx *Context) {
-		ctx.Writer().Write(notFoundTemplate())
-	})
-}
-
-// from
-func notFoundTemplate() []byte {
-	return []byte(`<!doctype html>
+var notFoundTplStr = []byte(`<!doctype html>
 <html>
 <head>
     <title>Page Not Found</title>
@@ -30,12 +22,16 @@ func notFoundTemplate() []byte {
 </div>
 </body>
 </html>`)
-}
 
+func init() {
+	RegisterErrorCodeHandler(http.StatusNotFound, func(ctx *Context) {
+		_, _ = ctx.Writer().Write(notFoundTplStr)
+	})
+}
 func Recover(c *Context) {
 	if err := recover(); err != nil {
 		stackInfo, strErr, strFmt := debug.Stack(), fmt.Sprintf("%s", err), "msg: %s  Method: %s  Path: %s\n Stack: %s"
 		go c.Logger().Printf(strFmt, strErr, c.Request().Method, c.Request().URL.Path, stackInfo)
-		c.Writer().Write([]byte("<h1>" + strErr + "</h1>" + "\n<pre>" + string(stackInfo) + "</pre>"))
+		_, _ = c.Writer().Write([]byte("<h1>" + strErr + "</h1>" + "\n<pre>" + string(stackInfo) + "</pre>"))
 	}
 }

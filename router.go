@@ -31,12 +31,11 @@ type (
 
 var (
 	shutdownBeforeHandler []func()
-
-	errCodeCallHandler = make(map[int]Handler)
+	errCodeCallHandler    = make(map[int]Handler)
 )
 
 const (
-	Version = "dev 0.0.3"
+	Version = "dev 0.0.4"
 	logo    = `
 ____  __.__            .__      __________               __                
 \   \/  |__|__ __ _____|__| ____\______   \ ____  __ ___/  |_  ___________ 
@@ -73,7 +72,7 @@ func NewRouter(opt *option.Option) *Router {
 			},
 		},
 		RouteCollection: RouteCollection{
-			methodRoutes: defaultRouteMap(),
+			methodRoutes: initRouteMap(),
 		},
 		recoverHandler: Recover,
 	}
@@ -139,7 +138,7 @@ func (r *Router) Static(path, dir string) {
 	r.GET(path, func(i *Context) {
 		http.StripPrefix(
 			strings.TrimSuffix(path, "*file"), http.FileServer(http.Dir(dir)),
-		).ServeHTTP(i.Writer(), i.req.GetRequest())
+		).ServeHTTP(i.Writer(), i.req)
 	})
 }
 
@@ -153,7 +152,7 @@ func (r *Router) StaticFile(path, file string) {
 // 路由分组
 func (r *Router) Group(prefix string, middleWares ...Handler) *RouteCollection {
 	g := &RouteCollection{Prefix: prefix}
-	g.methodRoutes = defaultRouteMap()
+	g.methodRoutes = initRouteMap()
 	g.middleWares = append(g.middleWares, middleWares...)
 	r.groups[prefix] = g
 	return g
@@ -237,7 +236,7 @@ func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request
 }
 
 // 初始化RouteMap
-func defaultRouteMap() map[string]map[string]*RouteEntry {
+func initRouteMap() map[string]map[string]*RouteEntry {
 	return map[string]map[string]*RouteEntry{
 		http.MethodGet:     {},
 		http.MethodPost:    {},
@@ -249,30 +248,3 @@ func defaultRouteMap() map[string]map[string]*RouteEntry {
 		http.MethodPatch:   {},
 	}
 }
-
-// 打印所有的路由列表
-//func (r *Router) List() {
-//	headerFmt := color.New(color.FgGreen, color.Underline).SprintfFunc()
-//	columnFmt := color.New(color.FgRed).SprintfFunc()
-//	tbl := table.New("Method     ", "Path    ", "Func    ")
-//	tbl.WithHeaderFormatter(headerFmt).WithFirstColumnFormatter(columnFmt)
-//	for _, routes := range r.methodRoutes {
-//		for path, v := range routes {
-//			tbl.AddRow(v.Method, path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
-//		}
-//	}
-//	for prefix, routeGroup := range r.groups {
-//		for _, routes := range routeGroup.methodRoutes {
-//			for path, v := range routes {
-//				tbl.AddRow(v.Method, prefix+path, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
-//			}
-//		}
-//	}
-//
-//	for _, routes := range patternRoutes {
-//		for _, v := range routes {
-//			tbl.AddRow(v.Method, v.OriginStr, runtime.FuncForPC(reflect.ValueOf(v.Handle).Pointer()).Name())
-//		}
-//	}
-//	tbl.Print()
-//}
