@@ -3,6 +3,7 @@ package sessions
 import (
 	"errors"
 	"github.com/xiusin/router/components/di/interfaces"
+	"fmt"
 	"net/http"
 	"sync"
 )
@@ -39,6 +40,7 @@ func (sess *Session) Set(key string, val interface{}) error {
 func (sess *Session) Get(key string) (interface{}, error) {
 	sess.l.RLock()
 	defer sess.l.RUnlock()
+	fmt.Println(sess.data)
 	if val, ok := sess.data[key]; ok {
 		return val.Val, nil
 	}

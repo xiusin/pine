@@ -3,7 +3,6 @@ package file
 import (
 	"bytes"
 	"encoding/gob"
-	"github.com/xiusin/router/components/di/interfaces"
 	"io/ioutil"
 	"os"
 	"path"
@@ -11,6 +10,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/xiusin/router/components/di/interfaces"
 )
 
 type Store struct {
@@ -40,7 +41,7 @@ func (store *Store) GetConfig() interfaces.SessionConfigInf {
 }
 
 func (store *Store) ClearExpiredFile() {
-	d := uint32(store.config.GcDivisor)
+	d := uint32(store.config.GetGcDivisor())
 	for {
 		if d > store.counter || store.counter > 0 && store.counter%d == 0 {
 			now := time.Now()
@@ -50,7 +51,7 @@ func (store *Store) ClearExpiredFile() {
 				panic(err)
 			}
 			for _, file := range files {
-				if now.Sub(file.ModTime().Add(time.Duration(store.config.GcMaxLiftTime)*time.Second)) >= 0 {
+				if now.Sub(file.ModTime().Add(time.Duration(store.config.GetGcMaxLiftTime())*time.Second)) >= 0 {
 					_ = os.Remove(path.Join(store.config.SessionPath, file.Name()))
 				}
 			}

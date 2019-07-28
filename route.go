@@ -1,7 +1,6 @@
 package router
 
 import (
-	"fmt"
 	"net/http"
 	"reflect"
 	"regexp"
@@ -122,7 +121,7 @@ func (r *RouteCollection) autoMatchHttpMethod(path string, handle Handler) {
 	var methods = map[string]routeMaker{"Get": r.GET, "Post": r.POST, "Head": r.HEAD, "Delete": r.DELETE, "Put": r.PUT}
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
-			fmt.Println(urlSeparator + r.upperCharToUnderLine(strings.TrimLeft(path, method)))
+			//fmt.Println(urlSeparator + r.upperCharToUnderLine(strings.TrimLeft(path, method)))
 			routeMaker(urlSeparator+r.upperCharToUnderLine(strings.TrimLeft(path, method)), handle)
 		} else if strings.HasPrefix(path, "Any") {
 			r.ANY(urlSeparator+r.upperCharToUnderLine(path), handle)

@@ -13,12 +13,14 @@ type Render struct {
 	tplData map[string]interface{}
 }
 
+type H map[string]interface{}
+
 func NewView(writer http.ResponseWriter) *Render {
 	var rendererInf interfaces.RendererInf
 	if di.Exists("render") {
 		rendererInf, _ = di.MustGet("render").(interfaces.RendererInf)
 	}
-	return &Render{rendererInf, writer, map[string]interface{}{}}
+	return &Render{rendererInf, writer, H{}}
 }
 
 func (c *Render) ViewData(key string, val interface{}) {
@@ -30,12 +32,12 @@ func (c *Render) HTML(name string) error {
 }
 
 // 渲染json
-func (c *Render) JSON(v map[string]interface{}) error {
+func (c *Render) JSON(v H) error {
 	return c.engine.JSON(c.writer, v)
 }
 
 // 渲染jsonp
-func (c *Render) JSONP(callback string, v map[string]interface{}) error {
+func (c *Render) JSONP(callback string, v H) error {
 	return c.engine.JSONP(c.writer, callback, v)
 }
 
@@ -45,6 +47,6 @@ func (c *Render) Text(v []byte) error {
 }
 
 // 渲染xml
-func (c *Render) XML(v map[string]interface{}) error {
+func (c *Render) XML(v H) error {
 	return c.engine.XML(c.writer, v)
 }

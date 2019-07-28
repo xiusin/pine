@@ -252,6 +252,10 @@ func (c *Context) ClientIP() string {
 	return ""
 }
 
+func (c *Context) Get() map[string][]string {
+	return map[string][]string(c.req.URL.Query())
+}
+
 func (c *Context) GetInt(key string, defaultVal ...int) (val int, res bool) {
 	val, err := strconv.Atoi(c.req.URL.Query().Get(key))
 	if err != nil && len(defaultVal) > 0 {
@@ -293,11 +297,25 @@ func (c *Context) Header(key string) string {
 	return c.req.Header.Get(key)
 }
 
+func (c *Context) ParseForm() error {
+	return c.req.ParseMultipartForm(c.app.option.MaxMultipartMemory)
+}
+
 func (c *Context) PostInt(key string, defaultVal ...int) (val int, res bool) {
 	val, err := strconv.Atoi(c.req.PostFormValue(key))
 	if err != nil && len(defaultVal) > 0 {
 		val = defaultVal[0]
 		res = true
+	}
+	return
+}
+
+func (c *Context) PostString(key string, defaultVal ...string) (val string, res bool) {
+	val, res = c.req.PostFormValue(key), false
+	if val != "" {
+		res = true
+	} else if len(defaultVal) > 0 {
+		val, res = defaultVal[0], true
 	}
 	return
 }
@@ -328,6 +346,10 @@ func (c *Context) PostBool(key string) (val bool, err error) {
 func (c *Context) PostStrings(key string) (val []string, ok bool) {
 	val, ok = c.req.PostForm[key]
 	return
+}
+
+func (c *Context) Post() map[string][]string {
+	return map[string][]string(c.req.PostForm)
 }
 
 func (c *Context) Files(key string) (val []*multipart.FileHeader) {

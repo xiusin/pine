@@ -218,8 +218,8 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (r *Router) handle(c *Context, urlParsed *url.URL) {
 	route := r.matchRoute(c, urlParsed)
 	if route != nil {
-		if r.option.MaxMultipartMemory == 0 {
-			_ = c.req.ParseMultipartForm(r.option.MaxMultipartMemory)
+		if r.option.MaxMultipartMemory > 0 { //todo 是否可以设置自己设置解析表单
+			c.ParseForm()
 		}
 		c.setRoute(route)
 		c.Next()

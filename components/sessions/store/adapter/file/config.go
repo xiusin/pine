@@ -26,7 +26,7 @@ func (c *Config) GetGcMaxLiftTime() int {
 }
 
 func (c *Config) GetGcDivisor() int {
-	if c.GcMaxLiftTime == 0 {
+	if c.GcDivisor == 0 {
 		return 1000
 	} else {
 		return c.GcDivisor
