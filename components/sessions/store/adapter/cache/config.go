@@ -4,15 +4,12 @@ import (
 	"github.com/xiusin/router/components/cache"
 )
 
-// 统一化配置， 如果不需要的可以不配置
 type Config struct {
 	Cache          cache.Cache
 	CookieName     string
 	CookieMaxAge   int
 	CookieSecure   bool
 	CookieHttpOnly bool
-	GcMaxLiftTime  int // 清理超出时间的最后时差
-	GcDivisor      int // 清理频次
 }
 
 func (c *Config) GetCookieName() string {

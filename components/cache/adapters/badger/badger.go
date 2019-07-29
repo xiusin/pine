@@ -2,8 +2,11 @@ package badger
 
 import (
 	"encoding/json"
-	"github.com/xiusin/router/components/cache"
+	"os"
 	"time"
+
+	"github.com/xiusin/router/components/cache"
+	"github.com/xiusin/router/utils"
 
 	badger2 "github.com/dgraph-io/badger"
 )
@@ -26,10 +29,16 @@ func init() {
 		var err error
 		opt := badger2.DefaultOptions
 		revOpt := option.(*Option)
-		opt.Dir = revOpt.Path
-		if opt.Dir == "" {
+		if revOpt.Path == "" {
 			panic("badger: 请设置dir")
 		}
+		opt.Dir = revOpt.Path
+		if !utils.IsDir(revOpt.Path) {
+			if err := os.MkdirAll(revOpt.Path, os.ModePerm); err != nil {
+				panic(err)
+			}
+		}
+		opt.ValueDir = revOpt.Path
 		db, err := badger2.Open(opt)
 		if err != nil {
 			panic(err)
@@ -37,7 +46,7 @@ func init() {
 		mem := &badger{
 			client: db,
 			option: revOpt,
-			prefix: revOpt.Path,
+			prefix: revOpt.Prefix,
 		}
 		return mem
 	})
@@ -71,7 +80,7 @@ func (c *badger) SetCachePrefix(prefix string) {
 
 func (c *badger) Save(key string, val []byte, ttl ...int) bool {
 	if len(ttl) == 0 {
-		ttl[0] = c.option.TTL
+		ttl = []int{c.option.TTL}
 	}
 	if err := c.client.Update(func(tx *badger2.Txn) error {
 		e := badger2.NewEntry([]byte(c.prefix+key), val).WithTTL(time.Duration(ttl[0]) * time.Second)

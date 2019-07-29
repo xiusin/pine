@@ -3,10 +3,11 @@ package redis
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	"github.com/xiusin/router/components/cache"
 	"github.com/xiusin/router/components/di"
 	"github.com/xiusin/router/components/di/interfaces"
-	"time"
 
 	"github.com/gomodule/redigo/redis"
 )
@@ -25,6 +26,8 @@ type Option struct {
 	Wait           bool
 	TTL            int
 }
+
+
 
 func (o *Option) ToString() string {
 	s, err := json.Marshal(o)
@@ -72,7 +75,7 @@ func (cache *Cache) SetTTL(ttl int) {
 
 func (cache *Cache) Save(key string, val []byte, ttl ...int) bool {
 	if len(ttl) == 0 {
-		ttl[0] = cache.ttl
+		ttl = []int{cache.ttl}
 	}
 	client := cache.pool.Get()
 	_, err := client.Do("SET", cache.getCacheKey(key), val, "EX", ttl[0])
@@ -118,7 +121,7 @@ func (cache *Cache) SaveAll(data map[string][]byte, ttl ...int) bool {
 }
 
 func init() {
-	cache.Register("cache", func(option cache.Option) cache.Cache {
+	cache.Register("redis", func(option cache.Option) cache.Cache {
 		opt := option.(*Option)
 		if opt.Host == "" {
 			opt.Host = "127.0.0.1"

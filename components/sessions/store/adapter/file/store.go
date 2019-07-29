@@ -51,14 +51,14 @@ func (store *Store) ClearExpiredFile() {
 	}
 }
 
-func (store *Store) Read(id string, recver interface{}) error {
+func (store *Store) Read(id string, receiver interface{}) error {
 	f, err := os.Open(store.getFilePath(id))
 	if err != nil && os.IsNotExist(err) {
 		atomic.AddUint32(&store.counter, 1)
 		return nil
 	}
 	defer f.Close()
-	if err := gob.NewDecoder(f).Decode(recver); err == nil {
+	if err := gob.NewDecoder(f).Decode(receiver); err == nil {
 		atomic.AddUint32(&store.counter, 1)
 		return nil
 	}

@@ -14,7 +14,7 @@ type Cache interface {
 	SaveAll(map[string][]byte, ...int) bool
 }
 
-var adapters = make(map[string]AdapterBuilder)
+var adapters = map[string]AdapterBuilder{}
 
 var mu sync.RWMutex
 

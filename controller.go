@@ -1,8 +1,9 @@
 package router
 
 import (
-	"github.com/xiusin/router/components/di/interfaces"
 	"sync"
+
+	"github.com/xiusin/router/components/di/interfaces"
 )
 
 type (
@@ -42,4 +43,12 @@ func (c *Controller) Render() *Render {
 
 func (c *Controller) Logger() interfaces.LoggerInf {
 	return c.ctx.Logger()
+}
+
+func (c *Controller) AfterAction() {
+	if c.sess != nil {
+		if err := c.sess.Save(); err != nil {
+			c.Logger().Error("save session is error", err)
+		}
+	}
 }

@@ -40,6 +40,9 @@ func (u *controllerMappingRoute) warpControllerHandler(method string, c Controll
 		*(**Context)(ptr) = context
 		u.autoRegisterService(&c)
 		c.MethodByName(method).Call([]reflect.Value{})
+		if c.MethodByName("AfterAction").IsValid() {
+			c.MethodByName("AfterAction").Call([]reflect.Value{}) // 判断是否存在after
+		}
 	}
 }
 
