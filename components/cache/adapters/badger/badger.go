@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/xiusin/router/components/cache"
+	"github.com/xiusin/router/components/path"
 	"github.com/xiusin/router/utils"
 
 	badger2 "github.com/dgraph-io/badger"
@@ -30,7 +31,7 @@ func init() {
 		opt := badger2.DefaultOptions
 		revOpt := option.(*Option)
 		if revOpt.Path == "" {
-			panic("badger: 请设置dir")
+			revOpt.Path = path.StoragePath("data")
 		}
 		opt.Dir = revOpt.Path
 		if !utils.IsDir(revOpt.Path) {
