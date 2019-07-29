@@ -1,13 +1,10 @@
 package sessions
 
 import (
-	"fmt"
-	"net/http"
-	"sync"
-	"time"
-
 	uuid "github.com/satori/go.uuid"
 	"github.com/xiusin/router/components/di/interfaces"
+	"net/http"
+	"sync"
 )
 
 type Manager struct {
@@ -27,31 +24,23 @@ func GetSessionId() string {
 }
 
 func (m *Manager) Session(r *http.Request, w http.ResponseWriter) (interfaces.SessionInf, error) {
+	var cookie *http.Cookie
+	var err error
 	config := m.store.GetConfig()
 	m.l.Lock()
 	defer m.l.Unlock()
-	name := config.GetCookieName()
-	cookie, err := r.Cookie(name)
+	cookieName := config.GetCookieName()
+	cookie, err = r.Cookie(cookieName)
 	if err != nil {
-		if cookie == nil {
-			cookie = &http.Cookie{
-				Name:     name,
-				Value:    GetSessionId(),
-				HttpOnly: config.GetHttpOnly(),
-				Secure:   config.GetSecure(),
-				MaxAge:	config.GetExpires(),
-			}
-		} else {
-			cookie.Value = name
+		cookie = &http.Cookie{
+			Name:     cookieName,
+			Value:    GetSessionId(),
+			HttpOnly: config.GetHttpOnly(),
+			Secure:   config.GetSecure(),
+			MaxAge:   config.GetMaxAge(),
+			Path:     "/",
 		}
+		http.SetCookie(w, cookie) //重新设置cookie
 	}
-	fmt.Println("cookie", cookie)
-	if config.GetExpires() > 0 {
-		cookie.Expires = time.Now().Add(config.GetExpires())
-	} else {
-		cookie.Expires = time.Duration(config.GetExpires())
-	}
-	cookie.Path = "/"         // SESSION保持为全局
-	http.SetCookie(w, cookie) //重新设置cookie
 	return newSession(cookie.Value, r, w, m.store)
 }

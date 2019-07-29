@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,14 +20,6 @@ type Store struct {
 }
 
 func NewStore(config *Config) *Store {
-	if config.SessionPath == "" {
-		str, err := os.UserCacheDir()
-		if err != nil {
-			panic(err)
-		}
-		config.SessionPath = str
-	}
-	config.SessionPath = strings.TrimRight(config.SessionPath, "/")
 	store := &Store{config: config}
 	store.once.Do(func() {
 		go store.ClearExpiredFile()
@@ -46,13 +37,13 @@ func (store *Store) ClearExpiredFile() {
 		if d > store.counter || store.counter > 0 && store.counter%d == 0 {
 			now := time.Now()
 			// 执行清理
-			files, err := ioutil.ReadDir(store.config.SessionPath)
+			files, err := ioutil.ReadDir(store.config.GetSessionPath())
 			if err != nil {
 				panic(err)
 			}
 			for _, file := range files {
 				if now.Sub(file.ModTime().Add(time.Duration(store.config.GetGcMaxLiftTime())*time.Second)) >= 0 {
-					_ = os.Remove(path.Join(store.config.SessionPath, file.Name()))
+					_ = os.Remove(path.Join(store.config.GetSessionPath(), file.Name()))
 				}
 			}
 			atomic.StoreUint32(&store.counter, 1) //重置counter为1
@@ -67,8 +58,7 @@ func (store *Store) Read(id string, recver interface{}) error {
 		return nil
 	}
 	defer f.Close()
-	decoder := gob.NewDecoder(f)
-	if err := decoder.Decode(recver); err == nil {
+	if err := gob.NewDecoder(f).Decode(recver); err == nil {
 		atomic.AddUint32(&store.counter, 1)
 		return nil
 	}
@@ -76,7 +66,7 @@ func (store *Store) Read(id string, recver interface{}) error {
 }
 
 func (store *Store) getFilePath(id string) string {
-	return store.config.SessionPath + "/sess-" + id
+	return store.config.GetSessionPath() + "/sess-" + id
 }
 
 func (store *Store) Save(id string, val interface{}) error {

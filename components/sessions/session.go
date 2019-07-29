@@ -3,19 +3,18 @@ package sessions
 import (
 	"errors"
 	"github.com/xiusin/router/components/di/interfaces"
-	"fmt"
 	"net/http"
 	"sync"
 )
 
-type entry struct {
+type Entry struct {
 	Val   interface{}
 	Flash bool
 }
 
 type Session struct {
 	id      string
-	data    map[string]entry
+	data    map[string]Entry
 	l       sync.RWMutex
 	store   interfaces.SessionStoreInf
 	request *http.Request
@@ -23,7 +22,7 @@ type Session struct {
 }
 
 func newSession(id string, r *http.Request, w http.ResponseWriter, store interfaces.SessionStoreInf) (*Session, error) {
-	sess := &Session{request: r, writer: w, data: make(map[string]entry), store: store, id: id}
+	sess := &Session{request: r, writer: w, data: map[string]Entry{}, store: store, id: id}
 	if err := store.Read(id, &sess.data); err != nil {
 		return nil, err
 	}
@@ -32,7 +31,7 @@ func newSession(id string, r *http.Request, w http.ResponseWriter, store interfa
 
 func (sess *Session) Set(key string, val interface{}) error {
 	sess.l.Lock()
-	sess.data[key] = entry{Val: val, Flash: false}
+	sess.data[key] = Entry{Val: val, Flash: false}
 	sess.l.Unlock()
 	return nil
 }
@@ -40,7 +39,6 @@ func (sess *Session) Set(key string, val interface{}) error {
 func (sess *Session) Get(key string) (interface{}, error) {
 	sess.l.RLock()
 	defer sess.l.RUnlock()
-	fmt.Println(sess.data)
 	if val, ok := sess.data[key]; ok {
 		return val.Val, nil
 	}
@@ -49,7 +47,7 @@ func (sess *Session) Get(key string) (interface{}, error) {
 
 func (sess *Session) AddFlush(key string, val interface{}) error {
 	sess.l.Lock()
-	sess.data[key] = entry{Val: val, Flash: true}
+	sess.data[key] = Entry{Val: val, Flash: true}
 	sess.l.Unlock()
 	return nil
 }
@@ -65,7 +63,7 @@ func (sess *Session) Clear() error {
 	sess.l.Lock()
 	err := sess.store.Clear(sess.id)
 	if err == nil {
-		sess.data = map[string]entry{}
+		sess.data = map[string]Entry{}
 	}
 	sess.l.Unlock()
 	return err

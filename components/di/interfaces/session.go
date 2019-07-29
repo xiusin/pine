@@ -2,7 +2,6 @@ package interfaces
 
 import (
 	"net/http"
-	"time"
 )
 
 type SessionManagerInf interface {
@@ -11,7 +10,7 @@ type SessionManagerInf interface {
 
 type SessionConfigInf interface {
 	GetCookieName() string
-	GetExpires() time.Duration
+	GetMaxAge() int
 	GetHttpOnly() bool
 	GetSecure() bool
 }

@@ -1,12 +1,16 @@
 package file
 
-import "time"
+import (
+	"github.com/xiusin/router/components/path"
+	"github.com/xiusin/router/utils"
+	"os"
+)
 
 // 统一化配置， 如果不需要的可以不配置
 type Config struct {
 	SessionPath    string
 	CookieName     string
-	CookieExpires  time.Duration
+	CookieMaxAge   int
 	CookieSecure   bool
 	CookieHttpOnly bool
 	GcMaxLiftTime  int // 清理超出时间的最后时差
@@ -14,31 +18,40 @@ type Config struct {
 }
 
 func (c *Config) GetSessionPath() string {
+	if c.SessionPath == "" {
+		c.SessionPath = path.StoragePath("sessions")
+	}
+	if !utils.IsDir(c.SessionPath) {
+		os.MkdirAll(c.SessionPath, os.ModePerm)
+	}
 	return c.SessionPath
 }
 
 func (c *Config) GetGcMaxLiftTime() int {
-	if c.GcMaxLiftTime == 0 {
-		return 1440
+	if c.GcMaxLiftTime <= 0 {
+		return 1440 //默认值
 	} else {
 		return c.GcMaxLiftTime
 	}
 }
 
 func (c *Config) GetGcDivisor() int {
-	if c.GcDivisor == 0 {
-		return 1000
+	if c.GcDivisor <= 0 {
+		return 1000 //默认值
 	} else {
 		return c.GcDivisor
 	}
 }
 
 func (c *Config) GetCookieName() string {
+	if c.CookieName == "" {
+		c.CookieName = "SESSION_ID"
+	}
 	return c.CookieName
 }
 
-func (c *Config) GetExpires() time.Duration {
-	return c.CookieExpires
+func (c *Config) GetMaxAge() int {
+	return c.CookieMaxAge
 }
 
 func (c *Config) GetHttpOnly() bool {

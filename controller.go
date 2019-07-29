@@ -2,11 +2,14 @@ package router
 
 import (
 	"github.com/xiusin/router/components/di/interfaces"
+	"sync"
 )
 
 type (
 	Controller struct {
-		ctx *Context
+		ctx  *Context
+		sess interfaces.SessionInf
+		once sync.Once
 	}
 
 	// 控制器接口定义
@@ -23,11 +26,14 @@ func (c *Controller) Ctx() *Context {
 }
 
 func (c *Controller) Session() interfaces.SessionInf {
-	sess, err := c.ctx.SessionManger().Session(c.ctx.Request(), c.ctx.Writer())
-	if err != nil {
-		panic(err)
-	}
-	return sess
+	var err error
+	c.once.Do(func() {
+		c.sess, err = c.ctx.SessionManger().Session(c.ctx.Request(), c.ctx.Writer())
+		if err != nil {
+			panic(err)
+		}
+	})
+	return c.sess
 }
 
 func (c *Controller) Render() *Render {
