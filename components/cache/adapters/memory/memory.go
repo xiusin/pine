@@ -85,10 +85,6 @@ func (m *Memory) getKey(key string) string {
 	return m.prefix + key
 }
 
-func (m *Memory) SetCachePrefix(prefix string) {
-	m.prefix = prefix
-}
-
 func (m *Memory) Save(key string, val []byte, ttl ...int) bool {
 	if len(ttl) == 0 {
 		ttl[0] = m.option.TTL
