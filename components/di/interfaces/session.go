@@ -10,6 +10,7 @@ type SessionManagerInf interface {
 
 type SessionConfigInf interface {
 	GetCookieName() string
+	GetCookiePath() string
 	GetMaxAge() int
 	GetHttpOnly() bool
 	GetSecure() bool

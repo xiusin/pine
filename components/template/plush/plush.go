@@ -1,4 +1,4 @@
-package pongo
+package plush
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 )
 
 type Plush struct {
-	cache map[string]*plush.Template
+	cache map[string]string
 	l     sync.RWMutex
 	dir   string
 	debug bool
@@ -20,8 +20,7 @@ type Plush struct {
 
 func New(dir string, debug bool) *Plush {
 	t := &Plush{debug: debug, dir: dir}
-
-	t.cache = map[string]*plush.Template{}
+	t.cache = make(map[string]string)
 	return t
 }
 
@@ -32,33 +31,20 @@ func (c *Plush) AddFunc(funcName string, funcEntry interface{}) {
 }
 
 func (c *Plush) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
-	var (
-		tpl *plush.Template
-		ok  bool
-		err error
-	)
 	c.l.RLock()
-	tpl, ok = c.cache[name]
+	html, ok := c.cache[name]
 	c.l.RUnlock()
-	if !ok {
+	if !ok || c.debug {
 		c.l.Lock()
 		defer c.l.Unlock()
 		s, err := ioutil.ReadFile(c.dir + "/" + name) // 读取模板内容
 		if err != nil {
 			return err
 		}
-		tpl, err = plush.NewTemplate(string(s))
-		if err != nil {
-			return err
-		}
-		c.cache[name] = tpl
-
+		c.cache[name] = string(s)
+		html = c.cache[name]
 	}
-	ctx := plush.NewContext()
-	for k, v := range binding {
-		ctx.Set(k, v)
-	}
-	html, err := tpl.Exec(ctx)
+	html, err := plush.BuffaloRenderer(html, binding, nil)
 	if err != nil {
 		return err
 	}

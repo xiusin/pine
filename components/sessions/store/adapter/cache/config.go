@@ -10,10 +10,18 @@ type Config struct {
 	CookieMaxAge   int
 	CookieSecure   bool
 	CookieHttpOnly bool
+	CookiePath     string
 }
 
 func (c *Config) GetCookieName() string {
 	return c.CookieName
+}
+
+func (c *Config) GetCookiePath() string {
+	if c.CookiePath == "" {
+		c.CookiePath = "/"
+	}
+	return c.CookiePath
 }
 
 func (c *Config) GetMaxAge() int {

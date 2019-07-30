@@ -9,7 +9,7 @@ import (
 	"github.com/xiusin/router/components/path"
 	"github.com/xiusin/router/utils"
 
-	badger2 "github.com/dgraph-io/badger"
+	badgerDB "github.com/dgraph-io/badger"
 )
 
 // 直接保存到内存
@@ -28,11 +28,11 @@ func (o *Option) ToString() string {
 func init() {
 	cache.Register("badger", func(option cache.Option) cache.Cache {
 		var err error
-		opt := badger2.DefaultOptions
 		revOpt := option.(*Option)
 		if revOpt.Path == "" {
 			revOpt.Path = path.StoragePath("data")
 		}
+		opt := badgerDB.DefaultOptions(revOpt.Path)
 		opt.Dir = revOpt.Path
 		if !utils.IsDir(revOpt.Path) {
 			if err := os.MkdirAll(revOpt.Path, os.ModePerm); err != nil {
@@ -40,7 +40,7 @@ func init() {
 			}
 		}
 		opt.ValueDir = revOpt.Path
-		db, err := badger2.Open(opt)
+		db, err := badgerDB.Open(opt)
 		if err != nil {
 			panic(err)
 		}
@@ -56,11 +56,11 @@ func init() {
 type badger struct {
 	option *Option
 	prefix string
-	client *badger2.DB
+	client *badgerDB.DB
 }
 
 func (c *badger) Get(key string) (val []byte, err error) {
-	if err = c.client.View(func(tx *badger2.Txn) error {
+	if err = c.client.View(func(tx *badgerDB.Txn) error {
 		if e, err := tx.Get([]byte(c.prefix + key)); err != nil {
 			return err
 		} else {
@@ -75,16 +75,12 @@ func (c *badger) Get(key string) (val []byte, err error) {
 	return
 }
 
-func (c *badger) SetCachePrefix(prefix string) {
-	c.prefix = prefix
-}
-
 func (c *badger) Save(key string, val []byte, ttl ...int) bool {
 	if len(ttl) == 0 {
 		ttl = []int{c.option.TTL}
 	}
-	if err := c.client.Update(func(tx *badger2.Txn) error {
-		e := badger2.NewEntry([]byte(c.prefix+key), val).WithTTL(time.Duration(ttl[0]) * time.Second)
+	if err := c.client.Update(func(tx *badgerDB.Txn) error {
+		e := badgerDB.NewEntry([]byte(c.prefix+key), val).WithTTL(time.Duration(ttl[0]) * time.Second)
 		if err := tx.SetEntry(e); err != nil {
 			return err
 		}
@@ -96,7 +92,7 @@ func (c *badger) Save(key string, val []byte, ttl ...int) bool {
 }
 
 func (c *badger) Delete(key string) bool {
-	if err := c.client.Update(func(tx *badger2.Txn) error {
+	if err := c.client.Update(func(tx *badgerDB.Txn) error {
 		if err := tx.Delete([]byte(c.prefix + key)); err != nil {
 			return err
 		}
@@ -108,7 +104,7 @@ func (c *badger) Delete(key string) bool {
 }
 
 func (c *badger) Exists(key string) bool {
-	if err := c.client.View(func(tx *badger2.Txn) error {
+	if err := c.client.View(func(tx *badgerDB.Txn) error {
 		if _, err := tx.Get([]byte(c.prefix + key)); err != nil {
 			return err
 		}
@@ -125,7 +121,7 @@ func (c *badger) SaveAll(data map[string][]byte, ttl ...int) bool {
 	}
 	tx := c.client.NewTransaction(true)
 	for key, val := range data {
-		e := badger2.NewEntry([]byte(c.prefix+key), val).WithTTL(time.Duration(ttl[0]) * time.Second)
+		e := badgerDB.NewEntry([]byte(c.prefix+key), val).WithTTL(time.Duration(ttl[0]) * time.Second)
 		if err := tx.SetEntry(e); err == nil {
 			if err = tx.Commit(); err == nil {
 				return true
@@ -135,10 +131,10 @@ func (c *badger) SaveAll(data map[string][]byte, ttl ...int) bool {
 	return false
 }
 
-func (c *badger) GetAny(callback func(*badger2.DB)) {
+func (c *badger) GetAny(callback func(*badgerDB.DB)) {
 	callback(c.client)
 }
 
-func (c *badger) Client() *badger2.DB {
+func (c *badger) Client() *badgerDB.DB {
 	return c.client
 }

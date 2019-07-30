@@ -7,6 +7,7 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -130,20 +131,28 @@ func (c *Context) File(filepath string) {
 
 // 设置cookie
 func (c *Context) SetCookie(name, value string, maxAge int) {
-	cookie := &http.Cookie{
-		Name:   name,
-		Value:  value,
-		MaxAge: maxAge, //todo 最大生命周期 与 Excprie的区别是？
-	}
+	cookie := &http.Cookie{Name: name, Value: url.QueryEscape(value), MaxAge: maxAge}
 	opt := c.app.option.Cookie
 	if opt != nil {
 		if opt.Path == "" {
+			cookie.Path = "/"
+		} else {
 			cookie.Path = opt.Path
 		}
 		cookie.Secure = opt.Secure
 		cookie.HttpOnly = opt.HttpOnly
 	}
-	c.req.AddCookie(cookie)
+	fmt.Println(cookie)
+	http.SetCookie(c.Writer(), cookie)
+}
+
+// 移除cookie
+func (c *Context) RemoveCookie(name string) error {
+	http.SetCookie(c.Writer(), &http.Cookie{
+		Name:   name,
+		Path:   c.app.option.Cookie.Path, // 必须得设置path， 否则无法删除cookie
+		MaxAge: -1})
+	return nil
 }
 
 func (c *Context) Abort(statusCode int, msg string) {
@@ -227,12 +236,8 @@ func (c *Context) IsPost() bool {
 }
 
 // 获取cookie
-func (c *Context) GetCookie(name string) (cookie string, err error) {
-	cok, err := c.req.Cookie(name)
-	if err == nil {
-		cookie = cok.Value
-	}
-	return
+func (c *Context) GetCookie(name string) (cookie *http.Cookie, err error) {
+	return c.req.Cookie(name)
 }
 
 // 获取客户端IP

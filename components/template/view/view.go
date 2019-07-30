@@ -21,15 +21,14 @@ type Template struct {
 
 func New(viewDir string, debug bool) *Template {
 	return &Template{
-		debug: debug,
+		debug: debug, // 不缓存模板渲染， 直接生效
 		cache: map[string]*template.Template{},
 		dir:   viewDir,
 	}
 }
 
 func (c *Template) AddFunc(funcName string, funcEntry interface{}) {
-	// 只接受函数参数
-	// .kind大类型  .type 具体类型
+	// 只接受函数参数 .kind大类型  .type 具体类型
 	if reflect.ValueOf(funcEntry).Kind() == reflect.Func {
 		c.l.Lock()
 		funcMap[funcName] = funcEntry
@@ -48,13 +47,13 @@ func (c *Template) HTML(writer io.Writer, name string, binding map[string]interf
 	c.l.RUnlock()
 	if !ok || c.debug {
 		c.l.Lock()
+		defer c.l.Unlock()
 		tpl, err = template.ParseFiles(c.dir + "/" + name)
 		if err != nil {
 			return err
 		}
 		tpl.Funcs(funcMap)
 		c.cache[name] = tpl
-		c.l.Unlock()
 	}
 	return tpl.ExecuteTemplate(writer, name, binding)
 }

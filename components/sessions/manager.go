@@ -38,7 +38,7 @@ func (m *Manager) Session(r *http.Request, w http.ResponseWriter) (interfaces.Se
 			HttpOnly: config.GetHttpOnly(),
 			Secure:   config.GetSecure(),
 			MaxAge:   config.GetMaxAge(),
-			Path:     "/",
+			Path:     config.GetCookiePath(),
 		}
 		http.SetCookie(w, cookie) //重新设置cookie
 	}

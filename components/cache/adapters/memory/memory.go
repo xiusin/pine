@@ -104,10 +104,9 @@ func (m *Memory) Save(key string, val []byte, ttl ...int) bool {
 		m.store.Store(m.getKey(key), data)
 	} else {
 		logger, getErr := di.Get("logger")
-		if getErr != nil {
-			panic(getErr)
+		if getErr == nil {
+			(logger.(interfaces.LoggerInf)).Error("已超出设置内存限制, 无法存储")
 		}
-		(logger.(interfaces.LoggerInf)).Fatalf("已超出设置内存限制, 无法存储")
 		return false
 	}
 	return true

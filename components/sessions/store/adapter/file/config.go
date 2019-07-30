@@ -9,6 +9,7 @@ import (
 // 统一化配置， 如果不需要的可以不配置
 type Config struct {
 	SessionPath    string
+	CookiePath     string
 	CookieName     string
 	CookieMaxAge   int
 	CookieSecure   bool
@@ -25,6 +26,13 @@ func (c *Config) GetSessionPath() string {
 		os.MkdirAll(c.SessionPath, os.ModePerm)
 	}
 	return c.SessionPath
+}
+
+func (c *Config) GetCookiePath() string {
+	if c.CookiePath == "" {
+		c.CookiePath = "/"
+	}
+	return c.CookiePath
 }
 
 func (c *Config) GetGcMaxLiftTime() int {
