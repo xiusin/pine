@@ -133,7 +133,7 @@ func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *RouteEntry {
 	return nil
 }
 
-// 处理静态文件夹
+// 处理静态文件夹 todo 这里会不会出现重复注册的问题
 func (r *Router) Static(path, dir string) {
 	r.GET(path, func(i *Context) {
 		http.StripPrefix(
@@ -189,7 +189,7 @@ func (r *Router) Serve() {
 		ReadTimeout:       r.option.TimeOut,
 		IdleTimeout:       r.option.TimeOut,
 		Addr:              addr,
-		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Timeout"), // 超时函数, 但是无法阻止服务器端停止
+		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Timeout"), // 超时函数, 但是无法阻止服务器端停止,内部耗时部分可以自行使用context.context控制
 	}
 	if r.option.Env == option.DevMode {
 		fmt.Println(logo)
@@ -218,8 +218,11 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (r *Router) handle(c *Context, urlParsed *url.URL) {
 	route := r.matchRoute(c, urlParsed)
 	if route != nil {
-		if r.option.MaxMultipartMemory > 0 { //todo 是否可以设置自己设置解析表单
-			c.ParseForm()
+		//todo 是否可以设置自己设置解析表单
+		if r.option.MaxMultipartMemory > 0 {
+			if err := c.ParseForm(); err != nil {
+				panic(err)
+			}
 		}
 		c.setRoute(route)
 		c.Next()

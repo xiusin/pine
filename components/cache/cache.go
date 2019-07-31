@@ -7,7 +7,6 @@ import (
 
 type Cache interface {
 	Get(string) ([]byte, error)
-	//SetCachePrefix(string)	//todo 废弃， 不可动态更改后缀
 	Save(string, []byte, ...int) bool
 	Delete(string) bool
 	Exists(string) bool

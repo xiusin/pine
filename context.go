@@ -258,7 +258,7 @@ func (c *Context) ClientIP() string {
 }
 
 func (c *Context) Get() map[string][]string {
-	return map[string][]string(c.req.URL.Query())
+	return c.req.URL.Query()
 }
 
 func (c *Context) GetInt(key string, defaultVal ...int) (val int, res bool) {
@@ -285,11 +285,6 @@ func (c *Context) GetFloat64(key string, defaultVal ...float64) (val float64, re
 		val = defaultVal[0]
 		res = true
 	}
-	return
-}
-
-func (c *Context) GetBool(key string) (val bool, err error) {
-	val, err = strconv.ParseBool(c.req.URL.Query().Get(key))
 	return
 }
 
@@ -343,18 +338,13 @@ func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, r
 	return
 }
 
-func (c *Context) PostBool(key string) (val bool, err error) {
-	val, err = strconv.ParseBool(c.req.PostFormValue(key))
-	return
-}
-
 func (c *Context) PostStrings(key string) (val []string, ok bool) {
 	val, ok = c.req.PostForm[key]
 	return
 }
 
 func (c *Context) Post() map[string][]string {
-	return map[string][]string(c.req.PostForm)
+	return c.req.PostForm
 }
 
 func (c *Context) Files(key string) (val []*multipart.FileHeader) {

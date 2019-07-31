@@ -31,7 +31,6 @@ func newUrlMappingRoute(r *RouteCollection, c ControllerInf) *controllerMappingR
 
 func (u *controllerMappingRoute) warpControllerHandler(method string, c ControllerInf) Handler {
 	refValCtrl := reflect.ValueOf(c)
-	// 分析函数参数?todo 查看iris怎么实现参数解析的
 	return func(context *Context) {
 		c := reflect.New(refValCtrl.Elem().Type()) // 利用反射构建变量得到value值
 		rs := reflect.Indirect(c)
@@ -39,9 +38,14 @@ func (u *controllerMappingRoute) warpControllerHandler(method string, c Controll
 		ptr := unsafe.Pointer(rf.UnsafeAddr())
 		*(**Context)(ptr) = context
 		u.autoRegisterService(&c)
+		// 判断是否存在BeforeAction， 执行前置操作
+		if c.MethodByName("BeforeAction").IsValid() {
+			c.MethodByName("BeforeAction").Call([]reflect.Value{})
+		}
 		c.MethodByName(method).Call([]reflect.Value{})
+		// 判断是否存在AfterAction， 执行后置操作
 		if c.MethodByName("AfterAction").IsValid() {
-			c.MethodByName("AfterAction").Call([]reflect.Value{}) // 判断是否存在after
+			c.MethodByName("AfterAction").Call([]reflect.Value{})
 		}
 	}
 }
