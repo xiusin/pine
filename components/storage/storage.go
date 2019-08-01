@@ -2,11 +2,15 @@ package storage
 
 import (
 	"fmt"
+	"io"
 	"sync"
 )
 
-type StorageInf interface {
-	Put(string, string) (string, error)
+type Storage interface {
+	PutFromFile(string, string) (string, error)
+	PutFromReader(string, io.Reader) (string, error)
+	Delete(string) error
+	Exists(string) (bool, error)
 }
 
 type Option interface {
@@ -17,7 +21,7 @@ var adapters = map[string]AdapterBuilder{}
 
 var mu sync.RWMutex
 
-type AdapterBuilder func(option Option) StorageInf
+type AdapterBuilder func(option Option) Storage
 
 func Register(adapterName string, builder AdapterBuilder) {
 	if builder == nil {
@@ -31,7 +35,7 @@ func Register(adapterName string, builder AdapterBuilder) {
 	mu.Unlock()
 }
 
-func NewStorage(adapterName string, option Option) (adapter StorageInf, err error) {
+func NewAdapter(adapterName string, option Option) (adapter Storage, err error) {
 	mu.RLock()
 	builder, ok := adapters[adapterName]
 	mu.RUnlock()

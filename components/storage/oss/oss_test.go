@@ -8,7 +8,7 @@ import (
 var adapter storage.StorageInf
 
 func init() {
-	adapterTmp, err := storage.NewStorage("oss", &Option{
+	adapterTmp, err := storage.NewAdapter("oss", &Option{
 		Endpoint:        "oss-cn-shanghai.aliyuncs.com",
 		AccessKeyId:     "LTAIdVHSv27uLaXu",
 		AccessKeySecret: "sHvW947BVraoRiUCAhy0r8h0Ixd7QJ",
@@ -23,7 +23,7 @@ func init() {
 func TestOss_ListBucket(t *testing.T) {
 	oss := adapter.(*Oss)
 	t.Log(oss.ListBucket())
-	ls, _, _ := oss.List("bucket-blog")
-	t.Log()
+	ls, _, _ := oss.List("Golang指针与nil浅析")
+	t.Log(ls)
 
 }

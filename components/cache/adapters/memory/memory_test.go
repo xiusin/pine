@@ -10,7 +10,7 @@ var err error
 var mem cache.Cache
 
 func init() {
-	mem, err = cache.NewCache("memory", &Option{
+	mem, err = cache.NewAdapter("memory", &Option{
 		TTL:        30,
 		Prefix:     "mem_",
 		maxMemSize: 100 * 1024,

@@ -8,7 +8,7 @@ var err error
 var mem cache.Cache
 
 func init() {
-	mem, err = cache.NewCache("badger", &Option{
+	mem, err = cache.NewAdapter("badger", &Option{
 		TTL:    5,
 		Prefix: "mem_",
 		Path:   "/tmp/badger",

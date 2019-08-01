@@ -32,7 +32,7 @@ func Register(adapterName string, builder AdapterBuilder) {
 	mu.Unlock()
 }
 
-func NewCache(adapterName string, option Option) (adapter Cache, err error) {
+func NewAdapter(adapterName string, option Option) (adapter Cache, err error) {
 	mu.RLock()
 	builder, ok := adapters[adapterName]
 	mu.RUnlock()

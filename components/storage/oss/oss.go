@@ -3,16 +3,18 @@ package oss
 import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
 	"github.com/xiusin/router/components/storage"
-	"sync"
+	"io"
+	"strings"
 )
 
 type Option struct {
-	Endpoint        string
-	CustomDomain    string
-	AccessKeyId     string
-	AccessKeySecret string
-	BucketName      string
-	PutOpt          []oss.Option
+	Endpoint            string
+	CustomDomain        string
+	AccessKeyId         string
+	AccessKeySecret     string
+	BucketName          string
+	PutReturnWithDomain bool
+	PutOpt              []oss.Option
 }
 
 func (o *Option) GetEndpoint() string {
@@ -22,22 +24,51 @@ func (o *Option) GetEndpoint() string {
 type Oss struct {
 	client *oss.Client
 	option *Option
-	mu     sync.Mutex
 }
 
-func (o *Oss) Put(storeFilePath, localPath string) (string, error) {
+func (o *Oss) PutFromReader(storeFilePath string, localPathReader io.Reader) (string, error) {
 	b, err := o.client.Bucket(o.option.BucketName)
 	if err != nil {
 		return "", err
 	}
-	err = b.PutObjectFromFile(storeFilePath, localPath, o.option.PutOpt...)
+	err = b.PutObject(storeFilePath, localPathReader, o.option.PutOpt...)
 	if err != nil {
 		return "", err
 	}
-	if o.option.CustomDomain == "" {
-		return o.option.Endpoint + storeFilePath, nil
+	if o.option.PutReturnWithDomain {
+		if o.option.CustomDomain == "" {
+			return o.option.Endpoint + storeFilePath, nil
+		} else {
+			return o.option.CustomDomain + storeFilePath, nil
+		}
 	} else {
-		return o.option.CustomDomain + storeFilePath, nil
+		return storeFilePath, nil
+	}
+}
+
+func (o *Oss) PutFromFile(storeFilePath, filePath string) (string, error) {
+	b, err := o.client.Bucket(o.option.BucketName)
+	if err != nil {
+		return "", err
+	}
+	s := strings.ToLower(filePath)
+	// 判断是不是URL资源
+	if strings.HasPrefix(s, "http://") || strings.HasPrefix(s, "https://") {
+		err = b.PutObjectFromFileWithURL(storeFilePath, filePath, o.option.PutOpt...)
+	} else {
+		err = b.PutObjectFromFile(storeFilePath, filePath, o.option.PutOpt...)
+	}
+	if err != nil {
+		return "", err
+	}
+	if o.option.PutReturnWithDomain {
+		if o.option.CustomDomain == "" {
+			return o.option.Endpoint + storeFilePath, nil
+		} else {
+			return o.option.CustomDomain + storeFilePath, nil
+		}
+	} else {
+		return storeFilePath, nil
 	}
 }
 
@@ -46,7 +77,7 @@ func (o *Oss) Delete(storeFilePath string) error {
 	if err != nil {
 		return err
 	}
-	return b.DeleteObject(storeFilePath, o.option.PutOpt...)
+	return b.DeleteObject(storeFilePath)
 }
 
 func (o *Oss) ListBucket() (names []string, raws oss.ListBucketsResult, err error) {
@@ -64,12 +95,31 @@ func (o *Oss) Client() *oss.Client {
 	return o.client
 }
 
+func (o *Oss) Bucket() (*oss.Bucket, error) {
+	return o.client.Bucket(o.option.BucketName)
+}
+
+func (o *Oss) Exists(storageFilePath string) (bool, error) {
+	b, err := o.Bucket()
+	if err != nil {
+		return false, err
+	}
+	return b.IsObjectExist(storageFilePath)
+}
+
 func (o *Oss) List(dir ...string) (names []string, raws oss.ListObjectsResult, err error) {
-	b, err := o.client.Bucket(o.option.BucketName)
+	b, err := o.Bucket()
 	if err != nil {
 		return
 	}
-	raws, err = b.ListObjects(o.option.PutOpt...)
+	delimiter := ""
+	if len(dir) == 0 {
+		dir = append(dir, "")
+		if dir[0] != "" {
+			delimiter = "/"
+		}
+	}
+	raws, err = b.ListObjects(oss.Delimiter(delimiter), oss.Prefix(dir[0]), oss.MaxKeys(100))
 	if err != nil {
 		return
 	}
@@ -88,7 +138,7 @@ func (o *Option) checkValid() bool {
 }
 
 func init() {
-	storage.Register("oss", func(option storage.Option) storage.StorageInf {
+	storage.Register("oss", func(option storage.Option) storage.Storage {
 		opt := option.(*Option)
 		if !opt.checkValid() {
 			panic("oss option is not valid")
