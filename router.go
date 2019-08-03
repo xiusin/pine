@@ -1,33 +1,23 @@
 package router
 
 import (
-	"github.com/xiusin/router/components/option"
 	"net/http"
 	"net/url"
+	"reflect"
 	"regexp"
 	"strings"
+	"sync"
+
+	"github.com/xiusin/router/components/option"
 )
 
-type (
-	RouteEntry struct {
-		Method            string
-		Middleware        []Handler
-		ExtendsMiddleWare []Handler
-		Handle            Handler
-		IsPattern         bool
-		Param             []string
-		Pattern           string
-		OriginStr         string
-		controller        ControllerInf
-	}
-
-	Router struct {
-		baseRouter
-		Prefix       string
-		methodRoutes map[string]map[string]*RouteEntry //分类命令规则
-		middleWares  []Handler                         // 中间件列表
-	}
-)
+type Router struct {
+	base
+	Prefix       string
+	methodRoutes map[string]map[string]*RouteEntry //分类命令规则
+	middleWares  []Handler
+	groups       map[string]*Router // 分组路由保存
+}
 
 var (
 	urlSeparator                 = "/"                                                                       // url地址分隔符
@@ -42,21 +32,21 @@ var (
 // 如果传入nil 则使用默认配置
 func NewBuildInRouter(opt *option.Option) *Router {
 	r := &Router{
-		//option: opt,
-		//groups: map[string]*RouteCollection{},
-		//pool: &sync.Pool{
-		//	New: func() interface{} {
-		//		ctx := &Context{
-		//			params:          NewParams(map[string]string{}), //保存路由参数
-		//			middlewareIndex: -1,                             // 初始化中间件索引. 默认从0开始索引.
-		//		}
-		//		return ctx
-		//	},
-		//},
-		//RouteCollection: RouteCollection{
-		//	methodRoutes: initRouteMap(),
-		//},
-		//recoverHandler: Recover,
+		methodRoutes: initRouteMap(),
+		groups:       map[string]*Router{},
+		base: base{
+			option: opt,
+			pool: &sync.Pool{
+				New: func() interface{} {
+					ctx := &Context{
+						params:          NewParams(map[string]string{}), //保存路由参数
+						middlewareIndex: -1,                             // 初始化中间件索引. 默认从0开始索引.
+					}
+					return ctx
+				},
+			},
+			recoverHandler: Recover,
+		},
 	}
 	if r.option == nil {
 		r.option = option.Default()
@@ -66,7 +56,7 @@ func NewBuildInRouter(opt *option.Option) *Router {
 
 // 添加路由, 内部函数
 // *any 只支持路由段级别的设置
-// *file 指定router.Static代理目录下所有文件标志
+// *filepath 指定router.Static代理目录下所有文件标志
 // :param 支持路由段内嵌
 func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) *RouteEntry {
 	originName := r.Prefix + path
@@ -75,9 +65,9 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) *
 		pattern   string
 		isPattern bool
 	)
-	if strings.HasSuffix(path, "*file") {
+	if strings.HasSuffix(path, "*filepath") {
 		// 应对静态目录资源代理
-		isPattern, pattern = true, "^"+strings.TrimSuffix(originName, "/*file")+"/(.+)"
+		isPattern, pattern = true, "^"+strings.TrimSuffix(originName, "/*filepath")+"/(.+)"
 	} else {
 		for cons, str := range patternMap { //替换正则匹配映射
 			path = strings.Replace(path, cons, str, -1)
@@ -209,7 +199,7 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (r *Router) handle(c *Context, urlParsed *url.URL) {
 	route := r.matchRoute(c, urlParsed)
 	if route != nil {
-		if r.option.MaxMultipartMemory > 0 {
+		if r.option.MaxMultipartMemory > 0 && c.req.Header.Get("Content-Type") == "multipart/form-data" {
 			if err := c.ParseForm(); err != nil {
 				panic(err)
 			}
@@ -236,7 +226,74 @@ func initRouteMap() map[string]map[string]*RouteEntry {
 		http.MethodPut:     {},
 		http.MethodHead:    {},
 		http.MethodDelete:  {},
-		http.MethodConnect: {},
 		http.MethodPatch:   {},
 	}
 }
+
+func (r *Router) Static(path, dir string) {
+	r.GET(path, func(i *Context) {
+		http.StripPrefix(
+			strings.TrimSuffix(path, "*filepath"), http.FileServer(http.Dir(dir)),
+		).ServeHTTP(i.Writer(), i.Request())
+	})
+}
+
+// 处理静态文件
+func (r *Router) StaticFile(path, file string) {
+	r.GET(path, func(c *Context) { http.ServeFile(c.Writer(), c.Request(), file) })
+}
+
+// 处理控制器注册的方式
+func (r *Router) Handle(c ControllerInf) {
+	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
+	r.autoRegisterControllerRoute(r, refVal, refType, c)
+}
+
+func (r *Router) GET(path string, handle Handler, mws ...Handler) *RouteEntry {
+	return r.AddRoute(http.MethodGet, path, handle, mws...)
+}
+
+func (r *Router) POST(path string, handle Handler, mws ...Handler) *RouteEntry {
+	return r.AddRoute(http.MethodPost, path, handle, mws...)
+}
+
+func (r *Router) OPTIONS(path string, handle Handler, mws ...Handler) *RouteEntry {
+	return r.AddRoute(http.MethodOptions, path, handle, mws...)
+}
+
+func (r *Router) PUT(path string, handle Handler, mws ...Handler) *RouteEntry {
+	return r.AddRoute(http.MethodPut, path, handle, mws...)
+}
+
+func (r *Router) HEAD(path string, handle Handler, mws ...Handler) *RouteEntry {
+	return r.AddRoute(http.MethodHead, path, handle, mws...)
+}
+
+func (r *Router) DELETE(path string, handle Handler, mws ...Handler) *RouteEntry {
+	return r.AddRoute(http.MethodDelete, path, handle, mws...)
+}
+
+//// 启动服务
+//func (r *Router) Serve() {
+//	done, quit := make(chan bool, 1), make(chan os.Signal, 1)
+//	signal.Notify(quit, os.Interrupt)
+//	addr := r.option.Host + ":" + strconv.Itoa(r.option.Port)
+//	srv := &http.Server{
+//		ReadHeaderTimeout: r.option.TimeOut,
+//		WriteTimeout:      r.option.TimeOut,
+//		ReadTimeout:       r.option.TimeOut,
+//		IdleTimeout:       r.option.TimeOut,
+//		Addr:              addr,
+//		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Timeout"),
+//	}
+//	if r.option.Env == option.DevMode {
+//		fmt.Println(Logo)
+//	}
+//	go GracefulShutdown(srv, quit, done)
+//	fmt.Println("server run on: http://" + addr)
+//	err := srv.ListenAndServe()
+//	if err != nil && err != http.ErrServerClosed {
+//		_ = fmt.Errorf("server was error: %s", err.Error())
+//	}
+//	<-done
+//}
