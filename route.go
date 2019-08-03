@@ -163,6 +163,10 @@ func (r *RouteCollection) POST(path string, handle Handler, mws ...Handler) *Rou
 	return r.AddRoute(http.MethodPost, path, handle, mws...)
 }
 
+func (r *RouteCollection) OPTIONS(path string, handle Handler, mws ...Handler) *RouteEntry {
+	return r.AddRoute(http.MethodOptions, path, handle, mws...)
+}
+
 func (r *RouteCollection) PUT(path string, handle Handler, mws ...Handler) *RouteEntry {
 	return r.AddRoute(http.MethodPut, path, handle, mws...)
 }

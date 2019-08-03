@@ -31,7 +31,7 @@ type Context struct {
 }
 
 // 重置Context对象
-func (c *Context) reset(res http.ResponseWriter, req *http.Request) {
+func (c *Context) Reset(res http.ResponseWriter, req *http.Request, r IRouter) {
 	c.params = NewParams(map[string]string{})
 	c.req = req
 	c.res = res
@@ -41,6 +41,13 @@ func (c *Context) reset(res http.ResponseWriter, req *http.Request) {
 	c.stopped = false
 	c.Msg = ""
 	c.status = http.StatusOK
+}
+
+func NewContext() *Context {
+	return &Context{
+		params:          NewParams(map[string]string{}), //保存路由参数
+		middlewareIndex: -1,                             // 初始化中间件索引. 默认从0开始索引.
+	}
 }
 
 // 获取路由参数

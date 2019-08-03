@@ -33,7 +33,6 @@ func TestMemory_Get(t *testing.T) {
 func TestMemory_Clear(t *testing.T) {
 	name, _ := mem.Get("name")
 	t.Log("before", name)
-	Clear()
 	name, _ = mem.Get("name")
 	t.Log("after", name)
 }

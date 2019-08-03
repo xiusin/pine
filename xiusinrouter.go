@@ -1,8 +1,8 @@
 package router
 
 import (
-	"context"
 	"fmt"
+	"github.com/xiusin/router/components/option"
 	"net/http"
 	"net/url"
 	"os"
@@ -11,9 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"time"
-
-	"github.com/xiusin/router/components/option"
 )
 
 type (
@@ -25,36 +22,25 @@ type (
 		recoverHandler Handler
 	}
 
+	IRouter interface {
+		GET(path string, handle Handler, mws ...Handler) *RouteEntry
+		POST(path string, handle Handler, mws ...Handler) *RouteEntry
+		HEAD(path string, handle Handler, mws ...Handler) *RouteEntry
+		OPTIONS(path string, handle Handler, mws ...Handler) *RouteEntry
+		PUT(path string, handle Handler, mws ...Handler) *RouteEntry
+		DELETE(path string, handle Handler, mws ...Handler) *RouteEntry
+		SetRecoverHandler(Handler)
+		StaticFile(string, string)
+		Static(string, string)
+		Use(...Handler)
+		Serve()
+	}
+
 	// 定义路由处理函数类型
 	Handler func(*Context)
 )
 
-var (
-	shutdownBeforeHandler []func()
-	errCodeCallHandler    = make(map[int]Handler)
-)
-
-const (
-	Version = "dev 0.0.5"
-	logo    = `
-____  __.__            .__      __________               __                
-\   \/  |__|__ __ _____|__| ____\______   \ ____  __ ___/  |_  ___________ 
- \     /|  |  |  /  ___|  |/    \|       _//  _ \|  |  \   ___/ __ \_  __ \
- /     \|  |  |  \___ \|  |   |  |    |   (  <_> |  |  /|  | \  ___/|  | \/
-/___/\  |__|____/____  |__|___|  |____|_  /\____/|____/ |__|  \___  |__|   
-      \_/            \/        \/       \/                        \/   	  Version: ` + Version
-)
-
-func RegisterOnInterrupt(handler func()) {
-	shutdownBeforeHandler = append(shutdownBeforeHandler, handler)
-}
-
-// 注册
-func RegisterErrorCodeHandler(code int, handler Handler) {
-	if code != http.StatusOK {
-		errCodeCallHandler[code] = handler
-	}
-}
+var _ IRouter = (*Router)(nil)
 
 // 实例化路由
 // 如果传入nil 则使用默认配置
@@ -133,7 +119,7 @@ func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *RouteEntry {
 	return nil
 }
 
-// 处理静态文件夹 todo 这里会不会出现重复注册的问题
+// 处理静态文件夹
 func (r *Router) Static(path, dir string) {
 	r.GET(path, func(i *Context) {
 		http.StripPrefix(
@@ -159,23 +145,8 @@ func (r *Router) Group(prefix string, middleWares ...Handler) *RouteCollection {
 }
 
 // 针对全局的router引入中间件
-func (r *Router) Use(middleWares ...Handler) *Router {
+func (r *Router) Use(middleWares ...Handler) {
 	r.middleWares = append(r.middleWares, middleWares...)
-	return r
-}
-
-func (_ *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal, done chan<- bool) {
-	<-quit
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	srv.SetKeepAlivesEnabled(false)
-	if err := srv.Shutdown(ctx); err != nil {
-		_ = fmt.Errorf("could not gracefully shutdown the server: %v\n", err)
-	}
-	for _, beforeHandler := range shutdownBeforeHandler {
-		beforeHandler()
-	}
-	close(done)
 }
 
 // 启动服务
@@ -192,9 +163,9 @@ func (r *Router) Serve() {
 		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Timeout"), // 超时函数, 但是无法阻止服务器端停止,内部耗时部分可以自行使用context.context控制
 	}
 	if r.option.Env == option.DevMode {
-		fmt.Println(logo)
+		fmt.Println(Logo)
 	}
-	go r.gracefulShutdown(srv, quit, done)
+	go GracefulShutdown(srv, quit, done)
 	fmt.Println("server run on: http://" + addr)
 	err := srv.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
@@ -207,7 +178,7 @@ func (r *Router) Serve() {
 func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	c := r.pool.Get().(*Context)
 	defer r.pool.Put(c)
-	c.reset(res, req)
+	c.Reset(res, req, r)
 	c.app = r
 	res.Header().Set("Server", r.option.ServerName)
 	defer r.recoverHandler(c)
@@ -218,7 +189,6 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (r *Router) handle(c *Context, urlParsed *url.URL) {
 	route := r.matchRoute(c, urlParsed)
 	if route != nil {
-		//todo 是否可以设置自己设置解析表单
 		if r.option.MaxMultipartMemory > 0 {
 			if err := c.ParseForm(); err != nil {
 				panic(err)
@@ -246,7 +216,6 @@ func initRouteMap() map[string]map[string]*RouteEntry {
 		http.MethodPut:     {},
 		http.MethodHead:    {},
 		http.MethodDelete:  {},
-		http.MethodTrace:   {},
 		http.MethodConnect: {},
 		http.MethodPatch:   {},
 	}
