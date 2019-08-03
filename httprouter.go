@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -51,21 +53,6 @@ func (r *Httprouter) SetRecoverHandler(handler Handler) {
 	if handler != nil {
 		r.recoverHandler = handler
 	}
-}
-
-func (r *Httprouter) Static(path, dir string) {
-	r.GET(path, func(i *Context) {
-		http.StripPrefix(
-			strings.TrimSuffix(path, "*filepath"), http.FileServer(http.Dir(dir)),
-		).ServeHTTP(i.Writer(), i.Request())
-	})
-}
-
-// 处理静态文件
-func (r *Httprouter) StaticFile(path, file string) {
-	r.GET(path, func(c *Context) {
-		http.ServeFile(c.Writer(), c.Request(), file)
-	})
 }
 
 // 针对全局的router引入中间件
@@ -126,53 +113,28 @@ func (r *Httprouter) warpHandle(path string, handle Handler, mws []Handler) http
 	}
 }
 
-// 启动服务
-func (r *Httprouter) Serve() {
-	done, quit := make(chan bool, 1), make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-	addr := r.option.Host + ":" + strconv.Itoa(r.option.Port)
-	srv := &http.Server{
-		ReadHeaderTimeout: r.option.TimeOut,
-		WriteTimeout:      r.option.TimeOut,
-		ReadTimeout:       r.option.TimeOut,
-		IdleTimeout:       r.option.TimeOut,
-		Addr:              addr,
-		Handler:           http.TimeoutHandler(r.router, r.option.TimeOut, "Server Timeout"), // 超时函数, 但是无法阻止服务器端停止,内部耗时部分可以自行使用context.context控制
-	}
-	if r.option.Env == option.DevMode {
-		fmt.Println(Logo)
-	}
-	go GracefulShutdown(srv, quit, done)
-	fmt.Println("server run on: http://" + addr)
-	err := srv.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
-		_ = fmt.Errorf("server was error: %s", err.Error())
-	}
-	<-done
-}
-
 func (r *Httprouter) GET(path string, handle Handler, mws ...Handler) *RouteEntry {
-	r.router.Handle("GET", tempGroupPrefix+path, r.warpHandle(tempGroupPrefix+path, handle, mws))
+	r.router.Handle(http.MethodGet, tempGroupPrefix+path, r.warpHandle(tempGroupPrefix+path, handle, mws))
 	return nil
 }
 
 func (r *Httprouter) POST(path string, handle Handler, mws ...Handler) *RouteEntry {
-	r.router.Handle("POST", tempGroupPrefix+path, r.warpHandle(tempGroupPrefix+path, handle, mws))
+	r.router.Handle(http.MethodPost, tempGroupPrefix+path, r.warpHandle(tempGroupPrefix+path, handle, mws))
 	return nil
 }
 
 func (r *Httprouter) OPTIONS(path string, handle Handler, mws ...Handler) *RouteEntry {
-	r.router.Handle("OPTIONS", tempGroupPrefix+path, r.warpHandle(tempGroupPrefix+path, handle, mws))
+	r.router.Handle(http.MethodOptions, tempGroupPrefix+path, r.warpHandle(tempGroupPrefix+path, handle, mws))
 	return nil
 }
 
 func (r *Httprouter) HEAD(path string, handle Handler, mws ...Handler) *RouteEntry {
-	r.router.Handle("HEAD", tempGroupPrefix+path, r.warpHandle(tempGroupPrefix+path, handle, mws))
+	r.router.Handle(http.MethodHead, tempGroupPrefix+path, r.warpHandle(tempGroupPrefix+path, handle, mws))
 	return nil
 }
 
 func (r *Httprouter) PUT(path string, handle Handler, mws ...Handler) *RouteEntry {
-	r.router.Handle("PUT", tempGroupPrefix+path, r.warpHandle(tempGroupPrefix+path, handle, mws))
+	r.router.Handle(http.Meth, tempGroupPrefix+path, r.warpHandle(tempGroupPrefix+path, handle, mws))
 	return nil
 }
 
@@ -180,5 +142,3 @@ func (r *Httprouter) DELETE(path string, handle Handler, mws ...Handler) *RouteE
 	r.router.Handle("DELETE", tempGroupPrefix+path, r.warpHandle(tempGroupPrefix+path, handle, mws))
 	return nil
 }
-
-//todo 需要实现支持controller

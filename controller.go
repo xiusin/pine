@@ -31,12 +31,11 @@ type (
 		PUT(path string, handle string, mws ...Handler)
 		HEAD(path string, handle string, mws ...Handler)
 		DELETE(path string, handle string, mws ...Handler)
-		ANY(path string, handle string, mws ...Handler)
 	}
 
 	// 控制器映射路由
 	controllerMappingRoute struct {
-		r *RouteCollection
+		r IRouter
 		c ControllerInf
 	}
 )
@@ -72,7 +71,7 @@ func (c *Controller) AfterAction() {
 	}
 }
 
-func newUrlMappingRoute(r *RouteCollection, c ControllerInf) *controllerMappingRoute {
+func newUrlMappingRoute(r IRouter, c ControllerInf) *controllerMappingRoute {
 	return &controllerMappingRoute{r: r, c: c}
 }
 
@@ -132,8 +131,4 @@ func (u *controllerMappingRoute) HEAD(path, method string, mws ...Handler) {
 
 func (u *controllerMappingRoute) DELETE(path, method string, mws ...Handler) {
 	u.r.DELETE(path, u.warpControllerHandler(method, u.c), mws...)
-}
-
-func (u *controllerMappingRoute) ANY(path, method string, mws ...Handler) {
-	u.r.ANY(path, u.warpControllerHandler(method, u.c), mws...)
 }
