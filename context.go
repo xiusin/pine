@@ -7,7 +7,6 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -17,7 +16,9 @@ import (
 )
 
 type Context struct {
-	req             *http.Request          // 请求对象
+	context.Context
+	req             *http.Request // 请求对象
+	cookie          *Cookie
 	params          *Params                // 路由参数
 	res             http.ResponseWriter    // 响应对象
 	render          *Render                // 模板渲染
@@ -32,15 +33,28 @@ type Context struct {
 
 // 重置Context对象
 func (c *Context) Reset(res http.ResponseWriter, req *http.Request, r IRouter) {
-	c.params = NewParams(map[string]string{})
 	c.req = req
 	c.res = res
-	c.render = NewView(res)
 	c.middlewareIndex = -1
 	c.route = nil
 	c.stopped = false
 	c.Msg = ""
 	c.status = http.StatusOK
+	if c.params == nil {
+		c.params = NewParams(map[string]string{})
+	} else {
+		c.params.Reset()
+	}
+	if c.render == nil {
+		c.render = NewRender(res)
+	} else {
+		c.render.Reset(res)
+	}
+	if c.cookie == nil {
+		c.cookie = NewCookie(res, req)
+	} else {
+		c.cookie.Reset(res, req)
+	}
 }
 
 func NewContext() *Context {
@@ -138,19 +152,7 @@ func (c *Context) File(filepath string) {
 
 // 设置cookie
 func (c *Context) SetCookie(name, value string, maxAge int) {
-	cookie := &http.Cookie{Name: name, Value: url.QueryEscape(value), MaxAge: maxAge}
-	opt := c.app.option.Cookie
-	if opt != nil {
-		if opt.Path == "" {
-			cookie.Path = "/"
-		} else {
-			cookie.Path = opt.Path
-		}
-		cookie.Secure = opt.Secure
-		cookie.HttpOnly = opt.HttpOnly
-	}
-	fmt.Println(cookie)
-	http.SetCookie(c.Writer(), cookie)
+
 }
 
 // 移除cookie

@@ -24,6 +24,10 @@ func NewRender(writer http.ResponseWriter) *Render {
 	return &Render{rendererInf, writer, H{}}
 }
 
+func (c *Render) Reset(writer http.ResponseWriter) {
+	c.writer = writer
+}
+
 func (c *Render) ViewData(key string, val interface{}) {
 	c.tplData[key] = val
 }
