@@ -7,15 +7,16 @@ import (
 	"github.com/xiusin/router/components/di/interfaces"
 )
 
-type Render struct {
-	engine  interfaces.RendererInf
-	writer  http.ResponseWriter
-	tplData map[string]interface{}
-}
+type (
+	Render struct {
+		engine  interfaces.RendererInf
+		writer  http.ResponseWriter
+		tplData H
+	}
+	H map[string]interface{}
+)
 
-type H map[string]interface{}
-
-func NewView(writer http.ResponseWriter) *Render {
+func NewRender(writer http.ResponseWriter) *Render {
 	var rendererInf interfaces.RendererInf
 	if di.Exists("render") {
 		rendererInf, _ = di.MustGet("render").(interfaces.RendererInf)
