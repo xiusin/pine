@@ -2,6 +2,7 @@ package option
 
 import (
 	"errors"
+	"github.com/gorilla/securecookie"
 	"time"
 
 	"github.com/spf13/viper"
@@ -17,9 +18,12 @@ var NotKeyStoreErr = errors.New("no key store")
 
 type (
 	cookieOption struct {
-		Secure   bool
-		HttpOnly bool
-		Path     string
+		Secure     bool
+		HttpOnly   bool
+		Path       string
+		HashKey    string
+		BlockKey   string
+		Serializer securecookie.Serializer
 	}
 
 	Option struct {
@@ -32,7 +36,6 @@ type (
 		CsrfName           string
 		CsrfLifeTime       time.Duration
 		Cookie             *cookieOption
-		Setter             *viper.Viper
 	}
 )
 
@@ -47,16 +50,18 @@ func Default() *Option {
 		CsrfLifeTime:       time.Second * 60,
 		MaxMultipartMemory: 8 << 20,
 		Cookie: &cookieOption{
-			Secure:   false,
-			HttpOnly: false,
-			Path:     "/",
+			Secure:     false,
+			HttpOnly:   false,
+			Path:       "/",
+			HashKey:    "",
+			BlockKey:   "",
+			Serializer: &securecookie.GobEncoder{},
 		},
-		Setter: viper.New(),
 	}
 	// 参数注入到viper内
-	opt.Setter.Set("CsrfName", opt.CsrfName)
-	opt.Setter.Set("CsrfLifeTime", opt.CsrfLifeTime)
-	opt.Setter.Set("Env", opt.Env)
+	viper.Set("CsrfName", opt.CsrfName)
+	viper.Set("CsrfLifeTime", opt.CsrfLifeTime)
+	viper.Set("Cookie", opt.Cookie)
 	return opt
 }
 
@@ -70,10 +75,6 @@ func (o *Option) IsDevMode() bool {
 
 func (o *Option) IsProdMode() bool {
 	return o.Env == ProdMode
-}
-
-func (o *Option) Viper() *viper.Viper {
-	return o.Setter
 }
 
 func (o *Option) MergeOption(option *Option) {
@@ -92,12 +93,12 @@ func (o *Option) MergeOption(option *Option) {
 }
 
 func (o *Option) Add(key string, val interface{}) *Option {
-	o.Setter.Set(key, val)
+	viper.Set(key, val)
 	return o
 }
 
 func (o *Option) Get(key string) (interface{}, error) {
-	val := o.Setter.Get(key)
+	val := viper.Get(key)
 	if val == nil {
 		return nil, NotKeyStoreErr
 	}

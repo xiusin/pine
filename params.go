@@ -10,6 +10,10 @@ func NewParams(data map[string]string) *Params {
 	return &Params{data}
 }
 
+func (c *Params) Reset() {
+	c.data = map[string]string{}
+}
+
 // 设置路由参数
 func (c *Params) Set(key, value string) {
 	c.data[key] = value

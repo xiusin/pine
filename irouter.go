@@ -35,7 +35,6 @@ type (
 		OPTIONS(path string, handle Handler, mws ...Handler) *RouteEntry
 		PUT(path string, handle Handler, mws ...Handler) *RouteEntry
 		DELETE(path string, handle Handler, mws ...Handler) *RouteEntry
-		//ServeHTTP(res http.ResponseWriter, req *http.Request)
 		SetRecoverHandler(Handler)
 		StaticFile(string, string)
 		Static(string, string)
@@ -49,12 +48,12 @@ type (
 	}
 
 	routeMaker func(path string, handle Handler, mws ...Handler) *RouteEntry
-	// 定义路由处理函数类型
+
 	Handler func(*Context)
 )
 
 // 自动注册控制器映射路由
-func (r *base) autoRegisterControllerRoute(ro IRouter,refVal reflect.Value, refType reflect.Type, c ControllerInf) {
+func (r *base) autoRegisterControllerRoute(ro IRouter, refVal reflect.Value, refType reflect.Type, c ControllerInf) {
 	method := refVal.MethodByName("UrlMapping")
 	if method.IsValid() {
 		method.Call([]reflect.Value{reflect.ValueOf(newUrlMappingRoute(ro, c))}) // 如果实现了UrlMapping接口, 则调用函数
@@ -76,7 +75,7 @@ func (r *base) SetRecoverHandler(handler Handler) {
 }
 
 // 自动注册映射处理函数的http请求方法
-func (r *base) autoMatchHttpMethod(ro IRouter,path string, handle Handler) {
+func (r *base) autoMatchHttpMethod(ro IRouter, path string, handle Handler) {
 	var methods = map[string]routeMaker{"Get": ro.GET, "Post": ro.POST, "Head": ro.HEAD, "Delete": ro.DELETE, "Put": ro.PUT}
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
@@ -92,8 +91,6 @@ func (_ *base) upperCharToUnderLine(path string) string {
 	}), "_")
 }
 
-
-
 func (r *base) Serve() {
 	done, quit := make(chan bool, 1), make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
@@ -104,7 +101,7 @@ func (r *base) Serve() {
 		ReadTimeout:       r.option.TimeOut,
 		IdleTimeout:       r.option.TimeOut,
 		Addr:              addr,
-		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Timeout"), // 超时函数, 但是无法阻止服务器端停止,内部耗时部分可以自行使用context.context控制
+		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Timeout"),
 	}
 	if r.option.Env == option.DevMode {
 		fmt.Println(Logo)
