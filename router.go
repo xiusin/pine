@@ -41,6 +41,7 @@ func NewBuildInRouter(opt *option.Option) *Router {
 					ctx := &Context{
 						params:          NewParams(map[string]string{}), //保存路由参数
 						middlewareIndex: -1,                             // 初始化中间件索引. 默认从0开始索引.
+						Keys:            map[string]interface{}{},
 					}
 					return ctx
 				},
@@ -221,12 +222,12 @@ func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request
 // 初始化RouteMap
 func initRouteMap() map[string]map[string]*RouteEntry {
 	return map[string]map[string]*RouteEntry{
-		http.MethodGet:     {},
-		http.MethodPost:    {},
-		http.MethodPut:     {},
-		http.MethodHead:    {},
-		http.MethodDelete:  {},
-		http.MethodPatch:   {},
+		http.MethodGet:    {},
+		http.MethodPost:   {},
+		http.MethodPut:    {},
+		http.MethodHead:   {},
+		http.MethodDelete: {},
+		http.MethodPatch:  {},
 	}
 }
 

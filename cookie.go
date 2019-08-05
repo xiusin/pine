@@ -10,52 +10,39 @@ import (
 
 type Cookie struct {
 	*securecookie.SecureCookie
-	req *http.Request
-	w   http.ResponseWriter
+	r *http.Request
+	w http.ResponseWriter
 }
 
 var (
-	cookieOptGetOnceLocker  sync.Once
-	encoder                 securecookie.Serializer
-	path, hashKey, blockKey string
-	secure, httpOnly        bool
+	getCookieOptOnceLocker sync.Once
+	encoder                securecookie.Serializer
+	path                   string
+	hashKey, blockKey      []byte
+	secure, httpOnly       bool
 )
 
-// todo 做成对象复用绑定到context
 func init() {
 	// 看是否能直接获取配置文件
 	fmt.Println([]byte(viper.GetString("cookie.HashKey")), []byte(viper.GetString("cookie.BlockKey")))
 }
 
-func NewCookie(w http.ResponseWriter, req *http.Request) *Cookie {
-	cookieOptGetOnceLocker.Do(func() {
-		secure = viper.GetBool("Cookie.Secure")
-		httpOnly = viper.GetBool("Cookie.HttpOnly")
-		path = viper.GetString("cookie.HashKey")
-		hashKey = viper.GetString("cookie.HashKey")
-		blockKey = viper.GetString("cookie.BlockKey")
-		path = viper.GetString("cookie.HashKey")
-		s := viper.Get("cookie.Serializer")
-		if s == nil {
-			encoder = &securecookie.NopEncoder{}
-		} else {
-			encoder = s.(securecookie.Serializer)
-		}
-	})
+func NewCookie(w http.ResponseWriter, r *http.Request) *Cookie {
+	setOption()
 	return &Cookie{
-		SecureCookie: securecookie.New([]byte(hashKey), []byte(blockKey)).SetSerializer(encoder),
-		req:          req,
+		SecureCookie: securecookie.New(hashKey, blockKey).SetSerializer(encoder),
+		r:            r,
 		w:            w,
 	}
 }
 
 func (c *Cookie) Reset(w http.ResponseWriter, req *http.Request) {
-	c.req = req
+	c.r = req
 	c.w = w
 }
 
 func (c *Cookie) Get(name string, receiver interface{}) error {
-	cookie, err := c.req.Cookie(name)
+	cookie, err := c.r.Cookie(name)
 	if err != nil {
 		return err
 	}
@@ -89,4 +76,21 @@ func (c *Cookie) Delete(name string) {
 		Name:   name,
 		Path:   path, // 必须得设置path， 否则无法删除cookie
 		MaxAge: -1})
+}
+
+func setOption() {
+	getCookieOptOnceLocker.Do(func() {
+		secure = viper.GetBool("Cookie.Secure")
+		httpOnly = viper.GetBool("Cookie.HttpOnly")
+		path = viper.GetString("cookie.HashKey")
+		hashKey = []byte(viper.GetString("cookie.HashKey"))
+		blockKey = []byte(viper.GetString("cookie.BlockKey"))
+		path = viper.GetString("cookie.HashKey")
+		s := viper.Get("cookie.Serializer")
+		if s == nil {
+			encoder = &securecookie.NopEncoder{}
+		} else {
+			encoder = s.(securecookie.Serializer)
+		}
+	})
 }
