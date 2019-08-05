@@ -28,13 +28,6 @@ func RegisterOnInterrupt(handler func()) {
 	shutdownBeforeHandler = append(shutdownBeforeHandler, handler)
 }
 
-// 注册
-func RegisterErrorCodeHandler(code int, handler Handler) {
-	if code != http.StatusOK {
-		errCodeCallHandler[code] = handler
-	}
-}
-
 func GracefulShutdown(srv *http.Server, quit <-chan os.Signal, done chan<- bool) {
 	<-quit
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

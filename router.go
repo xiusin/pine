@@ -12,7 +12,7 @@ import (
 )
 
 type Router struct {
-	base
+	*Base
 	Prefix       string
 	methodRoutes map[string]map[string]*RouteEntry //分类命令规则
 	middleWares  []Handler
@@ -34,8 +34,9 @@ func NewBuildInRouter(opt *option.Option) *Router {
 	r := &Router{
 		methodRoutes: initRouteMap(),
 		groups:       map[string]*Router{},
-		base: base{
+		Base: &Base{
 			option: opt,
+			NotFound:     func(c *Context) { c.Writer().Write(notFoundTplStr) },
 			pool: &sync.Pool{
 				New: func() interface{} {
 					ctx := &Context{
@@ -46,13 +47,19 @@ func NewBuildInRouter(opt *option.Option) *Router {
 					return ctx
 				},
 			},
-			recoverHandler: Recover,
+			recoverHandler: RecoverHandler,
 		},
 	}
 	if r.option == nil {
 		r.option = option.Default()
 	}
+	r.Base.handler = r
 	return r
+}
+
+func (r *Router) Handle(c ControllerInf) {
+	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
+	r.autoRegisterControllerRoute(r, refVal, refType, c)
 }
 
 // 添加路由, 内部函数
@@ -209,7 +216,9 @@ func (r *Router) handle(c *Context, urlParsed *url.URL) {
 		c.Next()
 	} else {
 		c.SetStatus(http.StatusNotFound)
-		errCodeCallHandler[http.StatusNotFound](c)
+		if r.NotFound != nil {
+			r.NotFound(c)
+		}
 	}
 }
 
@@ -244,12 +253,6 @@ func (r *Router) StaticFile(path, file string) {
 	r.GET(path, func(c *Context) { http.ServeFile(c.Writer(), c.Request(), file) })
 }
 
-// 处理控制器注册的方式
-func (r *Router) Handle(c ControllerInf) {
-	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
-	r.autoRegisterControllerRoute(r, refVal, refType, c)
-}
-
 func (r *Router) GET(path string, handle Handler, mws ...Handler) *RouteEntry {
 	return r.AddRoute(http.MethodGet, path, handle, mws...)
 }
@@ -273,28 +276,3 @@ func (r *Router) HEAD(path string, handle Handler, mws ...Handler) *RouteEntry {
 func (r *Router) DELETE(path string, handle Handler, mws ...Handler) *RouteEntry {
 	return r.AddRoute(http.MethodDelete, path, handle, mws...)
 }
-
-//// 启动服务
-//func (r *Router) Serve() {
-//	done, quit := make(chan bool, 1), make(chan os.Signal, 1)
-//	signal.Notify(quit, os.Interrupt)
-//	addr := r.option.Host + ":" + strconv.Itoa(r.option.Port)
-//	srv := &http.Server{
-//		ReadHeaderTimeout: r.option.TimeOut,
-//		WriteTimeout:      r.option.TimeOut,
-//		ReadTimeout:       r.option.TimeOut,
-//		IdleTimeout:       r.option.TimeOut,
-//		Addr:              addr,
-//		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Timeout"),
-//	}
-//	if r.option.Env == option.DevMode {
-//		fmt.Println(Logo)
-//	}
-//	go GracefulShutdown(srv, quit, done)
-//	fmt.Println("server run on: http://" + addr)
-//	err := srv.ListenAndServe()
-//	if err != nil && err != http.ErrServerClosed {
-//		_ = fmt.Errorf("server was error: %s", err.Error())
-//	}
-//	<-done
-//}

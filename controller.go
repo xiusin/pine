@@ -1,14 +1,15 @@
 package router
 
 import (
-	"github.com/xiusin/router/components/di"
 	"reflect"
 	"sync"
 	"unsafe"
 
+	"github.com/xiusin/router/components/di"
 	"github.com/xiusin/router/components/di/interfaces"
 )
 
+//***********************Controller***********************//
 type (
 	Controller struct {
 		ctx  *Context
@@ -22,21 +23,6 @@ type (
 		Render() *Render
 		Logger() interfaces.LoggerInf
 		Session() interfaces.SessionInf
-	}
-
-	// 控制器路由映射注册接口
-	ControllerRouteMappingInf interface {
-		GET(path string, handle string, mws ...Handler)
-		POST(path string, handle string, mws ...Handler)
-		PUT(path string, handle string, mws ...Handler)
-		HEAD(path string, handle string, mws ...Handler)
-		DELETE(path string, handle string, mws ...Handler)
-	}
-
-	// 控制器映射路由
-	controllerMappingRoute struct {
-		r IRouter
-		c ControllerInf
 	}
 )
 
@@ -70,6 +56,25 @@ func (c *Controller) AfterAction() {
 		}
 	}
 }
+
+//***********************ControllerMapping***********************//
+type (
+	// 控制器路由映射注册接口
+	ControllerRouteMappingInf interface {
+		GET(path string, handle string, mws ...Handler)
+		POST(path string, handle string, mws ...Handler)
+		PUT(path string, handle string, mws ...Handler)
+		HEAD(path string, handle string, mws ...Handler)
+		DELETE(path string, handle string, mws ...Handler)
+		ANY(path string, handle string, mws ...Handler)
+	}
+
+	// 控制器映射路由
+	controllerMappingRoute struct {
+		r IRouter
+		c ControllerInf
+	}
+)
 
 func newUrlMappingRoute(r IRouter, c ControllerInf) *controllerMappingRoute {
 	return &controllerMappingRoute{r: r, c: c}

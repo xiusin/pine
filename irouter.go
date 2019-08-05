@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/xiusin/router/components/di"
+	"github.com/xiusin/router/components/logger/adapter/log"
 	"github.com/xiusin/router/components/option"
 )
 
@@ -35,25 +37,35 @@ type (
 		OPTIONS(path string, handle Handler, mws ...Handler) *RouteEntry
 		PUT(path string, handle Handler, mws ...Handler) *RouteEntry
 		DELETE(path string, handle Handler, mws ...Handler) *RouteEntry
+		SetNotFound(handler Handler)
 		SetRecoverHandler(Handler)
 		StaticFile(string, string)
 		Static(string, string)
 		Serve()
 	}
 
-	base struct {
+	Base struct {
+		handler        http.Handler
 		recoverHandler Handler
 		pool           *sync.Pool
 		option         *option.Option
+		NotFound       Handler
 	}
 
 	routeMaker func(path string, handle Handler, mws ...Handler) *RouteEntry
-
+	// 定义路由处理函数类型
 	Handler func(*Context)
 )
 
+func init() {
+	di.Set("logger", func(builder di.BuilderInf) (i interface{}, e error) {
+		return log.New(nil), nil
+	}, true)
+	// 👇 添加其他服务或共享服务
+}
+
 // 自动注册控制器映射路由
-func (r *base) autoRegisterControllerRoute(ro IRouter, refVal reflect.Value, refType reflect.Type, c ControllerInf) {
+func (r *Base) autoRegisterControllerRoute(ro IRouter, refVal reflect.Value, refType reflect.Type, c ControllerInf) {
 	method := refVal.MethodByName("UrlMapping")
 	if method.IsValid() {
 		method.Call([]reflect.Value{reflect.ValueOf(newUrlMappingRoute(ro, c))}) // 如果实现了UrlMapping接口, 则调用函数
@@ -68,14 +80,8 @@ func (r *base) autoRegisterControllerRoute(ro IRouter, refVal reflect.Value, ref
 	}
 }
 
-func (r *base) SetRecoverHandler(handler Handler) {
-	if handler != nil {
-		r.recoverHandler = handler
-	}
-}
-
 // 自动注册映射处理函数的http请求方法
-func (r *base) autoMatchHttpMethod(ro IRouter, path string, handle Handler) {
+func (r *Base) autoMatchHttpMethod(ro IRouter, path string, handle Handler) {
 	var methods = map[string]routeMaker{"Get": ro.GET, "Post": ro.POST, "Head": ro.HEAD, "Delete": ro.DELETE, "Put": ro.PUT}
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
@@ -85,13 +91,25 @@ func (r *base) autoMatchHttpMethod(ro IRouter, path string, handle Handler) {
 }
 
 // 大写字母变分隔符
-func (_ *base) upperCharToUnderLine(path string) string {
+func (_ *Base) upperCharToUnderLine(path string) string {
 	return strings.TrimLeft(regexp.MustCompile("([A-Z])").ReplaceAllStringFunc(path, func(s string) string {
 		return strings.ToLower("_" + strings.ToLower(s))
 	}), "_")
 }
 
-func (r *base) Serve() {
+func (r *Base) SetRecoverHandler(handler Handler) {
+	if handler != nil {
+		r.recoverHandler = handler
+	}
+}
+
+func (r *Base) SetNotFound(handler Handler) {
+	if handler != nil {
+		r.NotFound = handler
+	}
+}
+
+func (r *Base) Serve() {
 	done, quit := make(chan bool, 1), make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	addr := r.option.Host + ":" + strconv.Itoa(r.option.Port)
@@ -101,7 +119,7 @@ func (r *base) Serve() {
 		ReadTimeout:       r.option.TimeOut,
 		IdleTimeout:       r.option.TimeOut,
 		Addr:              addr,
-		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Timeout"),
+		Handler:           http.TimeoutHandler(r.handler, r.option.TimeOut, "Server Timeout"), // 超时函数, 但是无法阻止服务器端停止,内部耗时部分可以自行使用context.context控制
 	}
 	if r.option.Env == option.DevMode {
 		fmt.Println(Logo)

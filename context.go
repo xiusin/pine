@@ -64,6 +64,19 @@ func NewContext() *Context {
 	}
 }
 
+func (c *Context) Flush(content string) {
+	_, _ = c.res.Write([]byte(content + "\n"))
+	c.res.(http.Flusher).Flush()
+}
+
+// 重定向
+func (c *Context) Redirect(url string, statusHeader ...int) {
+	if len(statusHeader) == 0 {
+		statusHeader[0] = http.StatusFound
+	}
+	http.Redirect(c.res, c.req, url, statusHeader[0])
+}
+
 // 获取路由参数
 func (c *Context) Params() *Params {
 	return c.params
@@ -84,18 +97,25 @@ func (c *Context) Render() *Render {
 	return c.render
 }
 
-// 重定向
-func (c *Context) Redirect(url string, statusHeader ...int) {
-	if len(statusHeader) == 0 {
-		statusHeader[0] = http.StatusFound
-	}
-	http.Redirect(c.res, c.req, url, statusHeader[0])
+// 日志对象
+func (c *Context) Logger() interfaces.LoggerInf {
+	return di.MustGet("logger").(interfaces.LoggerInf)
 }
 
-// 获取命名参数内容
-func (c *Context) GetRoute(name string) *RouteEntry {
-	r, _ := namedRoutes[name]
-	return r
+func (c *Context) SessionManger() interfaces.SessionManagerInf {
+	sessionInf, ok := di.MustGet("sessionManager").(interfaces.SessionManagerInf)
+	if !ok {
+		panic("sessionManager组件类型不正确")
+	}
+	return sessionInf
+}
+
+func (c *Context) Header(key string) string {
+	return c.req.Header.Get(key)
+}
+
+func (c *Context) ParseForm() error {
+	return c.req.ParseMultipartForm(c.app.option.MaxMultipartMemory)
 }
 
 // 执行下个中间件
@@ -124,44 +144,14 @@ func (c *Context) setRoute(route *RouteEntry) {
 	c.route = route
 }
 
-// 判断中间件是否停止
-func (c *Context) IsStopped() bool {
-	return c.stopped
-}
-
-// 停止中间件执行 即接下来的中间件以及handler会被忽略.
-func (c *Context) Stop() {
-	c.stopped = true
-}
-
 // 获取当前路由对象
 func (c *Context) getRoute() *RouteEntry {
 	return c.route
 }
 
-// 附加数据的context
-//todo 这样是否合理, request 是否会被重新改变
-func (c *Context) Set(key string, value interface{}) {
-	c.req.WithContext(context.WithValue(c.req.Context(), key, value))
-}
-
-// 发送file
-func (c *Context) File(filepath string) {
-	http.ServeFile(c.res, c.req, filepath)
-}
-
-// 设置cookie
-func (c *Context) SetCookie(name, value string, maxAge int) {
-
-}
-
-// 移除cookie
-func (c *Context) RemoveCookie(name string) error {
-	http.SetCookie(c.Writer(), &http.Cookie{
-		Name:   name,
-		Path:   c.app.option.Cookie.Path, // 必须得设置path， 否则无法删除cookie
-		MaxAge: -1})
-	return nil
+// 判断中间件是否停止
+func (c *Context) IsStopped() bool {
+	return c.stopped
 }
 
 func (c *Context) Abort(statusCode int, msg string) {
@@ -175,13 +165,41 @@ func (c *Context) Abort(statusCode int, msg string) {
 	}
 }
 
+// 停止中间件执行 即接下来的中间件以及handler会被忽略.
+func (c *Context) Stop() {
+	c.stopped = true
+}
+
+// ********************************** COOKIE ************************************************** //
+func (c *Context) SetCookie(name string, value interface{}, maxAge int) error {
+	return c.cookie.Set(name, value, maxAge)
+}
+
+func (c *Context) GetCookie(name string, receiver interface{})  error {
+	return c.cookie.Get(name, receiver)
+}
+
+func (c *Context) RemoveCookie(name string)  {
+	c.cookie.Delete(name)
+}
+
 func (c *Context) GetToken() string {
 	r := rand.Int()
 	t := time.Now().UnixNano()
 	token := fmt.Sprintf("%d%d", r, t)
-	c.SetCookie(c.app.option.CsrfName, token, int(c.app.option.CsrfLifeTime))
-	c.Set(c.app.option.CsrfName, token)
+	c.cookie.Set(c.app.option.CsrfName, token, int(c.app.option.CsrfLifeTime))
 	return token
+}
+
+// 附加数据的context
+//todo 这样是否合理, request 是否会被重新改变
+func (c *Context) Set(key string, value interface{}) {
+	c.req.WithContext(context.WithValue(c.req.Context(), key, value))
+}
+
+// 发送file
+func (c *Context) SendFile(filepath string) {
+	http.ServeFile(c.res, c.req, filepath)
 }
 
 // 设置状态码
@@ -192,32 +210,6 @@ func (c *Context) SetStatus(statusCode int) {
 
 func (c *Context) Status() int {
 	return c.status
-}
-
-// 日志对象
-func (c *Context) Logger() interfaces.LoggerInf {
-	return di.MustGet("logger").(interfaces.LoggerInf)
-}
-
-func (c *Context) SessionManger() interfaces.SessionManagerInf {
-	sessionInf, ok := di.MustGet("sessionManager").(interfaces.SessionManagerInf)
-	if !ok {
-		panic("sessionManager组件类型不正确")
-	}
-	return sessionInf
-}
-
-// 官方context的继承实现, 后续改进使用
-func (c *Context) Deadline() (deadline time.Time, ok bool) {
-	return
-}
-
-func (c *Context) Done() <-chan struct{} {
-	return nil
-}
-
-func (c *Context) Err() error {
-	return nil
 }
 
 func (c *Context) Value(key interface{}) interface{} {
@@ -244,11 +236,6 @@ func (c *Context) IsPost() bool {
 	return c.req.Method == http.MethodPost
 }
 
-// 获取cookie
-func (c *Context) GetCookie(name string) (cookie *http.Cookie, err error) {
-	return c.req.Cookie(name)
-}
-
 // 获取客户端IP
 func (c *Context) ClientIP() string {
 	clientIP := c.Header("X-Forwarded-For")
@@ -265,6 +252,8 @@ func (c *Context) ClientIP() string {
 	}
 	return ""
 }
+
+// ************************************** GET QUERY METHOD ***************************************************** //
 
 func (c *Context) Get() map[string][]string {
 	return c.req.URL.Query()
@@ -302,13 +291,7 @@ func (c *Context) GetStrings(key string) (val []string, ok bool) {
 	return
 }
 
-func (c *Context) Header(key string) string {
-	return c.req.Header.Get(key)
-}
-
-func (c *Context) ParseForm() error {
-	return c.req.ParseMultipartForm(c.app.option.MaxMultipartMemory)
-}
+// ************************************** GET POST DATA METHOD ********************************************** //
 
 func (c *Context) PostInt(key string, defaultVal ...int) (val int, res bool) {
 	val, err := strconv.Atoi(c.req.PostFormValue(key))
@@ -347,13 +330,13 @@ func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, r
 	return
 }
 
+func (c *Context) PostData() map[string][]string {
+	return c.req.PostForm
+}
+
 func (c *Context) PostStrings(key string) (val []string, ok bool) {
 	val, ok = c.req.PostForm[key]
 	return
-}
-
-func (c *Context) Post() map[string][]string {
-	return c.req.PostForm
 }
 
 func (c *Context) Files(key string) (val []*multipart.FileHeader) {
@@ -361,7 +344,16 @@ func (c *Context) Files(key string) (val []*multipart.FileHeader) {
 	return
 }
 
-func (c *Context) Flush(content string) {
-	_, _ = c.res.Write([]byte(content + "\n"))
-	c.res.(http.Flusher).Flush()
+// **************************************** CONTEXT ************************************************** //
+
+func (c *Context) Deadline() (deadline time.Time, ok bool) {
+	return
+}
+
+func (c *Context) Done() <-chan struct{} {
+	return nil
+}
+
+func (c *Context) Err() error {
+	return nil
 }

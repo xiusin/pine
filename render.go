@@ -36,22 +36,18 @@ func (c *Render) HTML(name string) error {
 	return c.engine.HTML(c.writer, name, c.tplData)
 }
 
-// 渲染json
 func (c *Render) JSON(v H) error {
 	return c.engine.JSON(c.writer, v)
 }
 
-// 渲染jsonp
 func (c *Render) JSONP(callback string, v H) error {
 	return c.engine.JSONP(c.writer, callback, v)
 }
 
-// 渲染text
 func (c *Render) Text(v []byte) error {
 	return c.engine.Text(c.writer, v)
 }
 
-// 渲染xml
 func (c *Render) XML(v H) error {
 	return c.engine.XML(c.writer, v)
 }

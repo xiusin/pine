@@ -2,7 +2,6 @@ package router
 
 import (
 	"fmt"
-	"net/http"
 	"runtime/debug"
 )
 
@@ -20,12 +19,7 @@ var notFoundTplStr = []byte(`<!doctype html>
 </body>
 </html>`)
 
-func init() {
-	RegisterErrorCodeHandler(http.StatusNotFound, func(ctx *Context) {
-		_, _ = ctx.Writer().Write(notFoundTplStr)
-	})
-}
-func Recover(c *Context) {
+func RecoverHandler(c *Context) {
 	if err := recover(); err != nil {
 		stackInfo, strErr, strFmt := debug.Stack(), fmt.Sprintf("%s", err), "msg: %s  Method: %s  Path: %s\n Stack: %s"
 		go c.Logger().Printf(strFmt, strErr, c.Request().Method, c.Request().URL.Path, stackInfo)

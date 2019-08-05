@@ -2,6 +2,7 @@ package router
 
 import (
 	"net/http"
+	"reflect"
 	"strings"
 	"sync"
 
@@ -11,12 +12,11 @@ import (
 
 // 兼容 httprouter
 type Httprouter struct {
-	*base
-	Router         *httprouter.Router
-	recoverHandler Handler
-	globalMws      []Handler
-	mws            map[string][]Handler
-	innerGroup     map[string][]Handler
+	*Base
+	Router        *httprouter.Router
+	globalMws     []Handler
+	mws           map[string][]Handler
+	innerGroupMws map[string][]Handler
 	l              sync.Mutex
 }
 
@@ -25,32 +25,42 @@ var tempGroupPrefix = ""
 func NewHttpRouter(opt *option.Option) *Httprouter {
 	r := &Httprouter{
 		Router: httprouter.New(),
-		base: &base{
+		Base: &Base{
+			NotFound: func(c *Context) { c.Writer().Write(notFoundTplStr) },
 			pool: &sync.Pool{
 				New: func() interface{} {
 					return NewContext()
 				},
 			},
-			option: opt,
+			option:         opt,
+			recoverHandler: RecoverHandler,
 		},
-		innerGroup:  make(map[string][]Handler),
-		recoverHandler: Recover,
+		innerGroupMws: make(map[string][]Handler),
 		mws:            make(map[string][]Handler),
 	}
-
+	r.handler = r
 	if r.option == nil {
 		r.option = option.Default()
 	}
+	if r.NotFound != nil {
+		//设置默认notFound
+		r.Router.NotFound = http.HandlerFunc(func(rw http.ResponseWriter, rq *http.Request) {
+			c, _ := r.relsoveContext(rw, rq, httprouter.Params{})
+			r.Base.NotFound(c)
+		})
+		r.Router.MethodNotAllowed = r.Router.NotFound //框架自实现不允许出现MethodNotAllowed
+	}
+	if r.recoverHandler != nil {
+		r.Router.PanicHandler = func(writer http.ResponseWriter, request *http.Request, _ interface{}) {
+			c, _ := r.relsoveContext(writer, request, httprouter.Params{})
+			r.recoverHandler(c)
+		}
+	}
+
 	return r
 }
 
 var _ IRouter = (*Httprouter)(nil)
-
-func (r *Httprouter) SetRecoverHandler(handler Handler) {
-	if handler != nil {
-		r.recoverHandler = handler
-	}
-}
 
 //todo 为什么这里不能直接使用base的函数？？？？？？？？？？？？？
 func (r *Httprouter) ServeHTTP(res http.ResponseWriter, req *http.Request) {
@@ -67,7 +77,7 @@ func (r *Httprouter) Group(prefix string, callback func(router *Httprouter), mid
 	r.l.Lock()
 	defer r.l.Unlock()
 	tempGroupPrefix = prefix //赋值
-	r.innerGroup[prefix] = middleWares
+	r.innerGroupMws[prefix] = middleWares
 	callback(r)
 	tempGroupPrefix = "" //置空
 }
@@ -86,22 +96,25 @@ func (r *Httprouter) Static(path, dir string) {
 
 // 处理静态文件
 func (r *Httprouter) StaticFile(path, file string) {
-	r.GET(path, func(c *Context) {
-		http.ServeFile(c.Writer(), c.Request(), file)
-	})
+	r.GET(path, func(c *Context) { http.ServeFile(c.Writer(), c.Request(), file) })
+}
+
+func (r *Httprouter) relsoveContext(writer http.ResponseWriter, request *http.Request, params httprouter.Params) (*Context, []string) {
+	c := r.pool.Get().(*Context)
+	c.Reset(writer, request, r)
+	var pk []string
+	for i := range params {
+		pk = append(pk, params[i].Key)
+		c.Params().Set(params[i].Key, params[i].Value)
+	}
+	writer.Header().Set("Server", r.option.ServerName)
+	return c, pk
 }
 
 func (r *Httprouter) warpHandle(path string, handle Handler, mws []Handler) httprouter.Handle {
 	r.registerMwsToRoutePath(path, mws)
 	return func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
-		c := r.pool.Get().(*Context)
-		c.Reset(writer, request, r)
-		var pk []string
-		for i := range params {
-			pk = append(pk, params[i].Key)
-			c.Params().Set(params[i].Key, params[i].Value)
-		}
-		writer.Header().Set("Server", r.option.ServerName)
+		c, pk := r.relsoveContext(writer, request, params)
 		defer r.recoverHandler(c)
 		// 合并中间件
 		mws := r.mws[path]
@@ -119,9 +132,9 @@ func (r *Httprouter) warpHandle(path string, handle Handler, mws []Handler) http
 		//todo 考虑哪种方式更适合
 		// 1. 直接分组方式存储再迭代追加
 		// 2. 在注册路由时直接追加
-		for k := range r.innerGroup { // 追加分组中间件
+		for k := range r.innerGroupMws { // 追加分组中间件
 			if strings.Contains(path, k) {
-				route.ExtendsMiddleWare = append(route.ExtendsMiddleWare, r.innerGroup[k]...)
+				route.ExtendsMiddleWare = append(route.ExtendsMiddleWare, r.innerGroupMws[k]...)
 				break
 			}
 		}
@@ -133,6 +146,12 @@ func (r *Httprouter) warpHandle(path string, handle Handler, mws []Handler) http
 func (r *Httprouter) AddRoute(method, path string, handle Handler, mws ...Handler) *RouteEntry {
 	r.Router.Handle(method, tempGroupPrefix+path, r.warpHandle(tempGroupPrefix+path, handle, mws))
 	return nil
+}
+
+// 处理控制器注册的方式
+func (r *Httprouter) Handle(c ControllerInf) {
+	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
+	r.autoRegisterControllerRoute(r, refVal, refType, c)
 }
 
 func (r *Httprouter) GET(path string, handle Handler, mws ...Handler) *RouteEntry {
@@ -164,28 +183,3 @@ func (r *Httprouter) DELETE(path string, handle Handler, mws ...Handler) *RouteE
 	r.AddRoute(http.MethodDelete, path, handle, mws...)
 	return nil
 }
-
-// 启动服务
-//func (r *Httprouter) Serve() {
-//	done, quit := make(chan bool, 1), make(chan os.Signal, 1)
-//	signal.Notify(quit, os.Interrupt)
-//	addr := r.option.Host + ":" + strconv.Itoa(r.option.Port)
-//	srv := &http.Server{
-//		ReadHeaderTimeout: r.option.TimeOut,
-//		WriteTimeout:      r.option.TimeOut,
-//		ReadTimeout:       r.option.TimeOut,
-//		IdleTimeout:       r.option.TimeOut,
-//		Addr:              addr,
-//		Handler:           http.TimeoutHandler(r, r.option.TimeOut, "Server Timeout"), // 超时函数, 但是无法阻止服务器端停止,内部耗时部分可以自行使用context.context控制
-//	}
-//	if r.option.Env == option.DevMode {
-//		fmt.Println(Logo)
-//	}
-//	go GracefulShutdown(srv, quit, done)
-//	fmt.Println("server run on: http://" + addr)
-//	err := srv.ListenAndServe()
-//	if err != nil && err != http.ErrServerClosed {
-//		_ = fmt.Errorf("server was error: %s", err.Error())
-//	}
-//	<-done
-//}
