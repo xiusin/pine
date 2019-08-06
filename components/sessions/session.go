@@ -22,7 +22,13 @@ type Session struct {
 }
 
 func newSession(id string, r *http.Request, w http.ResponseWriter, store interfaces.ISessionStore) (*Session, error) {
-	sess := &Session{request: r, writer: w, data: map[string]Entry{}, store: store, id: id}
+	sess := &Session{
+		request: r,
+		writer: w,
+		data: map[string]Entry{},
+		store: store,
+		id: id,
+	}
 	if err := store.Read(id, &sess.data); err != nil {
 		return nil, err
 	}

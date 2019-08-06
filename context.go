@@ -300,6 +300,14 @@ func (c *Context) GetFloat64(key string, defaultVal ...float64) (val float64, re
 	return
 }
 
+func (c *Context) GetString(key string, defaultVal ...string) string {
+	val := c.req.URL.Query().Get(key)
+	if val == "" && len(defaultVal) > 0 {
+		val = defaultVal[0]
+	}
+	return val
+}
+
 func (c *Context) GetStrings(key string) (val []string, ok bool) {
 	val, ok = c.req.URL.Query()[key]
 	return

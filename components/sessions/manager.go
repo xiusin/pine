@@ -40,7 +40,7 @@ func (m *Manager) Session(r *http.Request, w http.ResponseWriter) (interfaces.IS
 			MaxAge:   config.GetMaxAge(),
 			Path:     config.GetCookiePath(),
 		}
-		http.SetCookie(w, cookie) //重新设置cookie
+		http.SetCookie(w, cookie)
 	}
 	return newSession(cookie.Value, r, w, m.store)
 }

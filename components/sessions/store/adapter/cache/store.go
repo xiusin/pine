@@ -22,15 +22,17 @@ func (store *Store) GetConfig() interfaces.ISessionConfig {
 }
 
 func (store *Store) Read(id string, receiver interface{}) error {
-	sess := []byte(emptyJsonStr)
+	var sess []byte
 	var err error
 	if store.Cache.Exists(getId(id)) {
 		sess, err = store.Cache.Get(getId(id))
 		if err != nil {
 			return err
 		}
+	} else {
+		sess = []byte(emptyJsonStr)
 	}
-	return json.Unmarshal([]byte(sess), receiver)
+	return json.Unmarshal(sess, receiver)
 }
 
 func (store *Store) Save(id string, val interface{}) error {

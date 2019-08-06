@@ -1,9 +1,9 @@
 package option
 
 import (
-	"errors"
-	"github.com/gorilla/securecookie"
 	"time"
+
+	"github.com/gorilla/securecookie"
 
 	"github.com/spf13/viper"
 )
@@ -12,8 +12,6 @@ const (
 	DevMode = iota
 	ProdMode
 )
-
-var NotKeyStoreErr = errors.New("no key store")
 
 type (
 	cookieOption struct {

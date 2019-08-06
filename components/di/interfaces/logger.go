@@ -1,7 +1,7 @@
 package interfaces
 
 /**
-为了更好的实现日志， 只需要实现两个方法即可。
+为了更好的实现日志
 */
 type ILogger interface {
 	Error(msg string, args ...interface{})
