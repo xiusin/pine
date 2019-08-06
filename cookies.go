@@ -29,23 +29,6 @@ var (
 	secure, httpOnly       bool
 )
 
-func getCookieOption() {
-	getCookieOptOnceLocker.Do(func() {
-		secure = viper.GetBool("Cookie.Secure")
-		httpOnly = viper.GetBool("Cookie.HttpOnly")
-		path = viper.GetString("cookie.HashKey")
-		hashKey = []byte(viper.GetString("cookie.HashKey"))
-		blockKey = []byte(viper.GetString("cookie.BlockKey"))
-		path = viper.GetString("cookie.HashKey")
-		s := viper.Get("cookie.Serializer")
-		if s == nil {
-			encoder = &securecookie.NopEncoder{}
-		} else {
-			encoder = s.(securecookie.Serializer)
-		}
-	})
-}
-
 func NewCookie(w http.ResponseWriter, r *http.Request) *Cookie {
 	getCookieOption()
 	secureCookie := securecookie.New(hashKey, blockKey).SetSerializer(encoder)
@@ -71,10 +54,8 @@ func (c *Cookie) Get(name string, receiver interface{}) error {
 	return nil
 }
 
-func (c *Cookie) Set(name string, value interface{}, maxAge int) error {
+func (c *Cookie) Set(name string, value interface{}, maxAge int) (err error) {
 	var val string
-	var err error
-	// 加密值
 	if val, err = c.Encode(name, value); err != nil {
 		return err
 	}
@@ -95,4 +76,22 @@ func (c *Cookie) Delete(name string) {
 		Name:   name,
 		Path:   path, // need path
 		MaxAge: -1})
+}
+
+func getCookieOption() {
+	getCookieOptOnceLocker.Do(func() {
+		secure = viper.GetBool("cookie.secure")
+		httpOnly = viper.GetBool("cookie.http_only")
+		path = viper.GetString("cookie.Path")
+		hk := viper.GetString("cookie.hash_key")
+		bk := viper.GetString("cookie.block_key")
+		hashKey = []byte(hk)
+		blockKey = []byte(bk)
+		s := viper.Get("cookie.serializer")
+		if s == nil || hk == "" || bk == "" {
+			encoder = &securecookie.NopEncoder{}
+		} else {
+			encoder = s.(securecookie.Serializer)
+		}
+	})
 }

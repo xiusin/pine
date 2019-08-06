@@ -110,6 +110,7 @@ func (r *Base) SetNotFound(handler Handler) {
 }
 
 func (r *Base) Serve() {
+	r.option.ToViper()
 	done, quit := make(chan bool, 1), make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	addr := r.option.Host + ":" + strconv.Itoa(r.option.Port)
@@ -121,11 +122,11 @@ func (r *Base) Serve() {
 		Addr:              addr,
 		Handler:           http.TimeoutHandler(r.handler, r.option.TimeOut, "Server Timeout"), // 超时函数, 但是无法阻止服务器端停止,内部耗时部分可以自行使用context.context控制
 	}
-	if r.option.Env == option.DevMode {
+	if r.option.IsDevMode() {
 		fmt.Println(Logo)
+		fmt.Println("server run on: http://" + addr)
 	}
 	go GracefulShutdown(srv, quit, done)
-	fmt.Println("server run on: http://" + addr)
 	err := srv.ListenAndServe()
 	if err != nil && err != http.ErrServerClosed {
 		_ = fmt.Errorf("server was error: %s", err.Error())

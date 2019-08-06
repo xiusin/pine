@@ -98,7 +98,7 @@ func (e *event) All() []string {
 	return keys
 }
 
-//新建事件对象
+//新建事件对象, 一个实例托管事件
 func New() *event {
 	return &event{}
 }

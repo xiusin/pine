@@ -1,9 +1,9 @@
 package view
 
 import (
-	"bytes"
-	"encoding/json"
-	"encoding/xml"
+	"github.com/spf13/viper"
+	"github.com/xiusin/router/components/option"
+	base "github.com/xiusin/router/components/template"
 	"html/template"
 	"io"
 	"reflect"
@@ -13,18 +13,20 @@ import (
 var funcMap = template.FuncMap{}
 
 type Template struct {
+	base.Template
 	debug bool
 	dir   string
 	cache map[string]*template.Template
 	l     sync.RWMutex
 }
 
-func New(viewDir string, debug bool) *Template {
-	return &Template{
-		debug: debug, // 不缓存模板渲染， 直接生效
+func New(viewDir string) *Template {
+	tpl := &Template{
 		cache: map[string]*template.Template{},
 		dir:   viewDir,
 	}
+	tpl.debug = viper.GetInt32("ENV") == option.DevMode
+	return tpl
 }
 
 func (c *Template) AddFunc(funcName string, funcEntry interface{}) {
@@ -56,38 +58,4 @@ func (c *Template) HTML(writer io.Writer, name string, binding map[string]interf
 		c.cache[name] = tpl
 	}
 	return tpl.ExecuteTemplate(writer, name, binding)
-}
-
-func (_ *Template) JSON(writer io.Writer, v map[string]interface{}) error {
-	b, err := json.Marshal(v)
-	if err == nil {
-		_, err = writer.Write(b)
-	}
-	return err
-}
-
-func (_ *Template) JSONP(writer io.Writer, callback string, v map[string]interface{}) error {
-	var ret bytes.Buffer
-	b, err := json.Marshal(v)
-	if err == nil {
-		ret.Write([]byte(callback))
-		ret.Write([]byte("("))
-		ret.Write(b)
-		ret.Write([]byte(")"))
-		_, err = writer.Write(ret.Bytes())
-	}
-	return err
-}
-
-func (_ *Template) Text(writer io.Writer, v []byte) error {
-	_, err := writer.Write(v)
-	return err
-}
-
-func (_ *Template) XML(writer io.Writer, v map[string]interface{}) error {
-	b, err := xml.Marshal(v)
-	if err == nil {
-		_, err = writer.Write(b)
-	}
-	return err
 }

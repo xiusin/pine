@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"fmt"
+	"github.com/xiusin/router/components/option"
 	"math/rand"
 	"mime/multipart"
 	"net"
@@ -17,22 +18,30 @@ import (
 
 type Context struct {
 	context.Context
-	req             *http.Request // 请求对象
-	cookie          *Cookie
-	params          *Params                // 路由参数
 	res             http.ResponseWriter    // 响应对象
-	render          *Render                // 模板渲染
-	stopped         bool                   // 是否停止传播中间件
+	req             *http.Request          // 请求对象
+	options         *option.Option         // 配置文件
 	route           *RouteEntry            // 当前context匹配到的路由
+	render          *Render                // 模板渲染
+	cookie          *Cookie                // cookie 处理
+	params          *Params                // 路由参数
+	stopped         bool                   // 是否停止传播中间件
 	middlewareIndex int                    // 中间件起始索引
-	app             *Router                // router对象
 	status          int                    //保存状态码
 	Msg             string                 // 附加信息（临时方案， 不知道怎么获取设置的值）
 	Keys            map[string]interface{} //设置上下文绑定内容
 }
 
+func NewContext(opt *option.Option) *Context {
+	return &Context{
+		params:          NewParams(map[string]string{}), //保存路由参数
+		middlewareIndex: -1,                             // 初始化中间件索引. 默认从0开始索引.
+		options:         opt,
+	}
+}
+
 // 重置Context对象
-func (c *Context) Reset(res http.ResponseWriter, req *http.Request, r IRouter) {
+func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
 	c.req = req
 	c.res = res
 	c.middlewareIndex = -1
@@ -40,6 +49,10 @@ func (c *Context) Reset(res http.ResponseWriter, req *http.Request, r IRouter) {
 	c.stopped = false
 	c.Msg = ""
 	c.status = http.StatusOK
+	c.initComponent(res, req)
+}
+
+func (c *Context) initComponent(res http.ResponseWriter, req *http.Request) {
 	if c.params == nil {
 		c.params = NewParams(map[string]string{})
 	} else {
@@ -54,13 +67,6 @@ func (c *Context) Reset(res http.ResponseWriter, req *http.Request, r IRouter) {
 		c.cookie = NewCookie(res, req)
 	} else {
 		c.cookie.Reset(res, req)
-	}
-}
-
-func NewContext() *Context {
-	return &Context{
-		params:          NewParams(map[string]string{}), //保存路由参数
-		middlewareIndex: -1,                             // 初始化中间件索引. 默认从0开始索引.
 	}
 }
 
@@ -115,7 +121,7 @@ func (c *Context) Header(key string) string {
 }
 
 func (c *Context) ParseForm() error {
-	return c.req.ParseMultipartForm(c.app.option.MaxMultipartMemory)
+	return c.req.ParseMultipartForm(c.options.MaxMultipartMemory)
 }
 
 // 执行下个中间件
@@ -175,6 +181,14 @@ func (c *Context) SetCookie(name string, value interface{}, maxAge int) error {
 	return c.cookie.Set(name, value, maxAge)
 }
 
+func (c *Context) ExistsCookie(name string) bool {
+	_, err := c.req.Cookie(name)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 func (c *Context) GetCookie(name string, receiver interface{}) error {
 	return c.cookie.Get(name, receiver)
 }
@@ -187,14 +201,10 @@ func (c *Context) GetToken() string {
 	r := rand.Int()
 	t := time.Now().UnixNano()
 	token := fmt.Sprintf("%d%d", r, t)
-	c.cookie.Set(c.app.option.CsrfName, token, int(c.app.option.CsrfLifeTime))
+	if err := c.cookie.Set(c.options.CsrfName, token, int(c.options.CsrfLifeTime)); err != nil {
+		panic(err)
+	}
 	return token
-}
-
-// 附加数据的context
-//todo 这样是否合理, request 是否会被重新改变
-func (c *Context) Set(key string, value interface{}) {
-	c.req.WithContext(context.WithValue(c.req.Context(), key, value))
 }
 
 // 发送file
@@ -212,6 +222,10 @@ func (c *Context) Status() int {
 	return c.status
 }
 
+// 附加数据的context
+func (c *Context) Set(key string, value interface{}) {
+	c.Keys[key] = value
+}
 func (c *Context) Value(key interface{}) interface{} {
 	if keyAsString, ok := key.(string); ok {
 		if val, ok := c.Keys[keyAsString]; ok {

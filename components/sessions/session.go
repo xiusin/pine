@@ -40,6 +40,9 @@ func (sess *Session) Get(key string) (interface{}, error) {
 	sess.l.RLock()
 	defer sess.l.RUnlock()
 	if val, ok := sess.data[key]; ok {
+		if val.Val.(string) == "" {
+			return nil, errors.New("sess val is empty")
+		}
 		return val.Val, nil
 	}
 	return nil, errors.New("sess key " + key + " not exists")

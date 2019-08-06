@@ -1,9 +1,10 @@
 package pongo
 
 import (
-	"bytes"
-	"encoding/json"
-	"encoding/xml"
+	"fmt"
+	"github.com/spf13/viper"
+	"github.com/xiusin/router/components/option"
+	"github.com/xiusin/router/components/template"
 	"io"
 	"sync"
 
@@ -11,14 +12,16 @@ import (
 )
 
 type Pongo struct {
+	template.Template
 	ts    *pongo2.TemplateSet
 	cache map[string]*pongo2.Template
 	l     sync.RWMutex
 }
 
-func New(dir string, debug bool) *Pongo {
+func New(dir string) *Pongo {
 	t := &Pongo{ts: pongo2.NewSet("xiusin_templater", pongo2.MustNewLocalFileSystemLoader(dir))}
-	t.ts.Debug = debug
+	t.ts.Debug = viper.GetInt32("ENV") == option.DevMode
+	fmt.Println(t.ts.Debug)
 	t.cache = map[string]*pongo2.Template{}
 	return t
 }
@@ -55,38 +58,4 @@ func (c *Pongo) HTML(writer io.Writer, name string, binding map[string]interface
 		}
 	}
 	return tpl.ExecuteWriter(pongo2.Context(binding), writer)
-}
-
-func (_ *Pongo) JSON(writer io.Writer, v map[string]interface{}) error {
-	b, err := json.Marshal(v)
-	if err == nil {
-		_, err = writer.Write(b)
-	}
-	return err
-}
-
-func (_ *Pongo) JSONP(writer io.Writer, callback string, v map[string]interface{}) error {
-	var ret bytes.Buffer
-	b, err := json.Marshal(v)
-	if err == nil {
-		ret.Write([]byte(callback))
-		ret.Write([]byte("("))
-		ret.Write(b)
-		ret.Write([]byte(")"))
-		_, err = writer.Write(ret.Bytes())
-	}
-	return err
-}
-
-func (_ *Pongo) Text(writer io.Writer, v []byte) error {
-	_, err := writer.Write(v)
-	return err
-}
-
-func (_ *Pongo) XML(writer io.Writer, v map[string]interface{}) error {
-	b, err := xml.Marshal(v)
-	if err == nil {
-		_, err = writer.Write(b)
-	}
-	return err
 }

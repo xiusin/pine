@@ -35,18 +35,9 @@ func NewBuildInRouter(opt *option.Option) *Router {
 		methodRoutes: initRouteMap(),
 		groups:       map[string]*Router{},
 		Base: &Base{
-			option:   opt,
-			NotFound: func(c *Context) { c.Writer().Write(tpl404) },
-			pool: &sync.Pool{
-				New: func() interface{} {
-					ctx := &Context{
-						params:          NewParams(map[string]string{}), //保存路由参数
-						middlewareIndex: -1,                             // 初始化中间件索引. 默认从0开始索引.
-						Keys:            map[string]interface{}{},
-					}
-					return ctx
-				},
-			},
+			option:         opt,
+			NotFound:       func(c *Context) { c.Writer().Write(tpl404) },
+			pool:           &sync.Pool{New: func() interface{} { return NewContext(opt) }},
 			recoverHandler: RecoverHandler,
 		},
 	}
@@ -196,8 +187,7 @@ func (r *Router) Use(middleWares ...Handler) {
 func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	c := r.pool.Get().(*Context)
 	defer r.pool.Put(c)
-	c.Reset(res, req, r)
-	c.app = r
+	c.Reset(res, req)
 	res.Header().Set("Server", r.option.ServerName)
 	defer r.recoverHandler(c)
 	r.dispatch(c, res, req)

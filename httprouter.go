@@ -26,12 +26,8 @@ func NewHttpRouter(opt *option.Option) *Httprouter {
 	r := &Httprouter{
 		Router: httprouter.New(),
 		Base: &Base{
-			NotFound: func(c *Context) { c.Writer().Write(tpl404) },
-			pool: &sync.Pool{
-				New: func() interface{} {
-					return NewContext()
-				},
-			},
+			NotFound:       func(c *Context) { c.Writer().Write(tpl404) },
+			pool:           &sync.Pool{New: func() interface{} { return NewContext(opt) }},
 			option:         opt,
 			recoverHandler: RecoverHandler,
 		},
@@ -101,7 +97,7 @@ func (r *Httprouter) StaticFile(path, file string) {
 
 func (r *Httprouter) relsoveContext(writer http.ResponseWriter, request *http.Request, params httprouter.Params) (*Context, []string) {
 	c := r.pool.Get().(*Context)
-	c.Reset(writer, request, r)
+	c.Reset(writer, request)
 	var pk []string
 	for i := range params {
 		pk = append(pk, params[i].Key)

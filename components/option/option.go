@@ -10,7 +10,6 @@ import (
 
 const (
 	DevMode = iota
-	TestMode
 	ProdMode
 )
 
@@ -53,20 +52,33 @@ func Default() *Option {
 			Secure:     false,
 			HttpOnly:   false,
 			Path:       "/",
-			HashKey:    "",
-			BlockKey:   "",
+			HashKey:    "ROUTER-HASH-KEY",
+			BlockKey:   "ROUTER-BLOCK-KEY",
 			Serializer: &securecookie.GobEncoder{},
 		},
 	}
-	// 参数注入到viper内
-	viper.Set("CsrfName", opt.CsrfName)
-	viper.Set("CsrfLifeTime", opt.CsrfLifeTime)
-	viper.Set("Cookie", opt.Cookie)
 	return opt
+}
+
+// 参数注入到viper内
+func (o *Option) ToViper() {
+	if o.IsDevMode() {
+		viper.Debug()
+	}
+	o.Add("csrf_name", o.CsrfName)
+	o.Add("csrf_lifetime", o.CsrfLifeTime)
+	o.Add("cookie.secure", o.Cookie.Secure)
+	o.Add("cookie.http_only", o.Cookie.HttpOnly)
+	o.Add("cookie.path", o.Cookie.Path)
+	o.Add("cookie.hash_key", o.Cookie.HashKey)
+	o.Add("cookie.block_key", o.Cookie.BlockKey)
+	o.Add("cookie.serializer", o.Cookie.Serializer)
+	o.Add("env", o.Env)
 }
 
 func (o *Option) SetMode(env int) {
 	o.Env = env
+	o.Add("env", o.Env)
 }
 
 func (o *Option) IsDevMode() bool {
@@ -95,12 +107,4 @@ func (o *Option) MergeOption(option *Option) {
 func (o *Option) Add(key string, val interface{}) *Option {
 	viper.Set(key, val)
 	return o
-}
-
-func (o *Option) Get(key string) (interface{}, error) {
-	val := viper.Get(key)
-	if val == nil {
-		return nil, NotKeyStoreErr
-	}
-	return val, nil
 }
