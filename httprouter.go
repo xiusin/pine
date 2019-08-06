@@ -17,7 +17,7 @@ type Httprouter struct {
 	globalMws     []Handler
 	mws           map[string][]Handler
 	innerGroupMws map[string][]Handler
-	l              sync.Mutex
+	l             sync.Mutex
 }
 
 var tempGroupPrefix = ""
@@ -26,7 +26,7 @@ func NewHttpRouter(opt *option.Option) *Httprouter {
 	r := &Httprouter{
 		Router: httprouter.New(),
 		Base: &Base{
-			NotFound: func(c *Context) { c.Writer().Write(notFoundTplStr) },
+			NotFound: func(c *Context) { c.Writer().Write(tpl404) },
 			pool: &sync.Pool{
 				New: func() interface{} {
 					return NewContext()
@@ -36,7 +36,7 @@ func NewHttpRouter(opt *option.Option) *Httprouter {
 			recoverHandler: RecoverHandler,
 		},
 		innerGroupMws: make(map[string][]Handler),
-		mws:            make(map[string][]Handler),
+		mws:           make(map[string][]Handler),
 	}
 	r.handler = r
 	if r.option == nil {
@@ -149,7 +149,7 @@ func (r *Httprouter) AddRoute(method, path string, handle Handler, mws ...Handle
 }
 
 // 处理控制器注册的方式
-func (r *Httprouter) Handle(c ControllerInf) {
+func (r *Httprouter) Handle(c IController) {
 	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
 	r.autoRegisterControllerRoute(r, refVal, refType, c)
 }

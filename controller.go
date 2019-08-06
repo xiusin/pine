@@ -13,16 +13,16 @@ import (
 type (
 	Controller struct {
 		ctx  *Context
-		sess interfaces.SessionInf
+		sess interfaces.ISession
 		once sync.Once
 	}
 
 	// 控制器接口定义
-	ControllerInf interface {
+	IController interface {
 		Ctx() *Context
 		Render() *Render
-		Logger() interfaces.LoggerInf
-		Session() interfaces.SessionInf
+		Logger() interfaces.ILogger
+		Session() interfaces.ISession
 	}
 )
 
@@ -30,7 +30,7 @@ func (c *Controller) Ctx() *Context {
 	return c.ctx
 }
 
-func (c *Controller) Session() interfaces.SessionInf {
+func (c *Controller) Session() interfaces.ISession {
 	var err error
 	c.once.Do(func() {
 		c.sess, err = c.ctx.SessionManger().Session(c.ctx.Request(), c.ctx.Writer())
@@ -45,7 +45,7 @@ func (c *Controller) Render() *Render {
 	return c.ctx.Render()
 }
 
-func (c *Controller) Logger() interfaces.LoggerInf {
+func (c *Controller) Logger() interfaces.ILogger {
 	return c.ctx.Logger()
 }
 
@@ -72,15 +72,15 @@ type (
 	// 控制器映射路由
 	controllerMappingRoute struct {
 		r IRouter
-		c ControllerInf
+		c IController
 	}
 )
 
-func newUrlMappingRoute(r IRouter, c ControllerInf) *controllerMappingRoute {
+func newUrlMappingRoute(r IRouter, c IController) *controllerMappingRoute {
 	return &controllerMappingRoute{r: r, c: c}
 }
 
-func (u *controllerMappingRoute) warpControllerHandler(method string, c ControllerInf) Handler {
+func (u *controllerMappingRoute) warpControllerHandler(method string, c IController) Handler {
 	refValCtrl := reflect.ValueOf(c)
 	return func(context *Context) {
 		c := reflect.New(refValCtrl.Elem().Type()) // 利用反射构建变量得到value值

@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-type Storage interface {
+type IStorage interface {
 	PutFromFile(string, string) (string, error)
 	PutFromReader(string, io.Reader) (string, error)
 	Delete(string) error
@@ -21,7 +21,7 @@ var adapters = map[string]AdapterBuilder{}
 
 var mu sync.RWMutex
 
-type AdapterBuilder func(option Option) Storage
+type AdapterBuilder func(option Option) IStorage
 
 func Register(adapterName string, builder AdapterBuilder) {
 	if builder == nil {
@@ -35,7 +35,7 @@ func Register(adapterName string, builder AdapterBuilder) {
 	mu.Unlock()
 }
 
-func NewAdapter(adapterName string, option Option) (adapter Storage, err error) {
+func NewAdapter(adapterName string, option Option) (adapter IStorage, err error) {
 	mu.RLock()
 	builder, ok := adapters[adapterName]
 	mu.RUnlock()

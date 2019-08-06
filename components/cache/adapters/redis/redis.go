@@ -27,8 +27,6 @@ type Option struct {
 	TTL            int
 }
 
-
-
 func (o *Option) ToString() string {
 	s, err := json.Marshal(o)
 	if err != nil {
@@ -150,7 +148,7 @@ func init() {
 						if getErr != nil {
 							panic(getErr)
 						}
-						(logger.(interfaces.LoggerInf)).Errorf("Dial error: %s", err.Error())
+						(logger.(interfaces.ILogger)).Errorf("Dial error: %s", err.Error())
 						return nil, err
 					}
 					return con, nil

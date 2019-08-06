@@ -4,11 +4,11 @@ import (
 	"net/http"
 )
 
-type SessionManagerInf interface {
-	Session(*http.Request, http.ResponseWriter) (SessionInf, error)
+type ISessionManager interface {
+	Session(*http.Request, http.ResponseWriter) (ISession, error)
 }
 
-type SessionConfigInf interface {
+type ISessionConfig interface {
 	GetCookieName() string
 	GetCookiePath() string
 	GetMaxAge() int
@@ -16,14 +16,14 @@ type SessionConfigInf interface {
 	GetSecure() bool
 }
 
-type SessionStoreInf interface {
-	GetConfig() SessionConfigInf
+type ISessionStore interface {
+	GetConfig() ISessionConfig
 	Read(string, interface{}) error
 	Save(string, interface{}) error
 	Clear(string) error
 }
 
-type SessionInf interface {
+type ISession interface {
 	Set(string, interface{}) error
 	Get(string) (interface{}, error)
 	AddFlush(string, interface{}) error

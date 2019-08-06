@@ -4,7 +4,7 @@ import (
 	"io"
 )
 
-type RendererInf interface {
+type IRenderer interface {
 
 	// 添加模板函数
 	AddFunc(string, interface{})

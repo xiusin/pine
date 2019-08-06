@@ -16,12 +16,12 @@ type Session struct {
 	id      string
 	data    map[string]Entry
 	l       sync.RWMutex
-	store   interfaces.SessionStoreInf
+	store   interfaces.ISessionStore
 	request *http.Request
 	writer  http.ResponseWriter
 }
 
-func newSession(id string, r *http.Request, w http.ResponseWriter, store interfaces.SessionStoreInf) (*Session, error) {
+func newSession(id string, r *http.Request, w http.ResponseWriter, store interfaces.ISessionStore) (*Session, error) {
 	sess := &Session{request: r, writer: w, data: map[string]Entry{}, store: store, id: id}
 	if err := store.Read(id, &sess.data); err != nil {
 		return nil, err

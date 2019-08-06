@@ -8,6 +8,13 @@ import (
 	"github.com/spf13/viper"
 )
 
+type ICookie interface {
+	Reset(http.ResponseWriter, *http.Request)
+	Get(string, interface{}) error
+	Set(string, interface{}, int) error
+	Delete(string)
+}
+
 type Cookie struct {
 	*securecookie.SecureCookie
 	r *http.Request

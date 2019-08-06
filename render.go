@@ -9,7 +9,7 @@ import (
 
 type (
 	Render struct {
-		engine  interfaces.RendererInf
+		engine  interfaces.IRenderer
 		writer  http.ResponseWriter
 		tplData H
 	}
@@ -17,9 +17,9 @@ type (
 )
 
 func NewRender(writer http.ResponseWriter) *Render {
-	var rendererInf interfaces.RendererInf
+	var rendererInf interfaces.IRenderer
 	if di.Exists("render") {
-		rendererInf, _ = di.MustGet("render").(interfaces.RendererInf)
+		rendererInf, _ = di.MustGet("render").(interfaces.IRenderer)
 	}
 	return &Render{rendererInf, writer, H{}}
 }

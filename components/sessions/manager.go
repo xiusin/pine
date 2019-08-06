@@ -10,11 +10,11 @@ import (
 type Manager struct {
 	l       sync.Mutex
 	counter int
-	store   interfaces.SessionStoreInf
+	store   interfaces.ISessionStore
 	name    string
 }
 
-func New(store interfaces.SessionStoreInf) *Manager {
+func New(store interfaces.ISessionStore) *Manager {
 	return &Manager{store: store}
 }
 
@@ -23,7 +23,7 @@ func GetSessionId() string {
 	return u.String()
 }
 
-func (m *Manager) Session(r *http.Request, w http.ResponseWriter) (interfaces.SessionInf, error) {
+func (m *Manager) Session(r *http.Request, w http.ResponseWriter) (interfaces.ISession, error) {
 	var cookie *http.Cookie
 	var err error
 	config := m.store.GetConfig()

@@ -26,7 +26,7 @@ type (
 		Param             []string
 		Pattern           string
 		OriginStr         string
-		controller        ControllerInf
+		controller        IController
 	}
 
 	IRouter interface {
@@ -65,7 +65,7 @@ func init() {
 }
 
 // 自动注册控制器映射路由
-func (r *Base) autoRegisterControllerRoute(ro IRouter, refVal reflect.Value, refType reflect.Type, c ControllerInf) {
+func (r *Base) autoRegisterControllerRoute(ro IRouter, refVal reflect.Value, refType reflect.Type, c IController) {
 	method := refVal.MethodByName("UrlMapping")
 	if method.IsValid() {
 		method.Call([]reflect.Value{reflect.ValueOf(newUrlMappingRoute(ro, c))}) // 如果实现了UrlMapping接口, 则调用函数

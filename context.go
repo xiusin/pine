@@ -98,12 +98,12 @@ func (c *Context) Render() *Render {
 }
 
 // 日志对象
-func (c *Context) Logger() interfaces.LoggerInf {
-	return di.MustGet("logger").(interfaces.LoggerInf)
+func (c *Context) Logger() interfaces.ILogger {
+	return di.MustGet("logger").(interfaces.ILogger)
 }
 
-func (c *Context) SessionManger() interfaces.SessionManagerInf {
-	sessionInf, ok := di.MustGet("sessionManager").(interfaces.SessionManagerInf)
+func (c *Context) SessionManger() interfaces.ISessionManager {
+	sessionInf, ok := di.MustGet("sessionManager").(interfaces.ISessionManager)
 	if !ok {
 		panic("sessionManager组件类型不正确")
 	}
@@ -175,11 +175,11 @@ func (c *Context) SetCookie(name string, value interface{}, maxAge int) error {
 	return c.cookie.Set(name, value, maxAge)
 }
 
-func (c *Context) GetCookie(name string, receiver interface{})  error {
+func (c *Context) GetCookie(name string, receiver interface{}) error {
 	return c.cookie.Get(name, receiver)
 }
 
-func (c *Context) RemoveCookie(name string)  {
+func (c *Context) RemoveCookie(name string) {
 	c.cookie.Delete(name)
 }
 

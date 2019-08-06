@@ -24,6 +24,7 @@ ____  __.__            .__      __________               __
       \_/            \/        \/       \/                        \/   	  Version: ` + Version
 )
 
+// register server shutdown func
 func RegisterOnInterrupt(handler func()) {
 	shutdownBeforeHandler = append(shutdownBeforeHandler, handler)
 }

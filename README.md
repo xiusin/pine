@@ -4,6 +4,7 @@
  - [ ] 兼容httprouter直接使用controller方式注册 [doing]
  - [ ] base提取公共参数， 抽象化函数 重要！！！！！ [doing]
  - [ ] 为什么内嵌的httprouter.router无法继承实现的接口？？
+ - [ ] 减少内存申请次数
  
  
 ## 参考文档  ##

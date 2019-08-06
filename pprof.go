@@ -34,7 +34,6 @@ func EnableProfile(r *Router) {
 	r.GET("/debug/pprof/mutex", pprofIndex)
 	r.GET("/debug/pprof/threadcreate", pprofIndex)
 	r.GET("/debug/pprof/heap", pprofIndex)
-
 	r.GET("/debug/pprof/profile", pprofProfile)
 	r.GET("/debug/pprof/symbol", pprofSymbol)
 	r.GET("/debug/pprof/trace", pprofTrace)

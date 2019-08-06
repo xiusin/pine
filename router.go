@@ -35,8 +35,8 @@ func NewBuildInRouter(opt *option.Option) *Router {
 		methodRoutes: initRouteMap(),
 		groups:       map[string]*Router{},
 		Base: &Base{
-			option: opt,
-			NotFound:     func(c *Context) { c.Writer().Write(notFoundTplStr) },
+			option:   opt,
+			NotFound: func(c *Context) { c.Writer().Write(tpl404) },
 			pool: &sync.Pool{
 				New: func() interface{} {
 					ctx := &Context{
@@ -57,7 +57,7 @@ func NewBuildInRouter(opt *option.Option) *Router {
 	return r
 }
 
-func (r *Router) Handle(c ControllerInf) {
+func (r *Router) Handle(c IController) {
 	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
 	r.autoRegisterControllerRoute(r, refVal, refType, c)
 }

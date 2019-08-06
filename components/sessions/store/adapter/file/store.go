@@ -27,7 +27,7 @@ func NewStore(config *Config) *Store {
 	return store
 }
 
-func (store *Store) GetConfig() interfaces.SessionConfigInf {
+func (store *Store) GetConfig() interfaces.ISessionConfig {
 	return store.config
 }
 
