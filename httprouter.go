@@ -13,46 +13,35 @@ import (
 // 兼容 httprouter
 type Httprouter struct {
 	*Base
-	Router        *httprouter.Router
-	globalMws     []Handler
-	mws           map[string][]Handler
-	innerGroupMws map[string][]Handler
-	l             sync.Mutex
+	router        *httprouter.Router
+	globalMws     []Handler            // 全局中间件
+	mws           map[string][]Handler //路由中间件
+	innerGroupMws map[string][]Handler // 分组中间件
+	l             sync.RWMutex
+	routes        map[string]*RouteEntry // 记录path与route的关系
 }
 
 var tempGroupPrefix = ""
 
 func NewHttpRouter(opt *option.Option) *Httprouter {
 	r := &Httprouter{
-		Router: httprouter.New(),
+		router: httprouter.New(),
 		Base: &Base{
-			NotFound:       func(c *Context) { c.Writer().Write(tpl404) },
+			notFound:       func(c *Context) { c.Writer().Write(tpl404) },
 			pool:           &sync.Pool{New: func() interface{} { return NewContext(opt) }},
 			option:         opt,
-			recoverHandler: RecoverHandler,
+			recoverHandler: DefaultRecoverHandler,
 		},
 		innerGroupMws: make(map[string][]Handler),
 		mws:           make(map[string][]Handler),
+		routes:        make(map[string]*RouteEntry),
 	}
 	r.handler = r
 	if r.option == nil {
 		r.option = option.Default()
 	}
-	if r.NotFound != nil {
-		//设置默认notFound
-		r.Router.NotFound = http.HandlerFunc(func(rw http.ResponseWriter, rq *http.Request) {
-			c, _ := r.relsoveContext(rw, rq, httprouter.Params{})
-			r.Base.NotFound(c)
-		})
-		r.Router.MethodNotAllowed = r.Router.NotFound //框架自实现不允许出现MethodNotAllowed
-	}
-	if r.recoverHandler != nil {
-		r.Router.PanicHandler = func(writer http.ResponseWriter, request *http.Request, _ interface{}) {
-			c, _ := r.relsoveContext(writer, request, httprouter.Params{})
-			r.recoverHandler(c)
-		}
-	}
-
+	r.warpNotFoundHandler()
+	r.warpRecoverHandler()
 	return r
 }
 
@@ -60,7 +49,39 @@ var _ IRouter = (*Httprouter)(nil)
 
 //todo 为什么这里不能直接使用base的函数？？？？？？？？？？？？？
 func (r *Httprouter) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	r.Router.ServeHTTP(res, req)
+	r.router.ServeHTTP(res, req)
+}
+
+func (r *Httprouter) warpRecoverHandler() {
+	if r.recoverHandler == nil {
+		r.router.PanicHandler = nil
+	} else {
+		r.router.PanicHandler = func(writer http.ResponseWriter, request *http.Request, _ interface{}) {
+			c, _ := r.relsoveContext(writer, request, httprouter.Params{})
+			r.recoverHandler(c)
+		}
+	}
+}
+
+func (r *Httprouter) SetRecoverHandler(handler Handler) {
+	r.Base.SetRecoverHandler(handler)
+	r.warpRecoverHandler()
+}
+
+func (r *Httprouter) warpNotFoundHandler() {
+	if r.notFound == nil {
+		r.router.NotFound = nil
+	} else {
+		r.router.NotFound = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			c, _ := r.relsoveContext(writer, request, httprouter.Params{})
+			r.notFound(c)
+		})
+	}
+	r.router.MethodNotAllowed = r.router.NotFound //框架自实现不允许出现MethodNotAllowed
+}
+func (r *Httprouter) SetNotFound(handler Handler) {
+	r.Base.SetNotFound(handler)
+	r.warpNotFoundHandler() //设置默认notFound
 }
 
 // 针对全局的router引入中间件
@@ -103,7 +124,7 @@ func (r *Httprouter) relsoveContext(writer http.ResponseWriter, request *http.Re
 		pk = append(pk, params[i].Key)
 		c.Params().Set(params[i].Key, params[i].Value)
 	}
-	writer.Header().Set("Server", r.option.ServerName)
+	writer.Header().Set("Server", r.option.GetServerName())
 	return c, pk
 }
 
@@ -114,33 +135,29 @@ func (r *Httprouter) warpHandle(path string, handle Handler, mws []Handler) http
 		defer r.recoverHandler(c)
 		// 合并中间件
 		mws := r.mws[path]
-		// 匹配出来对应的分组的中间件
-		route := &RouteEntry{
-			ExtendsMiddleWare: r.globalMws,
-			Middleware:        mws,
-			IsPattern:         false,
-			Pattern:           "",
-			OriginStr:         path,
-			Handle:            handle,
-			Param:             pk,
-			Method:            request.Method,
-		}
-		//todo 考虑哪种方式更适合
-		// 1. 直接分组方式存储再迭代追加
-		// 2. 在注册路由时直接追加
-		for k := range r.innerGroupMws { // 追加分组中间件
-			if strings.Contains(path, k) {
-				route.ExtendsMiddleWare = append(route.ExtendsMiddleWare, r.innerGroupMws[k]...)
-				break
+		r.l.Lock() //todo 这里需要使用在！ok时加锁，又能屏蔽其他的请求进入到判断
+		route, ok := r.routes[path]
+		if !ok {
+			route = &RouteEntry{
+				ExtendsMiddleWare: r.globalMws, Middleware: mws, IsPattern: false,
+				Pattern: "", OriginStr: path, Handle: handle, Param: pk,
 			}
+			for k := range r.innerGroupMws { // 追加分组中间件
+				if strings.Contains(path, k) {
+					route.ExtendsMiddleWare = append(route.ExtendsMiddleWare, r.innerGroupMws[k]...)
+					break
+				}
+			}
+			r.routes[path] = route
 		}
+		r.l.Unlock()
 		c.setRoute(route)
 		c.Next()
 	}
 }
 
 func (r *Httprouter) AddRoute(method, path string, handle Handler, mws ...Handler) *RouteEntry {
-	r.Router.Handle(method, tempGroupPrefix+path, r.warpHandle(tempGroupPrefix+path, handle, mws))
+	r.router.Handle(method, tempGroupPrefix+path, r.warpHandle(tempGroupPrefix+path, handle, mws))
 	return nil
 }
 

@@ -1,7 +1,6 @@
 package pongo
 
 import (
-	"fmt"
 	"github.com/spf13/viper"
 	"github.com/xiusin/router/components/option"
 	"github.com/xiusin/router/components/template"
@@ -21,7 +20,6 @@ type Pongo struct {
 func New(dir string) *Pongo {
 	t := &Pongo{ts: pongo2.NewSet("xiusin_templater", pongo2.MustNewLocalFileSystemLoader(dir))}
 	t.ts.Debug = viper.GetInt32("ENV") == option.DevMode
-	fmt.Println(t.ts.Debug)
 	t.cache = map[string]*pongo2.Template{}
 	return t
 }

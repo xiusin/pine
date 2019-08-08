@@ -19,7 +19,7 @@ type (
 func NewRender(writer http.ResponseWriter) *Render {
 	var rendererInf interfaces.IRenderer
 	if di.Exists("render") {
-		rendererInf, _ = di.MustGet("render").(interfaces.IRenderer)
+		rendererInf = di.MustGet("render").(interfaces.IRenderer)
 	}
 	return &Render{rendererInf, writer, H{}}
 }

@@ -36,9 +36,9 @@ func NewBuildInRouter(opt *option.Option) *Router {
 		groups:       map[string]*Router{},
 		Base: &Base{
 			option:         opt,
-			NotFound:       func(c *Context) { c.Writer().Write(tpl404) },
+			notFound:       func(c *Context) { c.Writer().Write(tpl404) },
 			pool:           &sync.Pool{New: func() interface{} { return NewContext(opt) }},
-			recoverHandler: RecoverHandler,
+			recoverHandler: DefaultRecoverHandler,
 		},
 	}
 	if r.option == nil {
@@ -188,7 +188,7 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	c := r.pool.Get().(*Context)
 	defer r.pool.Put(c)
 	c.Reset(res, req)
-	res.Header().Set("Server", r.option.ServerName)
+	res.Header().Set("Server", r.option.GetServerName())
 	defer r.recoverHandler(c)
 	r.dispatch(c, res, req)
 }
@@ -197,7 +197,7 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (r *Router) handle(c *Context, urlParsed *url.URL) {
 	route := r.matchRoute(c, urlParsed)
 	if route != nil {
-		if r.option.MaxMultipartMemory > 0 && c.req.Header.Get("Content-Type") == "multipart/form-data" {
+		if r.option.GetMaxMultipartMemory() > 0 && c.req.Header.Get("Content-Type") == "multipart/form-data" {
 			if err := c.ParseForm(); err != nil {
 				panic(err)
 			}
@@ -206,8 +206,8 @@ func (r *Router) handle(c *Context, urlParsed *url.URL) {
 		c.Next()
 	} else {
 		c.SetStatus(http.StatusNotFound)
-		if r.NotFound != nil {
-			r.NotFound(c)
+		if r.notFound != nil {
+			r.notFound(c)
 		}
 	}
 }

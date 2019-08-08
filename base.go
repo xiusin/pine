@@ -2,6 +2,7 @@ package router
 
 import (
 	"fmt"
+	"github.com/xiusin/router/components/di/interfaces"
 	"net/http"
 	"os"
 	"os/signal"
@@ -49,7 +50,7 @@ type (
 		recoverHandler Handler
 		pool           *sync.Pool
 		option         *option.Option
-		NotFound       Handler
+		notFound       Handler
 	}
 
 	routeMaker func(path string, handle Handler, mws ...Handler) *RouteEntry
@@ -90,7 +91,8 @@ func (r *Base) autoMatchHttpMethod(ro IRouter, path string, handle Handler) {
 	}
 }
 
-// 大写字母变分隔符
+// 大写字母变分隔符 如：
+// 		MyProfile ==> my_profile
 func (_ *Base) upperCharToUnderLine(path string) string {
 	return strings.TrimLeft(regexp.MustCompile("([A-Z])").ReplaceAllStringFunc(path, func(s string) string {
 		return strings.ToLower("_" + strings.ToLower(s))
@@ -98,64 +100,39 @@ func (_ *Base) upperCharToUnderLine(path string) string {
 }
 
 func (r *Base) SetRecoverHandler(handler Handler) {
-	if handler != nil {
-		r.recoverHandler = handler
-	}
+	r.recoverHandler = handler
 }
 
 func (r *Base) SetNotFound(handler Handler) {
-	if handler != nil {
-		r.NotFound = handler
-	}
+	r.notFound = handler
 }
 
 func (r *Base) Serve() {
 	r.option.ToViper()
 	done, quit := make(chan bool, 1), make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
-	addr := r.option.Host + ":" + strconv.Itoa(r.option.Port)
+	addr := r.option.GetHost() + ":" + strconv.Itoa(r.option.GetPort())
 	srv := &http.Server{
-		ReadHeaderTimeout: r.option.TimeOut,
-		WriteTimeout:      r.option.TimeOut,
-		ReadTimeout:       r.option.TimeOut,
-		IdleTimeout:       r.option.TimeOut,
+		ReadHeaderTimeout: r.option.GetTimeOut(),
+		WriteTimeout:      r.option.GetTimeOut(),
+		ReadTimeout:       r.option.GetTimeOut(),
+		IdleTimeout:       r.option.GetTimeOut(),
 		Addr:              addr,
-		Handler:           http.TimeoutHandler(r.handler, r.option.TimeOut, "Server Timeout"), // 超时函数, 但是无法阻止服务器端停止,内部耗时部分可以自行使用context.context控制
+		Handler:           http.TimeoutHandler(r.handler, r.option.GetTimeOut(), "Server Timeout"), // 超时函数, 但是无法阻止服务器端停止,内部耗时部分可以自行使用context.context控制
 	}
 	if r.option.IsDevMode() {
 		fmt.Println(Logo)
 		fmt.Println("server run on: http://" + addr)
 	}
 	go GracefulShutdown(srv, quit, done)
-	err := srv.ListenAndServe()
+	var err error
+	if r.option.GetCertFile() != "" && r.option.GetKeyFile() != "" {
+		err = srv.ListenAndServeTLS(r.option.GetCertFile(), r.option.GetKeyFile())
+	} else {
+		err = srv.ListenAndServe()
+	}
 	if err != nil && err != http.ErrServerClosed {
-		_ = fmt.Errorf("server was error: %s", err.Error())
-	}
-	<-done
-}
-
-
-func (r *Base) ServeTLS() {
-	r.option.ToViper()
-	done, quit := make(chan bool, 1), make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt)
-	addr := r.option.Host + ":" + strconv.Itoa(r.option.Port)
-	srv := &http.Server{
-		ReadHeaderTimeout: r.option.TimeOut,
-		WriteTimeout:      r.option.TimeOut,
-		ReadTimeout:       r.option.TimeOut,
-		IdleTimeout:       r.option.TimeOut,
-		Addr:              addr,
-		Handler:           http.TimeoutHandler(r.handler, r.option.TimeOut, "Server Timeout"),
-	}
-	if r.option.IsDevMode() {
-		fmt.Println(Logo)
-		fmt.Println("server run on: http://" + addr)
-	}
-	go GracefulShutdown(srv, quit, done)
-	err := srv.ListenAndServe()
-	if err != nil && err != http.ErrServerClosed {
-		_ = fmt.Errorf("server was error: %s", err.Error())
+		di.MustGet("logger").(interfaces.ILogger).Errorf("server was error: %s", err.Error())
 	}
 	<-done
 }

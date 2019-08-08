@@ -1,9 +1,8 @@
 package option
 
 import (
-	"time"
-
 	"github.com/gorilla/securecookie"
+	"time"
 
 	"github.com/spf13/viper"
 )
@@ -24,29 +23,41 @@ type (
 	}
 
 	Option struct {
-		MaxMultipartMemory int64
-		TimeOut            time.Duration
-		Port               int
-		Host               string
-		Env                int
-		ServerName         string
-		CsrfName           string
-		CsrfLifeTime       time.Duration
-		Cookie             *cookieOption
+		certfile           string
+		keyfile            string
+		maxMultipartMemory int64
+		timeout            time.Duration
+		port               int
+		host               string
+		env                int
+		serverName         string
+		csrfName           string
+		csrfLifeTime       time.Duration
+		cookie             cookieOption
 	}
 )
 
+type optionSetter func(o *Option)
+
+func New(setter ...optionSetter) *Option {
+	opt := Default()
+	for k := range setter {
+		setter[k](opt)
+	}
+	return opt
+}
+
 func Default() *Option {
 	opt := &Option{
-		Port:               9528,
-		Host:               "0.0.0.0",
-		TimeOut:            time.Second * 60,
-		Env:                DevMode,
-		ServerName:         "xiusin/router",
-		CsrfName:           "csrf_token",
-		CsrfLifeTime:       time.Second * 60,
-		MaxMultipartMemory: 8 << 20,
-		Cookie: &cookieOption{
+		port:               9528,
+		host:               "0.0.0.0",
+		timeout:            time.Second * 30,
+		env:                DevMode,
+		serverName:         "xiusin/router",
+		csrfName:           "csrf_token",
+		csrfLifeTime:       time.Second * 30,
+		maxMultipartMemory: 8 << 20,
+		cookie: cookieOption{
 			Secure:     false,
 			HttpOnly:   false,
 			Path:       "/",
@@ -63,46 +74,141 @@ func (o *Option) ToViper() {
 	if o.IsDevMode() {
 		viper.Debug()
 	}
-	o.Add("csrf_name", o.CsrfName)
-	o.Add("csrf_lifetime", o.CsrfLifeTime)
-	o.Add("cookie.secure", o.Cookie.Secure)
-	o.Add("cookie.http_only", o.Cookie.HttpOnly)
-	o.Add("cookie.path", o.Cookie.Path)
-	o.Add("cookie.hash_key", o.Cookie.HashKey)
-	o.Add("cookie.block_key", o.Cookie.BlockKey)
-	o.Add("cookie.serializer", o.Cookie.Serializer)
-	o.Add("env", o.Env)
+	AddGlobal("csrf_name", o.csrfName)
+	AddGlobal("csrf_lifetime", o.csrfLifeTime)
+	AddGlobal("cookie.secure", o.cookie.Secure)
+	AddGlobal("cookie.http_only", o.cookie.HttpOnly)
+	AddGlobal("cookie.path", o.cookie.Path)
+	AddGlobal("cookie.hash_key", o.cookie.HashKey)
+	AddGlobal("cookie.block_key", o.cookie.BlockKey)
+	AddGlobal("cookie.serializer", o.cookie.Serializer)
+	AddGlobal("env", o.env)
 }
 
-func (o *Option) SetMode(env int) {
-	o.Env = env
-	o.Add("env", o.Env)
+func (o *Option) GetEnv() int {
+	return o.env
+}
+
+func (o *Option) GetPort() int {
+	return o.port
+}
+
+func (o *Option) GetMaxMultipartMemory() int64 {
+	return o.maxMultipartMemory
+}
+
+func (o *Option) GetHost() string {
+	return o.host
+}
+
+func (o *Option) GetServerName() string {
+	return o.serverName
+}
+
+func (o *Option) GetCsrfName() string {
+	return o.csrfName
+}
+
+func (o *Option) GetCsrfLiftTime() time.Duration {
+	return o.csrfLifeTime
+}
+
+func (o *Option) GetTimeOut() time.Duration {
+	return o.timeout
+}
+
+func (o *Option) GetCertFile() string {
+	return o.certfile
+}
+
+func (o *Option) GetKeyFile() string {
+	return o.keyfile
 }
 
 func (o *Option) IsDevMode() bool {
-	return o.Env == DevMode
+	return o.env == DevMode
 }
 
 func (o *Option) IsProdMode() bool {
-	return o.Env == ProdMode
+	return o.env == ProdMode
 }
 
-func (o *Option) MergeOption(option *Option) {
-	if option.TimeOut != 0 {
-		o.TimeOut = option.TimeOut
-	}
-	if option.Port != 0 {
-		o.Port = option.Port
-	}
-	if option.Host != "" {
-		o.Host = option.Host
-	}
-	o.Env = option.Env
-	o.ServerName = option.ServerName
-
-}
-
-func (o *Option) Add(key string, val interface{}) *Option {
+func AddGlobal(key string, val interface{}) {
 	viper.Set(key, val)
-	return o
+}
+
+func OptEnvMode(env int) func(o *Option) {
+	return func(o *Option) {
+		o.env = env
+	}
+}
+func OptCsrfName(name string) func(o *Option) {
+	return func(o *Option) {
+		o.csrfName = name
+	}
+}
+
+func OptCsrfLifeTime(lifttime time.Duration) func(o *Option) {
+	return func(o *Option) {
+		o.csrfLifeTime = lifttime
+	}
+}
+
+func OptPort(port int) func(o *Option) {
+	return func(o *Option) {
+		o.port = port
+	}
+}
+
+func OptTimeOut(dur time.Duration) func(o *Option) {
+	return func(o *Option) {
+		o.timeout = dur
+	}
+}
+
+func OptServerName(sername string) func(o *Option) {
+	return func(o *Option) {
+		o.serverName = sername
+	}
+}
+
+func OptMaxMultipartMemory(mem int64) func(o *Option) {
+	return func(o *Option) {
+		o.maxMultipartMemory = mem
+	}
+}
+func OptCookieSecure(secure bool) func(o *Option) {
+	return func(o *Option) {
+		o.cookie.Secure = secure
+	}
+}
+
+func OptCookieHttpOnly(http bool) func(o *Option) {
+	return func(o *Option) {
+		o.cookie.Secure = http
+	}
+}
+
+func OptCookieHashKey(hash string) func(o *Option) {
+	return func(o *Option) {
+		o.cookie.HashKey = hash
+	}
+}
+
+func OptCookieBlockKey(block string) func(o *Option) {
+	return func(o *Option) {
+		o.cookie.HashKey = block
+	}
+}
+
+func OptCertFile(file string) func(o *Option) {
+	return func(o *Option) {
+		o.certfile = file
+	}
+}
+
+func OptKeyFile(file string) func(o *Option) {
+	return func(o *Option) {
+		o.keyfile = file
+	}
 }

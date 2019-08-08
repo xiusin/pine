@@ -121,7 +121,7 @@ func (c *Context) Header(key string) string {
 }
 
 func (c *Context) ParseForm() error {
-	return c.req.ParseMultipartForm(c.options.MaxMultipartMemory)
+	return c.req.ParseMultipartForm(c.options.GetMaxMultipartMemory())
 }
 
 // 执行下个中间件
@@ -201,7 +201,7 @@ func (c *Context) GetToken() string {
 	r := rand.Int()
 	t := time.Now().UnixNano()
 	token := fmt.Sprintf("%d%d", r, t)
-	if err := c.cookie.Set(c.options.CsrfName, token, int(c.options.CsrfLifeTime)); err != nil {
+	if err := c.cookie.Set(c.options.GetCsrfName(), token, int(c.options.GetCsrfLiftTime())); err != nil {
 		panic(err)
 	}
 	return token

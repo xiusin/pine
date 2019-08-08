@@ -7,6 +7,15 @@
  - [ ] 减少内存申请次数
  
  
+## 中间件 ##
+
+- [go-server-timing](https://github.com/mitchellh/go-server-timing) 用于记录程序耗时
+- [limiter](https://github.com/ulule/limiter) 限流
+ 
+## chunk 和 Trailer ##
+用于分片返回数据
+https://www.jianshu.com/p/4417af75a9f4
+ 
 ## 参考文档  ##
  - [使用Go实现一个LRU](https://www.jianshu.com/p/970f1a8dd9cf) 
 

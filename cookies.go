@@ -59,14 +59,18 @@ func (c *Cookie) Set(name string, value interface{}, maxAge int) (err error) {
 	if val, err = c.Encode(name, value); err != nil {
 		return err
 	}
-	cookie := &http.Cookie{Name: name, Value: val, MaxAge: maxAge}
+	cookie := &http.Cookie{
+		Name:     name,
+		Value:    val,
+		Secure:   secure,
+		HttpOnly: httpOnly,
+		MaxAge:   maxAge}
+
 	if path == "" {
 		cookie.Path = "/"
 	} else {
 		cookie.Path = path
 	}
-	cookie.Secure = secure
-	cookie.HttpOnly = httpOnly
 	http.SetCookie(c.w, cookie)
 	return nil
 }
