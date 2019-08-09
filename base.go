@@ -45,7 +45,7 @@ type (
 		Serve()
 	}
 
-	Base struct {
+	base struct {
 		handler        http.Handler
 		recoverHandler Handler
 		pool           *sync.Pool
@@ -66,10 +66,10 @@ func init() {
 }
 
 // 自动注册控制器映射路由
-func (r *Base) autoRegisterControllerRoute(ro IRouter, refVal reflect.Value, refType reflect.Type, c IController) {
-	method := refVal.MethodByName("UrlMapping")
+func (r *base) autoRegisterControllerRoute(ro IRouter, refVal reflect.Value, refType reflect.Type, c IController) {
+	method := refVal.MethodByName("RegisterRoute")
 	if method.IsValid() {
-		method.Call([]reflect.Value{reflect.ValueOf(newUrlMappingRoute(ro, c))}) // 如果实现了UrlMapping接口, 则调用函数
+		method.Call([]reflect.Value{reflect.ValueOf(newUrlMappingRoute(ro, c))}) // 如果实现了RegisterRoute接口, 则调用函数
 	} else { // 自动根据前缀注册路由
 		methodNum, routeWrapper := refType.NumMethod(), newUrlMappingRoute(ro, c)
 		for i := 0; i < methodNum; i++ {
@@ -82,7 +82,7 @@ func (r *Base) autoRegisterControllerRoute(ro IRouter, refVal reflect.Value, ref
 }
 
 // 自动注册映射处理函数的http请求方法
-func (r *Base) autoMatchHttpMethod(ro IRouter, path string, handle Handler) {
+func (r *base) autoMatchHttpMethod(ro IRouter, path string, handle Handler) {
 	var methods = map[string]routeMaker{"Get": ro.GET, "Post": ro.POST, "Head": ro.HEAD, "Delete": ro.DELETE, "Put": ro.PUT}
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
@@ -93,32 +93,28 @@ func (r *Base) autoMatchHttpMethod(ro IRouter, path string, handle Handler) {
 
 // 大写字母变分隔符 如：
 // 		MyProfile ==> my_profile
-func (_ *Base) upperCharToUnderLine(path string) string {
+func (_ *base) upperCharToUnderLine(path string) string {
 	return strings.TrimLeft(regexp.MustCompile("([A-Z])").ReplaceAllStringFunc(path, func(s string) string {
 		return strings.ToLower("_" + strings.ToLower(s))
 	}), "_")
 }
 
-func (r *Base) SetRecoverHandler(handler Handler) {
+func (r *base) SetRecoverHandler(handler Handler) {
 	r.recoverHandler = handler
 }
 
-func (r *Base) SetNotFound(handler Handler) {
+func (r *base) SetNotFound(handler Handler) {
 	r.notFound = handler
 }
 
-func (r *Base) Serve() {
+func (r *base) Serve() {
 	r.option.ToViper()
 	done, quit := make(chan bool, 1), make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)
 	addr := r.option.GetHost() + ":" + strconv.Itoa(r.option.GetPort())
 	srv := &http.Server{
-		ReadHeaderTimeout: r.option.GetTimeOut(),
-		WriteTimeout:      r.option.GetTimeOut(),
-		ReadTimeout:       r.option.GetTimeOut(),
-		IdleTimeout:       r.option.GetTimeOut(),
-		Addr:              addr,
-		Handler:           http.TimeoutHandler(r.handler, r.option.GetTimeOut(), "Server Timeout"), // 超时函数, 但是无法阻止服务器端停止,内部耗时部分可以自行使用context.context控制
+		Addr:    addr,
+		Handler: http.TimeoutHandler(r.handler, r.option.GetTimeOut(), r.option.GetReqTimeOutMessage()), // 超时函数, 但是无法阻止服务器端停止,内部耗时部分可以自行使用context.context控制
 	}
 	if r.option.IsDevMode() {
 		fmt.Println(Logo)

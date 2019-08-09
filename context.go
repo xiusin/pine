@@ -70,9 +70,8 @@ func (c *Context) initComponent(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (c *Context) Flush(content string) {
-	_, _ = c.res.Write([]byte(content + "\n"))
-	c.res.(http.Flusher).Flush()
+func (c *Context) Flush(content []byte) {
+
 }
 
 // 重定向

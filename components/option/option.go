@@ -23,17 +23,19 @@ type (
 	}
 
 	Option struct {
-		certfile           string
-		keyfile            string
 		maxMultipartMemory int64
-		timeout            time.Duration
-		port               int
-		host               string
-		env                int
+		reqTimeOutMessage  string
+		csrfLifeTime       time.Duration
 		serverName         string
 		csrfName           string
-		csrfLifeTime       time.Duration
+		certfile           string
+		keyfile            string
+		timeout            time.Duration
 		cookie             cookieOption
+		port               int
+		host               string
+		gzip               bool
+		env                int
 	}
 )
 
@@ -49,9 +51,11 @@ func New(setter ...optionSetter) *Option {
 
 func Default() *Option {
 	opt := &Option{
+		gzip:               false,
 		port:               9528,
 		host:               "0.0.0.0",
-		timeout:            time.Second * 30,
+		reqTimeOutMessage:  "request timeout",
+		timeout:            time.Second * 3,
 		env:                DevMode,
 		serverName:         "xiusin/router",
 		csrfName:           "csrf_token",
@@ -95,6 +99,14 @@ func (o *Option) GetPort() int {
 
 func (o *Option) GetMaxMultipartMemory() int64 {
 	return o.maxMultipartMemory
+}
+
+func (o *Option) GetGzip() bool {
+	return o.gzip
+}
+
+func (o *Option) GetReqTimeOutMessage() string {
+	return o.reqTimeOutMessage
 }
 
 func (o *Option) GetHost() string {
@@ -172,6 +184,12 @@ func OptServerName(sername string) func(o *Option) {
 	}
 }
 
+func OptReqTimeOutMessage(message string) func(o *Option) {
+	return func(o *Option) {
+		o.reqTimeOutMessage = message
+	}
+}
+
 func OptMaxMultipartMemory(mem int64) func(o *Option) {
 	return func(o *Option) {
 		o.maxMultipartMemory = mem
@@ -210,5 +228,11 @@ func OptCertFile(file string) func(o *Option) {
 func OptKeyFile(file string) func(o *Option) {
 	return func(o *Option) {
 		o.keyfile = file
+	}
+}
+
+func OptGzip(gzip bool) func(o *Option) {
+	return func(o *Option) {
+		o.gzip = gzip
 	}
 }

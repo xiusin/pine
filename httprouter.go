@@ -12,7 +12,7 @@ import (
 
 // 兼容 httprouter
 type Httprouter struct {
-	*Base
+	*base
 	router        *httprouter.Router
 	globalMws     []Handler            // 全局中间件
 	mws           map[string][]Handler //路由中间件
@@ -26,7 +26,7 @@ var tempGroupPrefix = ""
 func NewHttpRouter(opt *option.Option) *Httprouter {
 	r := &Httprouter{
 		router: httprouter.New(),
-		Base: &Base{
+		base: &base{
 			notFound:       func(c *Context) { c.Writer().Write(tpl404) },
 			pool:           &sync.Pool{New: func() interface{} { return NewContext(opt) }},
 			option:         opt,
@@ -64,7 +64,7 @@ func (r *Httprouter) warpRecoverHandler() {
 }
 
 func (r *Httprouter) SetRecoverHandler(handler Handler) {
-	r.Base.SetRecoverHandler(handler)
+	r.base.SetRecoverHandler(handler)
 	r.warpRecoverHandler()
 }
 
@@ -80,7 +80,7 @@ func (r *Httprouter) warpNotFoundHandler() {
 	r.router.MethodNotAllowed = r.router.NotFound //框架自实现不允许出现MethodNotAllowed
 }
 func (r *Httprouter) SetNotFound(handler Handler) {
-	r.Base.SetNotFound(handler)
+	r.base.SetNotFound(handler)
 	r.warpNotFoundHandler() //设置默认notFound
 }
 

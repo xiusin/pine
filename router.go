@@ -12,7 +12,7 @@ import (
 )
 
 type Router struct {
-	*Base
+	*base
 	Prefix       string
 	methodRoutes map[string]map[string]*RouteEntry //分类命令规则
 	middleWares  []Handler
@@ -34,7 +34,7 @@ func NewBuildInRouter(opt *option.Option) *Router {
 	r := &Router{
 		methodRoutes: initRouteMap(),
 		groups:       map[string]*Router{},
-		Base: &Base{
+		base: &base{
 			option:         opt,
 			notFound:       func(c *Context) { c.Writer().Write(tpl404) },
 			pool:           &sync.Pool{New: func() interface{} { return NewContext(opt) }},
@@ -44,7 +44,7 @@ func NewBuildInRouter(opt *option.Option) *Router {
 	if r.option == nil {
 		r.option = option.Default()
 	}
-	r.Base.handler = r
+	r.base.handler = r
 	return r
 }
 
