@@ -308,7 +308,8 @@ func (c *Context) GetString(key string, defaultVal ...string) string {
 }
 
 func (c *Context) GetStrings(key string) (val []string, ok bool) {
-	val, ok = c.req.URL.Query()[key]
+	//like php style
+	val, ok = c.req.URL.Query()[key+"[]"]
 	return
 }
 
@@ -356,7 +357,8 @@ func (c *Context) PostData() map[string][]string {
 }
 
 func (c *Context) PostStrings(key string) (val []string, ok bool) {
-	val, ok = c.req.PostForm[key]
+	//like php style
+	val, ok = c.req.PostForm[key+"[]"]
 	return
 }
 
