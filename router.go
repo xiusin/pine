@@ -36,7 +36,7 @@ func NewBuildInRouter(opt *option.Option) *Router {
 		groups:       map[string]*Router{},
 		base: &base{
 			option:         opt,
-			notFound:       func(c *Context) { c.Writer().Write(tpl404) },
+			notFound:       func(c *Context) { c.Writer().Write([]byte(tpl404)) },
 			pool:           &sync.Pool{New: func() interface{} { return NewContext(opt) }},
 			recoverHandler: DefaultRecoverHandler,
 		},

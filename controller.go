@@ -41,8 +41,20 @@ func (c *Controller) Session() interfaces.ISession {
 	return c.sess
 }
 
+func (c *Controller) View(name string) error {
+	return c.ctx.render.HTML(name)
+}
+
+func (c *Controller) ViewData(key string, val interface{}) {
+	c.ctx.render.ViewData(key, val)
+}
+
 func (c *Controller) Render() *Render {
-	return c.ctx.Render()
+	return c.ctx.render
+}
+
+func (c *Controller) Param() *Params {
+	return c.ctx.params
 }
 
 func (c *Controller) Logger() interfaces.ILogger {
@@ -85,17 +97,15 @@ func (u *controllerMappingRoute) warpControllerHandler(method string, c IControl
 	return func(context *Context) {
 		c := reflect.New(refValCtrl.Elem().Type()) // 利用反射构建变量得到value值
 		rs := reflect.Indirect(c)
-		rf := rs.FieldByName("ctx") // 利用unsafe设置ctx的值
+		rf := rs.FieldByName("ctx") // 利用unsafe设置ctx的值，只提供Ctx()API，不允许修改
 		ptr := unsafe.Pointer(rf.UnsafeAddr())
 		*(**Context)(ptr) = context
-		u.autoRegisterService(&c)
-		// 判断是否存在BeforeAction， 执行前置操作
-		if c.MethodByName("BeforeAction").IsValid() {
+		u.autoRegisterService(&c)                     // 对控制器注册的字段自动实例字段
+		if c.MethodByName("BeforeAction").IsValid() { // 执行前置操作
 			c.MethodByName("BeforeAction").Call([]reflect.Value{})
 		}
 		c.MethodByName(method).Call([]reflect.Value{})
-		// 判断是否存在AfterAction， 执行后置操作
-		if c.MethodByName("AfterAction").IsValid() {
+		if c.MethodByName("AfterAction").IsValid() { //执行后置操作
 			c.MethodByName("AfterAction").Call([]reflect.Value{})
 		}
 	}

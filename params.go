@@ -11,7 +11,7 @@ func NewParams(data map[string]string) *Params {
 }
 
 func (c *Params) Reset() {
-	c.data = map[string]string{}
+	c.data = make(map[string]string)
 }
 
 func (c *Params) Set(key, value string) {

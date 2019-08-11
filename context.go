@@ -29,7 +29,7 @@ type Context struct {
 	middlewareIndex int                    // 中间件起始索引
 	status          int                    //保存状态码
 	Msg             string                 // 附加信息（临时方案， 不知道怎么获取设置的值）
-	Keys            map[string]interface{} //设置上下文绑定内容
+	keys            map[string]interface{} //设置上下文绑定内容
 }
 
 func NewContext(opt *option.Option) *Context {
@@ -49,12 +49,12 @@ func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
 	c.stopped = false
 	c.Msg = ""
 	c.status = http.StatusOK
-	c.initComponent(res, req)
+	c.initCtxComponent(res, req)
 }
 
-func (c *Context) initComponent(res http.ResponseWriter, req *http.Request) {
+func (c *Context) initCtxComponent(res http.ResponseWriter, req *http.Request) {
 	if c.params == nil {
-		c.params = NewParams(map[string]string{})
+		c.params = NewParams(make(map[string]string))
 	} else {
 		c.params.Reset()
 	}
@@ -71,7 +71,7 @@ func (c *Context) initComponent(res http.ResponseWriter, req *http.Request) {
 }
 
 func (c *Context) Flush(content []byte) {
-
+	//TODO
 }
 
 // 重定向
@@ -223,15 +223,7 @@ func (c *Context) Status() int {
 
 // 附加数据的context
 func (c *Context) Set(key string, value interface{}) {
-	c.Keys[key] = value
-}
-func (c *Context) Value(key interface{}) interface{} {
-	if keyAsString, ok := key.(string); ok {
-		if val, ok := c.Keys[keyAsString]; ok {
-			return val
-		}
-	}
-	return nil
+	c.keys[key] = value
 }
 
 // 判断是不是ajax请求
@@ -268,7 +260,7 @@ func (c *Context) ClientIP() string {
 
 // ************************************** GET QUERY METHOD ***************************************************** //
 
-func (c *Context) Get() map[string][]string {
+func (c *Context) GetData() map[string][]string {
 	return c.req.URL.Query()
 }
 
@@ -371,6 +363,15 @@ func (c *Context) Files(key string) (val []*multipart.FileHeader) {
 
 func (c *Context) Deadline() (deadline time.Time, ok bool) {
 	return
+}
+
+func (c *Context) Value(key interface{}) interface{} {
+	if keyAsString, ok := key.(string); ok {
+		if val, ok := c.keys[keyAsString]; ok {
+			return val
+		}
+	}
+	return nil
 }
 
 func (c *Context) Done() <-chan struct{} {

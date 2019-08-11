@@ -92,7 +92,10 @@ func getCookieOption() {
 		hashKey = []byte(hk)
 		blockKey = []byte(bk)
 		s := viper.Get("cookie.serializer")
-		if s == nil || hk == "" || bk == "" {
+		if bk == "" || hk == "" {
+			panic("请设置配置项: cookie.hash_key 和 cookie.block_key")
+		}
+		if s == nil {
 			encoder = &securecookie.NopEncoder{}
 		} else {
 			encoder = s.(securecookie.Serializer)

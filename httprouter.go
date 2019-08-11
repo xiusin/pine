@@ -27,7 +27,7 @@ func NewHttpRouter(opt *option.Option) *Httprouter {
 	r := &Httprouter{
 		router: httprouter.New(),
 		base: &base{
-			notFound:       func(c *Context) { c.Writer().Write(tpl404) },
+			notFound:       func(c *Context) { c.Writer().Write([]byte(tpl404)) },
 			pool:           &sync.Pool{New: func() interface{} { return NewContext(opt) }},
 			option:         opt,
 			recoverHandler: DefaultRecoverHandler,
