@@ -3,6 +3,7 @@ package log
 import (
 	"fmt"
 	"github.com/natefinch/lumberjack"
+	"github.com/spf13/viper"
 	"github.com/xiusin/router/components/logger"
 	"github.com/xiusin/router/components/path"
 	"log"
@@ -21,6 +22,9 @@ type Logger struct {
 func New(options *Options) *Logger {
 	if options == nil {
 		options = DefaultOptions()
+	}
+	if viper.GetInt("env") == 0 {
+		options.OutPutToConsole = true
 	}
 	l := &Logger{
 		info: log.New(&lumberjack.Logger{
@@ -91,7 +95,11 @@ func (l *Logger) getCaller() string {
 	if l.config.RecordCaller {
 		_, callerFile, line, ok := runtime.Caller(2)
 		if ok {
-			return " " + strings.Replace(callerFile, strings.Replace(path.RootPath()+"/", "\\", "/", -1), "", 1) + ":" + strconv.Itoa(line) + ":"
+			goPath := os.Getenv("GOPATH") + "/src/"
+			rootPath := path.RootPath() + "/"
+			callerFile = strings.TrimPrefix(callerFile, strings.Replace(goPath, "\\", "/", -1))
+			callerFile = strings.TrimPrefix(callerFile, strings.Replace(rootPath, "\\", "/", -1))
+			return " " + callerFile + ":" + strconv.Itoa(line) + ":"
 		}
 	}
 	return ""

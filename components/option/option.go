@@ -75,9 +75,6 @@ func Default() *Option {
 
 // 参数注入到viper内
 func (o *Option) ToViper() {
-	if o.IsDevMode() {
-		viper.Debug()
-	}
 	AddGlobal("csrf_name", o.csrfName)
 	AddGlobal("csrf_lifetime", o.csrfLifeTime)
 	AddGlobal("cookie.secure", o.cookie.Secure)
@@ -87,6 +84,10 @@ func (o *Option) ToViper() {
 	AddGlobal("cookie.block_key", o.cookie.BlockKey)
 	AddGlobal("cookie.serializer", o.cookie.Serializer)
 	AddGlobal("env", o.env)
+}
+
+func (o *Option) SetDebug() {
+	viper.Debug()
 }
 
 func (o *Option) GetEnv() int {

@@ -28,8 +28,8 @@ func (d *Definition) ServiceName() string {
 	return d.serviceName
 }
 
-func (d *Definition) IsShared() bool {
-	return d.shared
+func (d *Definition) IsSingleton() bool {
+	return d.shared == true
 }
 
 func (d *Definition) IsResolved() bool {
@@ -39,9 +39,9 @@ func (d *Definition) IsResolved() bool {
 func (d *Definition) resolve(builder BuilderInf) (service interface{}, err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
-	if !d.IsResolved() || !d.IsShared() {
+	if !d.IsResolved() || !d.IsSingleton() {
 		service, err = d.factory(builder)
-		if d.IsShared() && !d.IsResolved() {
+		if d.IsSingleton() && !d.IsResolved() {
 			d.instance = service
 		}
 	} else {
@@ -69,5 +69,6 @@ func NewParamsDefinition(name string, factory BuildWithHandler) *Definition {
 	return &Definition{
 		serviceName:   name,
 		paramsFactory: factory,
+		shared:        true,
 	}
 }

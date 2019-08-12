@@ -13,7 +13,7 @@ import (
 
 type Router struct {
 	*base
-	Prefix       string
+	prefix       string
 	methodRoutes map[string]map[string]*RouteEntry //分类命令规则
 	middleWares  []Handler
 	groups       map[string]*Router // 分组路由保存
@@ -48,6 +48,10 @@ func NewBuildInRouter(opt *option.Option) *Router {
 	return r
 }
 
+func (r *Router) GetPrefix() string {
+	return r.prefix
+}
+
 func (r *Router) Handle(c IController) {
 	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
 	r.autoRegisterControllerRoute(r, refVal, refType, c)
@@ -58,7 +62,7 @@ func (r *Router) Handle(c IController) {
 // *filepath 指定router.Static代理目录下所有文件标志
 // :param 支持路由段内嵌
 func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) *RouteEntry {
-	originName := r.Prefix + path
+	originName := r.GetPrefix() + path
 	var (
 		params    []string
 		pattern   string
@@ -71,9 +75,9 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) *
 		for cons, str := range patternMap { //替换正则匹配映射
 			path = strings.Replace(path, cons, str, -1)
 		}
-		isPattern, _ := regexp.MatchString("[:*]", r.Prefix+path)
+		isPattern, _ := regexp.MatchString("[:*]", r.GetPrefix()+path)
 		if isPattern {
-			uriPartials := strings.Split(r.Prefix+path, urlSeparator)[1:]
+			uriPartials := strings.Split(r.GetPrefix()+path, urlSeparator)[1:]
 			for _, v := range uriPartials {
 				if strings.Contains(v, ":") {
 					pattern = pattern + urlSeparator + patternRouteCompiler.ReplaceAllStringFunc(v, func(s string) string {
@@ -171,7 +175,7 @@ func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *RouteEntry {
 
 // 路由分组
 func (r *Router) Group(prefix string, middleWares ...Handler) *Router {
-	g := &Router{Prefix: prefix}
+	g := &Router{prefix: prefix}
 	g.methodRoutes = initRouteMap()
 	g.middleWares = append(g.middleWares, middleWares...)
 	r.groups[prefix] = g

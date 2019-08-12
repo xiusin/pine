@@ -31,6 +31,7 @@ type (
 	}
 
 	IRouter interface {
+		GetPrefix() string
 		AddRoute(method, path string, handle Handler, mws ...Handler) *RouteEntry
 		GET(path string, handle Handler, mws ...Handler) *RouteEntry
 		POST(path string, handle Handler, mws ...Handler) *RouteEntry
@@ -46,6 +47,7 @@ type (
 	}
 
 	base struct {
+		started        bool
 		handler        http.Handler
 		recoverHandler Handler
 		pool           *sync.Pool
@@ -71,6 +73,9 @@ func (r *base) autoRegisterControllerRoute(ro IRouter, refVal reflect.Value, ref
 	if method.IsValid() {
 		method.Call([]reflect.Value{reflect.ValueOf(newUrlMappingRoute(ro, c))}) // 如果实现了RegisterRoute接口, 则调用函数
 	} else { // 自动根据前缀注册路由
+		di.MustGet("logger").(interfaces.ILogger).Printf(
+			"%s not exists method RegisterRoute(*controllerMappingRoute), reflect %s method",
+			refType.String(), refType.String())
 		methodNum, routeWrapper := refType.NumMethod(), newUrlMappingRoute(ro, c)
 		for i := 0; i < methodNum; i++ {
 			name := refType.Method(i).Name
@@ -84,9 +89,12 @@ func (r *base) autoRegisterControllerRoute(ro IRouter, refVal reflect.Value, ref
 // 自动注册映射处理函数的http请求方法
 func (r *base) autoMatchHttpMethod(ro IRouter, path string, handle Handler) {
 	var methods = map[string]routeMaker{"Get": ro.GET, "Post": ro.POST, "Head": ro.HEAD, "Delete": ro.DELETE, "Put": ro.PUT}
+	fmtStr := "autoRegisterRoute:[method: %s] %s"
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
-			routeMaker(urlSeparator+r.upperCharToUnderLine(strings.TrimLeft(path, method)), handle)
+			route := urlSeparator + r.upperCharToUnderLine(strings.TrimLeft(path, method))
+			di.MustGet("logger").(interfaces.ILogger).Printf(fmtStr, method, ro.GetPrefix()+route)
+			routeMaker(route, handle)
 		}
 	}
 }
@@ -108,6 +116,10 @@ func (r *base) SetNotFound(handler Handler) {
 }
 
 func (r *base) Serve() {
+	if r.started {
+		panic("serve is already started")
+	}
+	r.started = true
 	r.option.ToViper()
 	done, quit := make(chan bool, 1), make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)

@@ -30,7 +30,7 @@ func DefaultOptions() *Options {
 		MaxBackups:         3,
 		Compress:           true,
 		LogFlag:            log.LstdFlags,
-		OutPutToConsole:    false, //为false不输出到stdout, 开启会损失性能
+		OutPutToConsole:    false, //debug时可开启
 		RecordCaller:       true,
 	}
 }

@@ -3,6 +3,7 @@ package zap
 import (
 	"fmt"
 	"github.com/natefinch/lumberjack"
+	"github.com/spf13/viper"
 	"go.uber.org/zap/zapcore"
 	"io"
 	"os"
@@ -20,6 +21,9 @@ type Logger struct {
 func New(options *Options) *Logger {
 	if options == nil {
 		options = DefaultOptions()
+	}
+	if viper.GetInt("env") == 0 {
+		options.Console = true
 	}
 	infoLevelEnabler := zap.LevelEnablerFunc(func(level zapcore.Level) bool {
 		return zapcore.InfoLevel >= zapcore.Level(options.Level)

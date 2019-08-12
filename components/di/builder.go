@@ -5,28 +5,38 @@ import (
 	"sync"
 )
 
-type BuildHandler func(builder BuilderInf) (interface{}, error)
-type BuildWithHandler func(builder BuilderInf, params ...interface{}) (interface{}, error)
+type (
+	/**
+	  1. 带参数解析的服务必须是不共享的,否则会出现异常.
+	  2. 参数必须按顺序传入
+	*/
+	BuilderInf interface {
+		Set(string, BuildHandler, bool) *Definition
+		SetWithParams(string, BuildWithHandler) *Definition
+		Add(*Definition)
+		Get(string, ...interface{}) (interface{}, error)
+		GetWithParams(string, ...interface{}) (interface{}, error)
+		MustGet(string, ...interface{}) interface{}
+		GetDefinition(string) (*Definition, error)
+		Delete(string)
+		Exists(string) bool
+	}
+	builder struct {
+		mu       sync.RWMutex
+		services map[string]*Definition
+	}
+	BuildHandler     func(builder BuilderInf) (interface{}, error)
+	BuildWithHandler func(builder BuilderInf, params ...interface{}) (interface{}, error)
+)
 
-/**
-1. 带参数解析的服务必须是不共享的,否则会出现异常.
-2. 参数必须按顺序传入
-*/
-type BuilderInf interface {
-	Set(string, BuildHandler, bool) *Definition
-	SetWithParams(string, BuildWithHandler) *Definition
-	Add(*Definition)
-	Get(string, ...interface{}) (interface{}, error)
-	GetWithParams(string, ...interface{}) (interface{}, error)
-	MustGet(string, ...interface{}) interface{}
-	GetDefinition(string) (*Definition, error)
-	Delete(string)
-	Exists(string) bool
+const singleton = true
+
+func Singleton() bool {
+	return singleton
 }
 
-type builder struct {
-	mu       sync.RWMutex
-	services map[string]*Definition
+func NoSingleton() bool {
+	return !singleton
 }
 
 func (b *builder) GetDefinition(serviceName string) (*Definition, error) {
@@ -39,9 +49,9 @@ func (b *builder) GetDefinition(serviceName string) (*Definition, error) {
 	return service, nil
 }
 
-func (b *builder) Set(serviceName string, handler BuildHandler, shared bool) *Definition {
+func (b *builder) Set(serviceName string, handler BuildHandler, singleton bool) *Definition {
 	b.mu.Lock()
-	def := NewDefinition(serviceName, handler, shared)
+	def := NewDefinition(serviceName, handler, singleton)
 	b.services[serviceName] = def
 	b.mu.Unlock()
 	return def
@@ -72,7 +82,7 @@ func (b *builder) Get(serviceName string, receiver ...interface{}) (interface{},
 	if err != nil {
 		return nil, err
 	}
-	for idx, _ := range receiver {
+	for idx := range receiver {
 		receiver[idx] = service
 	}
 	return s, nil
@@ -85,8 +95,8 @@ func (b *builder) GetWithParams(serviceName string, params ...interface{}) (inte
 	if !ok {
 		return nil, errors.New("service " + serviceName + " not exists")
 	}
-	if service.IsShared() == false {
-		return nil, errors.New("service is not shared, cannot get it with GetWithParams")
+	if !service.IsSingleton() {
+		return nil, errors.New("service is not singleton, cannot use it with GetWithParams")
 	}
 	s, err := service.resolveWithParams(b, params...)
 	if err != nil {
@@ -148,8 +158,8 @@ func GetDefinition(serviceName string) (*Definition, error) {
 	return diDefault.GetDefinition(serviceName)
 }
 
-func Set(serviceName string, handler BuildHandler, shared bool) *Definition {
-	return diDefault.Set(serviceName, handler, shared)
+func Set(serviceName string, handler BuildHandler, singleton bool) *Definition {
+	return diDefault.Set(serviceName, handler, singleton)
 }
 
 func SetWithParams(serviceName string, handler BuildWithHandler) *Definition {
@@ -158,4 +168,13 @@ func SetWithParams(serviceName string, handler BuildWithHandler) *Definition {
 
 func GetWithParams(serviceName string, params ...interface{}) (interface{}, error) {
 	return diDefault.GetWithParams(serviceName, params...)
+}
+
+// get all registered services
+func List() []string {
+	var names []string
+	for name := range diDefault.services {
+		names = append(names, name)
+	}
+	return names
 }

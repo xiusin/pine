@@ -161,6 +161,10 @@ func (r *Httprouter) AddRoute(method, path string, handle Handler, mws ...Handle
 	return nil
 }
 
+func (r *Httprouter) GetPrefix() string {
+	return tempGroupPrefix
+}
+
 // 处理控制器注册的方式
 func (r *Httprouter) Handle(c IController) {
 	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
