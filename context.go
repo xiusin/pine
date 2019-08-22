@@ -45,10 +45,10 @@ func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
 	c.req = req
 	c.res = res
 	c.middlewareIndex = -1
+	c.status = http.StatusOK
 	c.route = nil
 	c.stopped = false
 	c.Msg = ""
-	c.status = http.StatusOK
 	c.initCtxComponent(res, req)
 }
 
@@ -70,8 +70,9 @@ func (c *Context) initCtxComponent(res http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func (c *Context) Flush(content []byte) {
+func (c *Context) Flush() {
 	//TODO
+	c.Writer().(http.Flusher).Flush()
 }
 
 // 重定向
