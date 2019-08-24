@@ -19,7 +19,7 @@ https://www.jianshu.com/p/4417af75a9f4
 4. 支持controller级别的前置：`BeforeAction`和后置操作: `AfterAction`
 5. 支持controller结构体自注册组件（通过结构体标签属性`service:session`注册一个session组件），通过DI自动查找， 提供非法服务则抛异常
 6. 内置两种不同的router： `BuildInRouter` (自写) 和 `Httprouter` （httprouter）
-7. 所有组件通过接口方式实现， 内部依赖均可通过实现接口替换DI注册
+7. 所有组件通过接口方式实现， 内部依赖均可通过实现接口替换DI注册 
  
 ## 疑惑不解之处 ##
  - [ ] 为什么内嵌的httprouter.router无法继承实现的接口？？

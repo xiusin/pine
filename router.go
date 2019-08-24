@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/xiusin/router/components/event"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -199,6 +200,7 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
 // 有可处理函数
 func (r *Router) handle(c *Context, urlParsed *url.URL) {
+	event.Trigger(event.EventRequestBefore, c.req)
 	route := r.matchRoute(c, urlParsed)
 	if route != nil {
 		if r.option.GetMaxMultipartMemory() > 0 && c.req.Header.Get("Content-Type") == "multipart/form-data" {
@@ -214,6 +216,7 @@ func (r *Router) handle(c *Context, urlParsed *url.URL) {
 			r.notFound(c)
 		}
 	}
+	event.Trigger(event.EventRequestAfter, c)
 }
 
 // 调度路由

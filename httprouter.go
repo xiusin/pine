@@ -1,6 +1,7 @@
 package router
 
 import (
+	"github.com/xiusin/router/components/event"
 	"net/http"
 	"reflect"
 	"strings"
@@ -27,7 +28,7 @@ func NewHttpRouter(opt *option.Option) *Httprouter {
 	r := &Httprouter{
 		router: httprouter.New(),
 		base: &base{
-			notFound:       func(c *Context) { c.Writer().Write([]byte(tpl404)) },
+			notFound: func(c *Context) {c.Writer().Write([]byte(tpl404))},
 			pool:           &sync.Pool{New: func() interface{} { return NewContext(opt) }},
 			option:         opt,
 			recoverHandler: DefaultRecoverHandler,
@@ -49,6 +50,7 @@ var _ IRouter = (*Httprouter)(nil)
 
 //todo 为什么这里不能直接使用base的函数？？？？？？？？？？？？？
 func (r *Httprouter) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	event.Trigger(event.EventRequestBefore, req)
 	r.router.ServeHTTP(res, req)
 }
 
@@ -57,7 +59,7 @@ func (r *Httprouter) warpRecoverHandler() {
 		r.router.PanicHandler = nil
 	} else {
 		r.router.PanicHandler = func(writer http.ResponseWriter, request *http.Request, _ interface{}) {
-			c, _ := r.relsoveContext(writer, request, httprouter.Params{})
+			c, _ := r.resolveContext(writer, request, nil)
 			r.recoverHandler(c)
 		}
 	}
@@ -73,7 +75,7 @@ func (r *Httprouter) warpNotFoundHandler() {
 		r.router.NotFound = nil
 	} else {
 		r.router.NotFound = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-			c, _ := r.relsoveContext(writer, request, httprouter.Params{})
+			c, _ := r.resolveContext(writer, request, nil)
 			r.notFound(c)
 		})
 	}
@@ -116,7 +118,7 @@ func (r *Httprouter) StaticFile(path, file string) {
 	r.GET(path, func(c *Context) { http.ServeFile(c.Writer(), c.Request(), file) })
 }
 
-func (r *Httprouter) relsoveContext(writer http.ResponseWriter, request *http.Request, params httprouter.Params) (*Context, []string) {
+func (r *Httprouter) resolveContext(writer http.ResponseWriter, request *http.Request, params httprouter.Params) (*Context, []string) {
 	c := r.pool.Get().(*Context)
 	c.Reset(writer, request)
 	var pk []string
@@ -131,7 +133,7 @@ func (r *Httprouter) relsoveContext(writer http.ResponseWriter, request *http.Re
 func (r *Httprouter) warpHandle(path string, handle Handler, mws []Handler) httprouter.Handle {
 	r.registerMwsToRoutePath(path, mws)
 	return func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
-		c, pk := r.relsoveContext(writer, request, params)
+		c, pk := r.resolveContext(writer, request, params)
 		defer r.recoverHandler(c)
 		// 合并中间件
 		mws := r.mws[path]
@@ -153,6 +155,7 @@ func (r *Httprouter) warpHandle(path string, handle Handler, mws []Handler) http
 		r.l.Unlock()
 		c.setRoute(route)
 		c.Next()
+		event.Trigger(event.EventRequestAfter, c)
 	}
 }
 
