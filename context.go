@@ -252,7 +252,6 @@ func (c *Context) ClientIP() string {
 	if clientIP != "" {
 		return clientIP
 	}
-
 	if ip, _, err := net.SplitHostPort(strings.TrimSpace(c.req.RemoteAddr)); err == nil {
 		return ip
 	}

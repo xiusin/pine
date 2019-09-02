@@ -2,6 +2,7 @@ package router
 
 import (
 	"github.com/xiusin/router/components/event"
+	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -55,6 +56,9 @@ func (r *Router) GetPrefix() string {
 
 func (r *Router) Handle(c IController) {
 	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
+
+	fmt.Println(refVal.Type())
+
 	r.autoRegisterControllerRoute(r, refVal, refType, c)
 }
 
