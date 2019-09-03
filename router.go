@@ -1,14 +1,14 @@
 package router
 
 import (
-	"github.com/xiusin/router/components/event"
-	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/xiusin/router/components/event"
 
 	"github.com/xiusin/router/components/option"
 )
@@ -56,9 +56,6 @@ func (r *Router) GetPrefix() string {
 
 func (r *Router) Handle(c IController) {
 	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
-
-	fmt.Println(refVal.Type())
-
 	r.autoRegisterControllerRoute(r, refVal, refType, c)
 }
 

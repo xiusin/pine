@@ -12,7 +12,7 @@ import (
 //***********************Controller***********************//
 type (
 	Controller struct {
-		ctx  *Context
+		context  *Context
 		sess interfaces.ISession
 		once sync.Once
 	}
@@ -27,13 +27,13 @@ type (
 )
 
 func (c *Controller) Ctx() *Context {
-	return c.ctx
+	return c.context
 }
 
 func (c *Controller) Session() interfaces.ISession {
 	var err error
 	c.once.Do(func() {
-		c.sess, err = c.ctx.SessionManger().Session(c.ctx.Request(), c.ctx.Writer())
+		c.sess, err = c.context.SessionManger().Session(c.context.Request(), c.context.Writer())
 		if err != nil {
 			panic(err)
 		}
@@ -42,23 +42,23 @@ func (c *Controller) Session() interfaces.ISession {
 }
 
 func (c *Controller) View(name string) error {
-	return c.ctx.render.HTML(name)
+	return c.context.render.HTML(name)
 }
 
 func (c *Controller) ViewData(key string, val interface{}) {
-	c.ctx.render.ViewData(key, val)
+	c.context.render.ViewData(key, val)
 }
 
 func (c *Controller) Render() *Render {
-	return c.ctx.render
+	return c.context.render
 }
 
 func (c *Controller) Param() *Params {
-	return c.ctx.params
+	return c.context.params
 }
 
 func (c *Controller) Logger() interfaces.ILogger {
-	return c.ctx.Logger()
+	return c.context.Logger()
 }
 
 func (c *Controller) AfterAction() {
@@ -97,10 +97,10 @@ func (u *controllerMappingRoute) warpControllerHandler(method string, c IControl
 	return func(context *Context) {
 		c := reflect.New(refValCtrl.Elem().Type()) // 利用反射构建变量得到value值
 		rs := reflect.Indirect(c)
-		rf := rs.FieldByName("ctx") // 利用unsafe设置ctx的值，只提供Ctx()API，不允许修改
+		rf := rs.FieldByName("context") // 利用unsafe设置ctx的值，只提供Ctx()API，不允许修改
 		ptr := unsafe.Pointer(rf.UnsafeAddr())
 		*(**Context)(ptr) = context
-		u.autoRegisterService(&c)                     // 对控制器注册的字段自动实例字段
+		u.autoRegisterService(c)                     // 对控制器注册的字段自动实例字段
 		if c.MethodByName("BeforeAction").IsValid() { // 执行前置操作
 			c.MethodByName("BeforeAction").Call([]reflect.Value{})
 		}
@@ -111,7 +111,7 @@ func (u *controllerMappingRoute) warpControllerHandler(method string, c IControl
 	}
 }
 
-func (u *controllerMappingRoute) autoRegisterService(val *reflect.Value) {
+func (u *controllerMappingRoute) autoRegisterService(val reflect.Value) {
 	e := val.Type().Elem()
 	fieldNum := e.NumField()
 	for i := 0; i < fieldNum; i++ {
@@ -122,7 +122,7 @@ func (u *controllerMappingRoute) autoRegisterService(val *reflect.Value) {
 		}
 		service, err := di.Get(serviceName)
 		if err != nil {
-			panic("自动解析服务：" + serviceName + "失败")
+			panic("auto resolve service \"" + serviceName + "\" failed!")
 		}
 		val.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
 	}
