@@ -12,9 +12,9 @@ import (
 //***********************Controller***********************//
 type (
 	Controller struct {
-		context  *Context
-		sess interfaces.ISession
-		once sync.Once
+		context *Context
+		sess    interfaces.ISession
+		once    sync.Once
 	}
 
 	// 控制器接口定义
@@ -100,14 +100,14 @@ func (u *controllerMappingRoute) warpControllerHandler(method string, c IControl
 		rf := rs.FieldByName("context") // 利用unsafe设置ctx的值，只提供Ctx()API，不允许修改
 		ptr := unsafe.Pointer(rf.UnsafeAddr())
 		*(**Context)(ptr) = context
-		u.autoRegisterService(c)                     // 对控制器注册的字段自动实例字段
+		u.autoRegisterService(c) // 对控制器注册的字段自动实例字段
 		if c.MethodByName("BeforeAction").IsValid() { // 执行前置操作
 			c.MethodByName("BeforeAction").Call([]reflect.Value{})
 		}
-		c.MethodByName(method).Call([]reflect.Value{})
 		if c.MethodByName("AfterAction").IsValid() { //执行后置操作
-			c.MethodByName("AfterAction").Call([]reflect.Value{})
+			defer func() { c.MethodByName("AfterAction").Call([]reflect.Value{}) }()
 		}
+		c.MethodByName(method).Call([]reflect.Value{})
 	}
 }
 
@@ -146,4 +146,8 @@ func (u *controllerMappingRoute) HEAD(path, method string, mws ...Handler) {
 
 func (u *controllerMappingRoute) DELETE(path, method string, mws ...Handler) {
 	u.r.DELETE(path, u.warpControllerHandler(method, u.c), mws...)
+}
+
+func (u *controllerMappingRoute) ANY(path string, handle string, mws ...Handler) {
+	panic("implement me")
 }

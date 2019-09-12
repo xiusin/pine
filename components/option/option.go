@@ -39,9 +39,9 @@ type (
 	}
 )
 
-type optionSetter func(o *Option)
+type OptionSetter func(o *Option)
 
-func New(setter ...optionSetter) *Option {
+func New(setter ...OptionSetter) *Option {
 	opt := Default()
 	for k := range setter {
 		setter[k](opt)

@@ -7,7 +7,6 @@ const (
 	InfoLevel
 	WarnLevel
 	ErrorLevel
-	DPanicLevel
 	PanicLevel
 	FatalLevel
 )
