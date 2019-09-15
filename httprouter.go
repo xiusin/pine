@@ -28,7 +28,7 @@ func NewHttpRouter(opt *option.Option) *Httprouter {
 	r := &Httprouter{
 		router: httprouter.New(),
 		base: &base{
-			notFound: func(c *Context) {c.Writer().Write([]byte(tpl404))},
+			notFound:       func(ctx *Context) { ctx.Writer().Write([]byte(tpl404)) },
 			pool:           &sync.Pool{New: func() interface{} { return NewContext(opt) }},
 			option:         opt,
 			recoverHandler: DefaultRecoverHandler,
@@ -50,7 +50,6 @@ var _ IRouter = (*Httprouter)(nil)
 
 //todo 为什么这里不能直接使用base的函数？？？？？？？？？？？？？
 func (r *Httprouter) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	event.Trigger(event.EventRequestBefore, req)
 	r.router.ServeHTTP(res, req)
 }
 
@@ -119,22 +118,23 @@ func (r *Httprouter) StaticFile(path, file string) {
 }
 
 func (r *Httprouter) resolveContext(writer http.ResponseWriter, request *http.Request, params httprouter.Params) (*Context, []string) {
-	c := r.pool.Get().(*Context)
-	c.Reset(writer, request)
+	ctx := r.pool.Get().(*Context)
+	ctx.Reset(writer, request)
 	var pk []string
 	for i := range params {
 		pk = append(pk, params[i].Key)
-		c.Params().Set(params[i].Key, params[i].Value)
+		ctx.Params().Set(params[i].Key, params[i].Value)
 	}
 	writer.Header().Set("Server", r.option.GetServerName())
-	return c, pk
+	return ctx, pk
 }
 
 func (r *Httprouter) warpHandle(path string, handle Handler, mws []Handler) httprouter.Handle {
 	r.registerMwsToRoutePath(path, mws)
-	return func(writer http.ResponseWriter, request *http.Request, params httprouter.Params) {
-		c, pk := r.resolveContext(writer, request, params)
-		defer r.recoverHandler(c)
+	return func(writer http.ResponseWriter, request *http.Request, _ httprouter.Params) {
+		ctx, pk := r.resolveContext(writer, request, nil)
+		defer r.recoverHandler(ctx)
+		event.Trigger(event.EventRequestBefore, ctx)
 		// 合并中间件
 		mws := r.mws[path]
 		r.l.Lock() //todo 这里需要使用在！ok时加锁，又能屏蔽其他的请求进入到判断
@@ -153,9 +153,9 @@ func (r *Httprouter) warpHandle(path string, handle Handler, mws []Handler) http
 			r.routes[path] = route
 		}
 		r.l.Unlock()
-		c.setRoute(route)
-		c.Next()
-		event.Trigger(event.EventRequestAfter, c)
+		ctx.setRoute(route)
+		ctx.Next()
+		event.Trigger(event.EventRequestAfter, ctx)
 	}
 }
 
