@@ -1,11 +1,12 @@
 package router
 
 import (
-	"github.com/xiusin/router/components/event"
 	"net/http"
 	"reflect"
 	"strings"
 	"sync"
+
+	"github.com/xiusin/router/components/event"
 
 	"github.com/julienschmidt/httprouter"
 	"github.com/xiusin/router/components/option"
@@ -100,6 +101,7 @@ func (r *Httprouter) Group(prefix string, callback func(router *Httprouter), mid
 	tempGroupPrefix = "" //置空
 }
 
+
 func (r *Httprouter) registerMwsToRoutePath(path string, mws []Handler) {
 	r.mws[path] = mws
 }
@@ -131,31 +133,29 @@ func (r *Httprouter) resolveContext(writer http.ResponseWriter, request *http.Re
 
 func (r *Httprouter) warpHandle(path string, handle Handler, mws []Handler) httprouter.Handle {
 	r.registerMwsToRoutePath(path, mws)
+	r.l.Lock()
+
+	route := &RouteEntry{
+		ExtendsMiddleWare: r.globalMws, IsPattern: false,
+		Pattern: "", OriginStr: path, Handle: handle,
+	}
+	for k := range r.innerGroupMws { // 追加分组中间件
+		if strings.Contains(path, k) {
+			route.ExtendsMiddleWare = append(route.ExtendsMiddleWare, r.innerGroupMws[k]...)
+			break
+		}
+	}
+	r.routes[path] = route
+	r.l.Unlock()
 	return func(writer http.ResponseWriter, request *http.Request, _ httprouter.Params) {
 		ctx, pk := r.resolveContext(writer, request, nil)
 		defer r.recoverHandler(ctx)
-		event.Trigger(event.EventRequestBefore, ctx)
-		// 合并中间件
-		mws := r.mws[path]
-		r.l.Lock() //todo 这里需要使用在！ok时加锁，又能屏蔽其他的请求进入到判断
-		route, ok := r.routes[path]
-		if !ok {
-			route = &RouteEntry{
-				ExtendsMiddleWare: r.globalMws, Middleware: mws, IsPattern: false,
-				Pattern: "", OriginStr: path, Handle: handle, Param: pk,
-			}
-			for k := range r.innerGroupMws { // 追加分组中间件
-				if strings.Contains(path, k) {
-					route.ExtendsMiddleWare = append(route.ExtendsMiddleWare, r.innerGroupMws[k]...)
-					break
-				}
-			}
-			r.routes[path] = route
-		}
-		r.l.Unlock()
+		_, _ = event.Trigger(event.EventRequestBefore, ctx)
+		route := r.routes[path]
+		route.Middleware, route.Param = r.mws[path], pk
 		ctx.setRoute(route)
 		ctx.Next()
-		event.Trigger(event.EventRequestAfter, ctx)
+		_, _ = event.Trigger(event.EventRequestAfter, ctx)
 	}
 }
 

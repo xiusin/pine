@@ -1,6 +1,7 @@
 package router
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"reflect"
@@ -72,7 +73,7 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) *
 	)
 	if strings.HasSuffix(path, "*filepath") {
 		// 应对静态目录资源代理
-		isPattern, pattern = true, "^"+strings.TrimSuffix(originName, "/*filepath")+"/(.+)"
+		isPattern, pattern = true, fmt.Sprintf("^%s/(.+)", strings.TrimSuffix(originName, "/*filepath"))
 	} else {
 		for cons, str := range patternMap { //替换正则匹配映射
 			path = strings.Replace(path, cons, str, -1)
