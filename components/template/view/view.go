@@ -1,6 +1,7 @@
 package view
 
 import (
+	"github.com/Masterminds/sprig"
 	"github.com/spf13/viper"
 	"github.com/xiusin/router/components/option"
 	base "github.com/xiusin/router/components/template"
@@ -29,33 +30,34 @@ func New(viewDir string) *Template {
 	return tpl
 }
 
-func (c *Template) AddFunc(funcName string, funcEntry interface{}) {
+func (t *Template) AddFunc(funcName string, funcEntry interface{}) {
 	// 只接受函数参数 .kind大类型  .type 具体类型
 	if reflect.ValueOf(funcEntry).Kind() == reflect.Func {
-		c.l.Lock()
+		t.l.Lock()
 		funcMap[funcName] = funcEntry
-		c.l.Unlock()
+		t.l.Unlock()
 	}
 }
 
-func (c *Template) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
+func (t *Template) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
 	var (
 		tpl *template.Template
 		ok  bool
 		err error
 	)
-	c.l.RLock()
-	tpl, ok = c.cache[name]
-	c.l.RUnlock()
-	if !ok || c.debug {
-		c.l.Lock()
-		defer c.l.Unlock()
-		tpl, err = template.ParseFiles(c.dir + "/" + name)
+	t.l.RLock()
+	tpl, ok = t.cache[name]
+	t.l.RUnlock()
+	if !ok || t.debug {
+		t.l.Lock()
+		defer t.l.Unlock()
+		tpl, err = template.ParseFiles(t.dir + "/" + name)
 		if err != nil {
 			return err
 		}
 		tpl.Funcs(funcMap)
-		c.cache[name] = tpl
+		tpl.Funcs(sprig.FuncMap())
+		t.cache[name] = tpl
 	}
 	return tpl.ExecuteTemplate(writer, name, binding)
 }

@@ -26,25 +26,25 @@ func New(dir string) *Plush {
 	return t
 }
 
-func (c *Plush) AddFunc(funcName string, funcEntry interface{}) {
-	c.l.Lock()
+func (p *Plush) AddFunc(funcName string, funcEntry interface{}) {
+	p.l.Lock()
 	_ = plush.Helpers.Add(funcName, funcEntry)
-	c.l.Unlock()
+	p.l.Unlock()
 }
 
-func (c *Plush) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
-	c.l.RLock()
-	html, ok := c.cache[name]
-	c.l.RUnlock()
-	if !ok || c.debug {
-		c.l.Lock()
-		defer c.l.Unlock()
-		s, err := ioutil.ReadFile(c.dir + "/" + name) // 读取模板内容
+func (p *Plush) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
+	p.l.RLock()
+	html, ok := p.cache[name]
+	p.l.RUnlock()
+	if !ok || p.debug {
+		p.l.Lock()
+		defer p.l.Unlock()
+		s, err := ioutil.ReadFile(p.dir + "/" + name) // 读取模板内容
 		if err != nil {
 			return err
 		}
-		c.cache[name] = string(s)
-		html = c.cache[name]
+		p.cache[name] = string(s)
+		html = p.cache[name]
 	}
 	html, err := plush.BuffaloRenderer(html, binding, nil)
 	if err != nil {

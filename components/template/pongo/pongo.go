@@ -24,35 +24,35 @@ func New(dir string) *Pongo {
 	return t
 }
 
-func (c *Pongo) GetTs() *pongo2.TemplateSet {
-	return c.ts
+func (p *Pongo) GetTs() *pongo2.TemplateSet {
+	return p.ts
 }
 
-func (c *Pongo) AddFunc(funcName string, funcEntry interface{}) {
+func (p *Pongo) AddFunc(funcName string, funcEntry interface{}) {
 	//todo 提交函数 pongo内容是怎么
 	//pongo2.RegisterFilter(funcName,)
 }
 
-func (c *Pongo) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
+func (p *Pongo) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
 	var (
 		tpl *pongo2.Template
 		ok  bool
 		err error
 	)
-	c.l.RLock()
-	tpl, ok = c.cache[name]
-	c.l.RUnlock()
-	if !ok || c.ts.Debug {
-		if c.ts.Debug {
-			tpl, err = c.ts.FromFile(name)
+	p.l.RLock()
+	tpl, ok = p.cache[name]
+	p.l.RUnlock()
+	if !ok || p.ts.Debug {
+		if p.ts.Debug {
+			tpl, err = p.ts.FromFile(name)
 		} else {
-			tpl, err = c.ts.FromCache(name)
+			tpl, err = p.ts.FromCache(name)
 			if err != nil {
 				return err
 			}
-			c.l.Lock()
-			c.cache[name] = tpl
-			c.l.Unlock()
+			p.l.Lock()
+			p.cache[name] = tpl
+			p.l.Unlock()
 		}
 	}
 	return tpl.ExecuteWriter(pongo2.Context(binding), writer)
