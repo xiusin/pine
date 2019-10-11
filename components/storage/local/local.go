@@ -69,7 +69,7 @@ func (o *Local) List(dir ...string) (fs []os.FileInfo, err error) {
 }
 
 func init() {
-	storage.Register("local", func(option storage.Option) storage.Storage {
+	storage.Register("local", func(option storage.Option) storage.IStorage {
 		opt := option.(*Option)
 		opt.LocalBaseDir = strings.TrimRight(opt.LocalBaseDir, "/") + "/"
 		opt.Domain = strings.TrimRight(opt.Domain, "/") + "/"

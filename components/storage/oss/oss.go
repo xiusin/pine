@@ -138,7 +138,7 @@ func (o *Option) checkValid() bool {
 }
 
 func init() {
-	storage.Register("oss", func(option storage.Option) storage.Storage {
+	storage.Register("oss", func(option storage.Option) storage.IStorage {
 		opt := option.(*Option)
 		if !opt.checkValid() {
 			panic("oss option is not valid")
