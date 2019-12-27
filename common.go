@@ -50,7 +50,7 @@ func GracefulShutdown(srv *http.Server, quit <-chan os.Signal, done chan<- bool)
 	defer cancel()
 	srv.SetKeepAlivesEnabled(false)
 	if err := srv.Shutdown(ctx); err != nil {
-		fmt.Errorf("could not gracefully shutdown the server: %v\n", err)
+		panic("could not gracefully shutdown the server: %v\n" +  err.Error())
 	}
 	for _, beforeHandler := range shutdownBeforeHandler {
 		beforeHandler()

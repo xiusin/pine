@@ -72,37 +72,39 @@ func (c *Context) Flush() {
 	c.Writer().(http.Flusher).Flush()
 }
 
-// 重定向
+func (c *Context) Render() *Render {
+	return c.render
+}
+
+func (c *Context) Params() *Params {
+	return c.params
+}
+
+func (c *Context) ParseForm() error {
+	return c.req.ParseMultipartForm(c.options.GetMaxMultipartMemory())
+}
+
+func (c *Context) Request() *http.Request {
+	return c.req
+}
+
+func (c *Context) Header(key string) string {
+	return c.req.Header.Get(key)
+}
+
+func (c *Context) Logger() interfaces.ILogger {
+	return di.MustGet("logger").(interfaces.ILogger)
+}
+
+func (c *Context) Writer() http.ResponseWriter {
+	return c.res
+}
+
 func (c *Context) Redirect(url string, statusHeader ...int) {
 	if len(statusHeader) == 0 {
 		statusHeader[0] = http.StatusFound
 	}
 	http.Redirect(c.res, c.req, url, statusHeader[0])
-}
-
-// 获取路由参数
-func (c *Context) Params() *Params {
-	return c.params
-}
-
-// 获取响应
-func (c *Context) Writer() http.ResponseWriter {
-	return c.res
-}
-
-// 获取响应
-func (c *Context) Request() *http.Request {
-	return c.req
-}
-
-// 获取模板引擎
-func (c *Context) Render() *Render {
-	return c.render
-}
-
-// 日志对象
-func (c *Context) Logger() interfaces.ILogger {
-	return di.MustGet("logger").(interfaces.ILogger)
 }
 
 func (c *Context) SessionManger() interfaces.ISessionManager {
@@ -113,43 +115,20 @@ func (c *Context) SessionManger() interfaces.ISessionManager {
 	return sessionInf
 }
 
-func (c *Context) Header(key string) string {
-	return c.req.Header.Get(key)
+func (c *Context) Stop() {
+	c.stopped = true
 }
 
-func (c *Context) ParseForm() error {
-	return c.req.ParseMultipartForm(c.options.GetMaxMultipartMemory())
+func (c *Context) IsStopped() bool {
+	return c.stopped
 }
 
-// 执行下个中间件
-func (c *Context) Next() {
-	if c.IsStopped() == true {
-		return
-	}
-	c.middlewareIndex++
-	mws := c.route.ExtendsMiddleWare
-	mws = append(mws, c.route.Middleware...)
-	length := len(mws)
-	if length == c.middlewareIndex {
-		c.route.Handle(c)
-	} else {
-		mws[c.middlewareIndex](c)
-	}
-}
-
-// 设置当前处理路由对象
-func (c *Context) setRoute(route *RouteEntry) {
-	c.route = route
-}
-
-// 获取当前路由对象
 func (c *Context) getRoute() *RouteEntry {
 	return c.route
 }
 
-// 判断中间件是否停止
-func (c *Context) IsStopped() bool {
-	return c.stopped
+func (c *Context) setRoute(route *RouteEntry) {
+	c.route = route
 }
 
 func (c *Context) Abort(statusCode int, msg string) {
@@ -163,47 +142,36 @@ func (c *Context) Abort(statusCode int, msg string) {
 	}
 }
 
-// 停止中间件执行 即接下来的中间件以及handler会被忽略.
-func (c *Context) Stop() {
-	c.stopped = true
-}
-
-// 发送file
 func (c *Context) SendFile(filepath string) {
 	http.ServeFile(c.res, c.req, filepath)
-}
-
-// 设置状态码
-func (c *Context) SetStatus(statusCode int) {
-	c.status = statusCode
-	c.res.WriteHeader(statusCode)
 }
 
 func (c *Context) Status() int {
 	return c.status
 }
 
-// 附加数据的context
+func (c *Context) SetStatus(statusCode int) {
+	c.status = statusCode
+	c.res.WriteHeader(statusCode)
+}
+
+
 func (c *Context) Set(key string, value interface{}) {
 	c.keys[key] = value
 }
 
-// 判断是不是ajax请求
 func (c *Context) IsAjax() bool {
 	return c.Header("X-Requested-With") == "XMLHttpRequest"
 }
 
-// 判断是不是Get请求
 func (c *Context) IsGet() bool {
 	return c.req.Method == http.MethodGet
 }
 
-// 判断是不是Post请求
 func (c *Context) IsPost() bool {
 	return c.req.Method == http.MethodPost
 }
 
-// 获取客户端IP
 func (c *Context) ClientIP() string {
 	clientIP := c.Header("X-Forwarded-For")
 	clientIP = strings.TrimSpace(strings.Split(clientIP, ",")[0])

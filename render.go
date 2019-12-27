@@ -34,24 +34,16 @@ func (c *Render) Rendered() bool {
 	return c.applied
 }
 
-func (c *Render) ViewData(key string, val interface{}) {
-	c.tplData[key] = val
+func (c *Render) XML(v H) error {
+	return c.engine.XML(c.writer, v)
 }
 
 func (c *Render) JSON(v H) error {
 	return c.engine.JSON(c.writer, v)
 }
 
-func (c *Render) JSONP(callback string, v H) error {
-	return c.engine.JSONP(c.writer, callback, v)
-}
-
 func (c *Render) Text(v []byte) error {
 	return c.engine.Text(c.writer, v)
-}
-
-func (c *Render) XML(v H) error {
-	return c.engine.XML(c.writer, v)
 }
 
 func (c *Render) HTML(name string) error {
@@ -60,4 +52,12 @@ func (c *Render) HTML(name string) error {
 	}
 	c.applied = true
 	return nil
+}
+
+func (c *Render) JSONP(callback string, v H) error {
+	return c.engine.JSONP(c.writer, callback, v)
+}
+
+func (c *Render) ViewData(key string, val interface{}) {
+	c.tplData[key] = val
 }
