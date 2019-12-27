@@ -2,15 +2,12 @@ package router
 
 import (
 	"context"
-	"fmt"
 	"github.com/xiusin/router/components/option"
-	"math/rand"
 	"mime/multipart"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/xiusin/router/components/di"
 	"github.com/xiusin/router/components/di/interfaces"
@@ -133,16 +130,10 @@ func (c *Context) Next() {
 	mws := c.route.ExtendsMiddleWare
 	mws = append(mws, c.route.Middleware...)
 	length := len(mws)
-	if length > c.middlewareIndex {
-		idx := c.middlewareIndex
-		mws[c.middlewareIndex](c)
-		if length == idx {
-			c.route.Handle(c)
-			return
-		}
-	} else {
-		// no mws
+	if length == c.middlewareIndex {
 		c.route.Handle(c)
+	} else {
+		mws[c.middlewareIndex](c)
 	}
 }
 
@@ -175,37 +166,6 @@ func (c *Context) Abort(statusCode int, msg string) {
 // 停止中间件执行 即接下来的中间件以及handler会被忽略.
 func (c *Context) Stop() {
 	c.stopped = true
-}
-
-// ********************************** COOKIE ************************************************** //
-func (c *Context) SetCookie(name string, value interface{}, maxAge int) error {
-	return c.cookie.Set(name, value, maxAge)
-}
-
-func (c *Context) ExistsCookie(name string) bool {
-	_, err := c.req.Cookie(name)
-	if err != nil {
-		return false
-	}
-	return true
-}
-
-func (c *Context) GetCookie(name string, receiver interface{}) error {
-	return c.cookie.Get(name, receiver)
-}
-
-func (c *Context) RemoveCookie(name string) {
-	c.cookie.Delete(name)
-}
-
-func (c *Context) GetToken() string {
-	r := rand.Int()
-	t := time.Now().UnixNano()
-	token := fmt.Sprintf("%d%d", r, t)
-	if err := c.cookie.Set(c.options.GetCsrfName(), token, int(c.options.GetCsrfLiftTime())); err != nil {
-		panic(err)
-	}
-	return token
 }
 
 // 发送file
@@ -268,8 +228,7 @@ func (c *Context) GetData() map[string][]string {
 func (c *Context) GetInt(key string, defaultVal ...int) (val int, res bool) {
 	val, err := strconv.Atoi(c.req.URL.Query().Get(key))
 	if err != nil && len(defaultVal) > 0 {
-		val = defaultVal[0]
-		res = true
+		val, res = defaultVal[0], true
 	}
 	return
 }
@@ -277,8 +236,7 @@ func (c *Context) GetInt(key string, defaultVal ...int) (val int, res bool) {
 func (c *Context) GetInt64(key string, defaultVal ...int64) (val int64, res bool) {
 	val, err := strconv.ParseInt(c.req.URL.Query().Get(key), 10, 64)
 	if err != nil && len(defaultVal) > 0 {
-		val = defaultVal[0]
-		res = true
+		val, res = defaultVal[0], true
 	}
 	return
 }
@@ -286,8 +244,7 @@ func (c *Context) GetInt64(key string, defaultVal ...int64) (val int64, res bool
 func (c *Context) GetFloat64(key string, defaultVal ...float64) (val float64, res bool) {
 	val, err := strconv.ParseFloat(c.req.URL.Query().Get(key), 64)
 	if err != nil && len(defaultVal) > 0 {
-		val = defaultVal[0]
-		res = true
+		val, res = defaultVal[0], true
 	}
 	return
 }
@@ -307,12 +264,10 @@ func (c *Context) GetStrings(key string) (val []string, ok bool) {
 }
 
 // ************************************** GET POST DATA METHOD ********************************************** //
-
 func (c *Context) PostInt(key string, defaultVal ...int) (val int, res bool) {
 	val, err := strconv.Atoi(c.req.PostFormValue(key))
 	if err != nil && len(defaultVal) > 0 {
-		val = defaultVal[0]
-		res = true
+		val, res = defaultVal[0], true
 	}
 	return
 }
@@ -330,8 +285,7 @@ func (c *Context) PostString(key string, defaultVal ...string) (val string, res 
 func (c *Context) PostInt64(key string, defaultVal ...int64) (val int64, res bool) {
 	val, err := strconv.ParseInt(c.req.PostFormValue(key), 10, 64)
 	if err != nil && len(defaultVal) > 0 {
-		val = defaultVal[0]
-		res = true
+		val, res = defaultVal[0], true
 	}
 	return
 }
@@ -339,8 +293,7 @@ func (c *Context) PostInt64(key string, defaultVal ...int64) (val int64, res boo
 func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, res bool) {
 	val, err := strconv.ParseFloat(c.req.PostFormValue(key), 64)
 	if err != nil && len(defaultVal) > 0 {
-		val = defaultVal[0]
-		res = true
+		val, res = defaultVal[0], true
 	}
 	return
 }
@@ -360,25 +313,11 @@ func (c *Context) Files(key string) (val []*multipart.FileHeader) {
 	return
 }
 
-// **************************************** CONTEXT ************************************************** //
-
-func (c *Context) Deadline() (deadline time.Time, ok bool) {
-	return
-}
-
 func (c *Context) Value(key interface{}) interface{} {
 	if keyAsString, ok := key.(string); ok {
 		if val, ok := c.keys[keyAsString]; ok {
 			return val
 		}
 	}
-	return nil
-}
-
-func (c *Context) Done() <-chan struct{} {
-	return nil
-}
-
-func (c *Context) Err() error {
 	return nil
 }

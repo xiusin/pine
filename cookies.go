@@ -1,8 +1,11 @@
 package router
 
 import (
+	"fmt"
+	"math/rand"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/securecookie"
 	"github.com/spf13/viper"
@@ -101,4 +104,35 @@ func getCookieOption() {
 			encoder = s.(securecookie.Serializer)
 		}
 	})
+}
+
+// ********************************** COOKIE ************************************************** //
+func (c *Context) SetCookie(name string, value interface{}, maxAge int) error {
+	return c.cookie.Set(name, value, maxAge)
+}
+
+func (c *Context) ExistsCookie(name string) bool {
+	_, err := c.req.Cookie(name)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func (c *Context) GetCookie(name string, receiver interface{}) error {
+	return c.cookie.Get(name, receiver)
+}
+
+func (c *Context) RemoveCookie(name string) {
+	c.cookie.Delete(name)
+}
+
+func (c *Context) GetToken() string {
+	r := rand.Int()
+	t := time.Now().UnixNano()
+	token := fmt.Sprintf("%d%d", r, t)
+	if err := c.cookie.Set(c.options.GetCsrfName(), token, int(c.options.GetCsrfLiftTime())); err != nil {
+		panic(err)
+	}
+	return token
 }

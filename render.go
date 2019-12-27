@@ -25,25 +25,17 @@ func NewRender(writer http.ResponseWriter) *Render {
 	return &Render{rendererInf, writer, H{}, false}
 }
 
-func (c *Render) Rendered() bool {
-	return c.applied
-}
-
 func (c *Render) Reset(writer http.ResponseWriter) {
 	c.writer = writer
 	c.applied = false
 }
 
-func (c *Render) ViewData(key string, val interface{}) {
-	c.tplData[key] = val
+func (c *Render) Rendered() bool {
+	return c.applied
 }
 
-func (c *Render) HTML(name string) error {
-	if err := c.engine.HTML(c.writer, name, c.tplData); err != nil {
-		return err
-	}
-	c.applied = true
-	return nil
+func (c *Render) ViewData(key string, val interface{}) {
+	c.tplData[key] = val
 }
 
 func (c *Render) JSON(v H) error {
@@ -60,4 +52,12 @@ func (c *Render) Text(v []byte) error {
 
 func (c *Render) XML(v H) error {
 	return c.engine.XML(c.writer, v)
+}
+
+func (c *Render) HTML(name string) error {
+	if err := c.engine.HTML(c.writer, name, c.tplData); err != nil {
+		return err
+	}
+	c.applied = true
+	return nil
 }

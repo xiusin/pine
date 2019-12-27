@@ -34,6 +34,9 @@ var (
 // 实例化路由
 // 如果传入nil 则使用默认配置
 func NewBuildInRouter(opt *option.Option) *Router {
+	if opt == nil {
+		opt = option.Default()
+	}
 	r := &Router{
 		methodRoutes: initRouteMap(),
 		groups:       map[string]*Router{},
@@ -44,9 +47,6 @@ func NewBuildInRouter(opt *option.Option) *Router {
 			recoverHandler: DefaultRecoverHandler,
 		},
 	}
-	if r.option == nil {
-		r.option = option.Default()
-	}
 	r.base.handler = r
 	return r
 }
@@ -56,8 +56,7 @@ func (r *Router) GetPrefix() string {
 }
 
 func (r *Router) Handle(c IController) {
-	refVal, refType := reflect.ValueOf(c), reflect.TypeOf(c)
-	r.autoRegisterControllerRoute(r, refVal, refType, c)
+	r.autoRegisterControllerRoute(r, reflect.ValueOf(c), reflect.TypeOf(c), c)
 }
 
 // 添加路由, 内部函数
@@ -229,12 +228,8 @@ func (r *Router) dispatch(c *Context, req *http.Request) {
 // 初始化RouteMap
 func initRouteMap() map[string]map[string]*RouteEntry {
 	return map[string]map[string]*RouteEntry{
-		http.MethodGet:    {},
-		http.MethodPost:   {},
-		http.MethodPut:    {},
-		http.MethodHead:   {},
-		http.MethodDelete: {},
-		http.MethodPatch:  {},
+		http.MethodGet: {}, http.MethodPost: {}, http.MethodPut: {},
+		http.MethodHead: {}, http.MethodDelete: {}, http.MethodPatch: {},
 	}
 }
 

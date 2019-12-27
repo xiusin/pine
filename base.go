@@ -15,7 +15,6 @@ import (
 	"time"
 
 	"github.com/xiusin/router/components/di"
-	"github.com/xiusin/router/components/logger/adapter/log"
 	"github.com/xiusin/router/components/option"
 )
 
@@ -61,13 +60,6 @@ type (
 	// 定义路由处理函数类型
 	Handler func(*Context)
 )
-
-func init() {
-	di.Set("logger", func(builder di.BuilderInf) (i interface{}, e error) {
-		return log.New(nil), nil
-	}, true)
-	// 👇 添加其他服务或共享服务
-}
 
 // 自动注册控制器映射路由
 func (r *base) autoRegisterControllerRoute(ro IRouter, refVal reflect.Value, refType reflect.Type, c IController) {
