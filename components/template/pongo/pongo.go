@@ -12,20 +12,28 @@ import (
 
 type Pongo struct {
 	template.Template
-	ts    *pongo2.TemplateSet
-	cache map[string]*pongo2.Template
-	l     sync.RWMutex
+	ts     *pongo2.TemplateSet
+	cache  map[string]*pongo2.Template
+	l      sync.RWMutex
+	dir    string
+	suffix string
 }
 
-func New(dir string) *Pongo {
+func New(dir, suffix string) *Pongo {
 	t := &Pongo{ts: pongo2.NewSet("xiusin_templater", pongo2.MustNewLocalFileSystemLoader(dir))}
 	t.ts.Debug = viper.GetInt32("ENV") == option.DevMode
 	t.cache = map[string]*pongo2.Template{}
+	t.dir = dir
+	t.suffix = suffix
 	return t
 }
 
 func (p *Pongo) GetTs() *pongo2.TemplateSet {
 	return p.ts
+}
+
+func (t *Pongo) getViewPath(viewName string) string {
+	return t.dir + "/" + viewName + "." + t.suffix
 }
 
 func (p *Pongo) AddFunc(funcName string, funcEntry interface{}) {
@@ -44,9 +52,9 @@ func (p *Pongo) HTML(writer io.Writer, name string, binding map[string]interface
 	p.l.RUnlock()
 	if !ok || p.ts.Debug {
 		if p.ts.Debug {
-			tpl, err = p.ts.FromFile(name)
+			tpl, err = p.ts.FromFile(p.getViewPath(name))
 		} else {
-			tpl, err = p.ts.FromCache(name)
+			tpl, err = p.ts.FromCache(p.getViewPath(name))
 			if err != nil {
 				return err
 			}
@@ -55,5 +63,5 @@ func (p *Pongo) HTML(writer io.Writer, name string, binding map[string]interface
 			p.l.Unlock()
 		}
 	}
-	return tpl.ExecuteWriter(pongo2.Context(binding), writer)
+	return tpl.ExecuteWriter(binding, writer)
 }

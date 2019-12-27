@@ -24,7 +24,6 @@ func pprofTrace(c *Context) {
 	pprof.Trace(c.Writer(), c.Request())
 }
 
-//https://blog.cyeam.com/golang/2016/08/18/apatternforoptimizinggo
 func EnableProfile(r *Router) {
 	r.GET("/debug/pprof/", pprofIndex)
 	r.GET("/debug/pprof/allocs", pprofIndex)

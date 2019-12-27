@@ -1,7 +1,11 @@
 package router
 
 import (
+	"encoding/json"
+	"fmt"
+	"net/http"
 	"reflect"
+	"strings"
 	"sync"
 	"unsafe"
 
@@ -9,7 +13,10 @@ import (
 	"github.com/xiusin/router/components/di/interfaces"
 )
 
-//***********************Controller***********************//
+//================ Controller ====================//
+
+const ControllerPrefix = "Controller"
+
 type (
 	Controller struct {
 		context *Context
@@ -25,6 +32,15 @@ type (
 		Session() interfaces.ISession
 	}
 )
+
+var ignoreMethods = map[string]struct{}{}
+
+func init() {
+	reft := reflect.TypeOf(&Controller{})
+	for i := 0; i < reft.NumMethod(); i++ {
+		ignoreMethods[reft.Method(i).Name] = struct{}{}
+	}
+}
 
 func (c *Controller) Ctx() *Context {
 	return c.context
@@ -100,18 +116,67 @@ func (u *controllerMappingRoute) warpControllerHandler(method string, c IControl
 		rf := rs.FieldByName("context") // 利用unsafe设置ctx的值，只提供Ctx()API，不允许修改
 		ptr := unsafe.Pointer(rf.UnsafeAddr())
 		*(**Context)(ptr) = context
-		u.autoRegisterService(c) // 对控制器注册的字段自动实例字段
-		if c.MethodByName("BeforeAction").IsValid() { // 执行前置操作
-			c.MethodByName("BeforeAction").Call([]reflect.Value{})
-		}
-		if c.MethodByName("AfterAction").IsValid() { //执行后置操作
-			defer func() { c.MethodByName("AfterAction").Call([]reflect.Value{}) }()
-		}
-		c.MethodByName(method).Call([]reflect.Value{})
+		u.autoRegisterService(c).handlerResult(c, refValCtrl.Elem().Type().Name(), method)
 	}
 }
 
-func (u *controllerMappingRoute) autoRegisterService(val reflect.Value) {
+func (u *controllerMappingRoute) handlerResult(c reflect.Value, ctrlName, method string) {
+	if c.MethodByName("BeforeAction").IsValid() { // 执行前置操作
+		c.MethodByName("BeforeAction").Call([]reflect.Value{})
+	}
+	if c.MethodByName("AfterAction").IsValid() { //执行后置操作
+		defer func() { c.MethodByName("AfterAction").Call([]reflect.Value{}) }()
+	}
+	values := c.MethodByName(method).Call([]reflect.Value{})
+	ctrl := c.MethodByName("Ctx").Call(nil)[0].Interface().(*Context)
+	if len(values) > 0 {
+		var body []byte
+		var status = 0
+		for _, val := range values {
+			if !val.IsValid() {
+				continue
+			}
+			switch v := val.Interface().(type) {
+			case string:
+				body = []byte(v)
+			case []byte:
+				body = v
+			case error:
+				if !val.IsNil() {
+					panic(v)
+				}
+			default:
+				var err error
+				switch val.Type().Kind() {
+				case reflect.Map, reflect.Array, reflect.Slice, reflect.Struct:
+					body, err = json.Marshal(val.Interface())
+					if err != nil {
+						status = http.StatusInternalServerError
+						panic(err)
+					}
+				case reflect.Interface:
+					if val.Elem().IsValid() {
+						body, err = json.Marshal(val.Elem().Interface())
+						if err != nil {
+							status = http.StatusInternalServerError
+							panic(err)
+						}
+					}
+				default:
+					if status == 0 && strings.Contains(strings.ToLower(val.Type().Name()), "int") {
+						body = []byte(fmt.Sprintf("%d", val.Interface()))
+					}
+				}
+			}
+		}
+		ctrl.Render().Text(body)
+	} else if !ctrl.Render().Rendered() { // 没有返回值自动渲染模板
+		tplPath := strings.ToLower(strings.Replace(ctrlName, ControllerPrefix, "", 1) + "/" + method)
+		ctrl.Render().HTML(tplPath)
+	}
+}
+
+func (u *controllerMappingRoute) autoRegisterService(val reflect.Value) *controllerMappingRoute {
 	e := val.Type().Elem()
 	fieldNum := e.NumField()
 	for i := 0; i < fieldNum; i++ {
@@ -126,6 +191,7 @@ func (u *controllerMappingRoute) autoRegisterService(val reflect.Value) {
 		}
 		val.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
 	}
+	return u
 }
 
 func (u *controllerMappingRoute) GET(path, method string, mws ...Handler) {

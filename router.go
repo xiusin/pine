@@ -190,14 +190,13 @@ func (r *Router) Use(middleWares ...Handler) {
 	r.middleWares = append(r.middleWares, middleWares...)
 }
 
-// 处理总线
 func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	c := r.pool.Get().(*Context)
 	defer r.pool.Put(c)
 	c.Reset(res, req)
 	res.Header().Set("Server", r.option.GetServerName())
 	defer r.recoverHandler(c)
-	r.dispatch(c, res, req)
+	r.dispatch(c, req)
 }
 
 // 有可处理函数
@@ -222,7 +221,7 @@ func (r *Router) handle(c *Context, urlParsed *url.URL) {
 }
 
 // 调度路由
-func (r *Router) dispatch(c *Context, res http.ResponseWriter, req *http.Request) {
+func (r *Router) dispatch(c *Context, req *http.Request) {
 	urlParsed, _ := url.ParseRequestURI(req.RequestURI) // 解析地址参数
 	r.handle(c, urlParsed)
 }

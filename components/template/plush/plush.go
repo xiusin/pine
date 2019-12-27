@@ -13,16 +13,18 @@ import (
 
 type Plush struct {
 	template.Template
-	cache map[string]string
-	l     sync.RWMutex
-	dir   string
-	debug bool
+	cache  map[string]string
+	l      sync.RWMutex
+	dir    string
+	debug  bool
+	suffix string
 }
 
-func New(dir string) *Plush {
+func New(dir, suffix string) *Plush {
 	t := &Plush{dir: dir}
 	t.debug = viper.GetInt32("ENV") == option.DevMode
 	t.cache = make(map[string]string)
+	t.suffix = suffix
 	return t
 }
 
@@ -32,6 +34,10 @@ func (p *Plush) AddFunc(funcName string, funcEntry interface{}) {
 	p.l.Unlock()
 }
 
+func (t *Plush) getViewPath(viewName string) string {
+	return t.dir + "/" + viewName + "." + t.suffix
+}
+
 func (p *Plush) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
 	p.l.RLock()
 	html, ok := p.cache[name]
@@ -39,7 +45,7 @@ func (p *Plush) HTML(writer io.Writer, name string, binding map[string]interface
 	if !ok || p.debug {
 		p.l.Lock()
 		defer p.l.Unlock()
-		s, err := ioutil.ReadFile(p.dir + "/" + name) // 读取模板内容
+		s, err := ioutil.ReadFile(p.getViewPath(name)) // 读取模板内容
 		if err != nil {
 			return err
 		}

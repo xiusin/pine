@@ -15,16 +15,18 @@ var funcMap = template.FuncMap{}
 
 type Template struct {
 	base.Template
-	debug bool
-	dir   string
-	cache map[string]*template.Template
-	l     sync.RWMutex
+	debug  bool
+	dir    string
+	suffix string
+	cache  map[string]*template.Template
+	l      sync.RWMutex
 }
 
-func New(viewDir string) *Template {
+func New(viewDir, suffix string) *Template {
 	tpl := &Template{
-		cache: map[string]*template.Template{},
-		dir:   viewDir,
+		cache:  map[string]*template.Template{},
+		dir:    viewDir,
+		suffix: suffix,
 	}
 	tpl.debug = viper.GetInt32("ENV") == option.DevMode
 	return tpl
@@ -39,6 +41,10 @@ func (t *Template) AddFunc(funcName string, funcEntry interface{}) {
 	}
 }
 
+func (t *Template) getViewPath(viewName string) string {
+	return t.dir + "/" + viewName + "." + t.suffix
+}
+
 func (t *Template) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
 	var (
 		tpl *template.Template
@@ -51,7 +57,7 @@ func (t *Template) HTML(writer io.Writer, name string, binding map[string]interf
 	if !ok || t.debug {
 		t.l.Lock()
 		defer t.l.Unlock()
-		tpl, err = template.ParseFiles(t.dir + "/" + name)
+		tpl, err = template.ParseFiles(t.getViewPath(name))
 		if err != nil {
 			return err
 		}

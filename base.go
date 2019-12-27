@@ -3,6 +3,7 @@ package router
 import (
 	"fmt"
 	"github.com/xiusin/router/components/di/interfaces"
+	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -11,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/xiusin/router/components/di"
 	"github.com/xiusin/router/components/logger/adapter/log"
@@ -73,16 +75,19 @@ func (r *base) autoRegisterControllerRoute(ro IRouter, refVal reflect.Value, ref
 	if method.IsValid() {
 		method.Call([]reflect.Value{reflect.ValueOf(newUrlMappingRoute(ro, c))}) // 如果实现了RegisterRoute接口, 则调用函数
 	} else { // 自动根据前缀注册路由
-		di.MustGet("logger").(interfaces.ILogger).Printf(
-			"%s not exists method RegisterRoute(*controllerMappingRoute), reflect %s method",
-			refType.String(), refType.String())
+		format := "%s not exists method RegisterRoute(*controllerMappingRoute), reflect %s method"
+		di.MustGet("logger").(interfaces.ILogger).Printf(format, refType.String(), refType.String())
 		methodNum, routeWrapper := refType.NumMethod(), newUrlMappingRoute(ro, c)
 		for i := 0; i < methodNum; i++ {
 			name := refType.Method(i).Name
-			if m := refVal.MethodByName(name); m.IsValid() && m.Type().NumIn() == 0 {
-				r.autoMatchHttpMethod(ro, name, routeWrapper.warpControllerHandler(name, c))
+			m := refVal.MethodByName(name)
+			if _, ok := ignoreMethods[name]; !ok {
+				if m.IsValid() && m.Type().NumIn() == 0 {
+					r.autoMatchHttpMethod(ro, name, routeWrapper.warpControllerHandler(name, c))
+				}
 			}
 		}
+		ignoreMethods = nil
 	}
 }
 
@@ -99,7 +104,6 @@ func (r *base) autoMatchHttpMethod(ro IRouter, path string, handle Handler) {
 	}
 }
 
-// 大写字母变分隔符 如：
 // 		MyProfile ==> my_profile
 func (_ *base) upperCharToUnderLine(path string) string {
 	return strings.TrimLeft(regexp.MustCompile("([A-Z])").ReplaceAllStringFunc(path, func(s string) string {
@@ -120,6 +124,7 @@ func (r *base) Serve() {
 		panic("serve is already started")
 	}
 	r.started = true
+	rand.Seed(time.Now().UnixNano())
 	r.option.ToViper()
 	done, quit := make(chan bool, 1), make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt)

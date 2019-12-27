@@ -12,6 +12,7 @@ type (
 		engine  interfaces.IRenderer
 		writer  http.ResponseWriter
 		tplData H
+		applied bool
 	}
 	H map[string]interface{}
 )
@@ -21,11 +22,16 @@ func NewRender(writer http.ResponseWriter) *Render {
 	if di.Exists("render") {
 		rendererInf = di.MustGet("render").(interfaces.IRenderer)
 	}
-	return &Render{rendererInf, writer, H{}}
+	return &Render{rendererInf, writer, H{}, false}
+}
+
+func (c *Render) Rendered() bool {
+	return c.applied
 }
 
 func (c *Render) Reset(writer http.ResponseWriter) {
 	c.writer = writer
+	c.applied = false
 }
 
 func (c *Render) ViewData(key string, val interface{}) {
@@ -33,7 +39,11 @@ func (c *Render) ViewData(key string, val interface{}) {
 }
 
 func (c *Render) HTML(name string) error {
-	return c.engine.HTML(c.writer, name, c.tplData)
+	if err := c.engine.HTML(c.writer, name, c.tplData); err != nil {
+		return err
+	}
+	c.applied = true
+	return nil
 }
 
 func (c *Render) JSON(v H) error {

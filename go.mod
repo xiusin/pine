@@ -7,6 +7,7 @@ require (
 	github.com/Masterminds/semver v1.5.0 // indirect
 	github.com/Masterminds/sprig v2.22.0+incompatible
 	github.com/aliyun/aliyun-oss-go-sdk v2.0.3+incompatible
+	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
 	github.com/dgraph-io/badger v1.6.0
 	github.com/flosch/pongo2 v0.0.0-20190707114632-bbf5a6c351f4
 	github.com/gobuffalo/helpers v0.4.0 // indirect
@@ -24,4 +25,5 @@ require (
 	github.com/spf13/viper v1.4.0
 	go.etcd.io/bbolt v1.3.3
 	go.uber.org/zap v1.10.0
+	gopkg.in/natefinch/lumberjack.v2 v2.0.0 // indirect
 )

@@ -2,12 +2,12 @@
 一个为了理解Go的一些web框架而开发的框架
 
 ## todo ##
- - [ ] 减少内存申请次数
  - [ ] 规范option的配置，做到可(远程)注册可以修改，多驱动方式， ？合并配置文件
  - [ ] 多域名支持实现
  - [ ] 分组路由嵌套
  - [ ] 动态路由缓存
- - [ ] hot reload (自开发: https://github.com/dengsgo/fileboy)
+ - [ ] 支持controller的func可以自动注入params 并且函数可以有返回值. 
+ - [×] 兼容动态返回值. 
 
 ## chunk 和 Trailer ##
 用于分片返回数据
@@ -22,6 +22,16 @@ https://www.jianshu.com/p/4417af75a9f4
 6. 内置两种不同的router： `BuildInRouter` (自写) 和 `Httprouter` （httprouter）
 7. 所有组件通过接口方式实现， 内部依赖均可通过实现接口替换DI注册 
  
+
+# 动态返回值 #
+
+> 此功能只能用于mvc模式, 根据方法自动兼容显示内容
+
+1. 如果没有返回值, 并且没有渲染过模板, 会自动调用模板渲染方法. 查找路径为 `ControllerName/MethodName`
+2. 如果返回`inerface{}` , 会自动打印部分能兼容的数据, 返回结果为字符串类型 `text/html`
+3. 如果返回一个非nil的错误, 会直接`panic`
+4. 如果返回 string,int 等类型,显示为`text`
+
 ## 疑惑不解之处 ##
  - [ ] 为什么内嵌的httprouter.router无法继承实现的接口？？
 
