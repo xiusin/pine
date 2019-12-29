@@ -73,22 +73,18 @@ func (l *Logger) Printf(format string, args ...interface{}) {
 }
 
 func (l *Logger) Error(msg string, args ...interface{}) {
-	if l.config.Level > logger.InfoLevel {
-		args = append([]interface{}{l.getCaller(), msg}, args...)
-		if l.config.OutPutToConsole {
-			l.infoConsole.Println(args...)
-		}
-		l.error.Println(args...)
+	args = append([]interface{}{l.getCaller(), msg}, args...)
+	if l.config.OutPutToConsole {
+		l.errConsole.Println(args...)
 	}
+	l.error.Println(args...)
 }
 
 func (l *Logger) Errorf(msg string, args ...interface{}) {
-	if l.config.Level < logger.WarnLevel {
-		if l.config.OutPutToConsole {
-			l.infoConsole.Println(l.getCaller(), fmt.Sprintf(msg, args...))
-		}
-		l.error.Println(fmt.Sprintf(msg, args...))
+	if l.config.OutPutToConsole {
+		l.errConsole.Println(l.getCaller(), fmt.Sprintf(msg, args...))
 	}
+	l.error.Println(fmt.Sprintf(msg, args...))
 }
 
 func (l *Logger) getCaller() string {

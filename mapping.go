@@ -34,7 +34,7 @@ func newUrlMappingRoute(r IRouter, c IController) *controllerMappingRoute {
 	return &controllerMappingRoute{r: r, c: c}
 }
 
-func (u *controllerMappingRoute) warpControllerHandler(method string, c IController) Handler {
+func (cmr *controllerMappingRoute) warpControllerHandler(method string, c IController) Handler {
 	rvCtrl := reflect.ValueOf(c)
 	return func(context *Context) {
 		c := reflect.New(rvCtrl.Elem().Type()) // 利用反射构建变量得到value值
@@ -42,11 +42,11 @@ func (u *controllerMappingRoute) warpControllerHandler(method string, c IControl
 		rf := rs.FieldByName("context") // 利用unsafe设置ctx的值，只提供Ctx()API，不允许修改
 		ptr := unsafe.Pointer(rf.UnsafeAddr())
 		*(**Context)(ptr) = context
-		u.autoRegisterService(c).handlerResult(c, rvCtrl.Elem().Type().Name(), method)
+		cmr.autoRegisterService(c).handlerResult(c, rvCtrl.Elem().Type().Name(), method)
 	}
 }
 
-func (u *controllerMappingRoute) handlerResult(c reflect.Value, ctrlName, method string) {
+func (cmr *controllerMappingRoute) handlerResult(c reflect.Value, ctrlName, method string) {
 	var err error
 	if c.MethodByName("BeforeAction").IsValid() { // 执行前置操作
 		c.MethodByName("BeforeAction").Call([]reflect.Value{})
@@ -104,8 +104,8 @@ func (u *controllerMappingRoute) handlerResult(c reflect.Value, ctrlName, method
 	}
 }
 
-func (u *controllerMappingRoute) autoRegisterService(val reflect.Value) *controllerMappingRoute {
-	vre := val.Type().Elem()
+func (cmr *controllerMappingRoute) autoRegisterService(val reflect.Value) *controllerMappingRoute {
+	e := val.Type().Elem()
 	fieldNum := e.NumField()
 	for i := 0; i < fieldNum; i++ {
 		serviceName := e.Field(i).Tag.Get(ServiceTagName)
@@ -119,29 +119,29 @@ func (u *controllerMappingRoute) autoRegisterService(val reflect.Value) *control
 		}
 		val.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
 	}
-	return u
+	return cmr
 }
 
-func (u *controllerMappingRoute) GET(path, method string, mws ...Handler) {
-	u.r.GET(path, u.warpControllerHandler(method, u.c), mws...)
+func (cmr *controllerMappingRoute) GET(path, method string, mws ...Handler) {
+	cmr.r.GET(path, cmr.warpControllerHandler(method, cmr.c), mws...)
 }
 
-func (u *controllerMappingRoute) POST(path, method string, mws ...Handler) {
-	u.r.POST(path, u.warpControllerHandler(method, u.c), mws...)
+func (cmr *controllerMappingRoute) POST(path, method string, mws ...Handler) {
+	cmr.r.POST(path, cmr.warpControllerHandler(method, cmr.c), mws...)
 }
 
-func (u *controllerMappingRoute) PUT(path, method string, mws ...Handler) {
-	u.r.PUT(path, u.warpControllerHandler(method, u.c), mws...)
+func (cmr *controllerMappingRoute) PUT(path, method string, mws ...Handler) {
+	cmr.r.PUT(path, cmr.warpControllerHandler(method, cmr.c), mws...)
 }
 
-func (u *controllerMappingRoute) HEAD(path, method string, mws ...Handler) {
-	u.r.HEAD(path, u.warpControllerHandler(method, u.c), mws...)
+func (cmr *controllerMappingRoute) HEAD(path, method string, mws ...Handler) {
+	cmr.r.HEAD(path, cmr.warpControllerHandler(method, cmr.c), mws...)
 }
 
-func (u *controllerMappingRoute) DELETE(path, method string, mws ...Handler) {
-	u.r.DELETE(path, u.warpControllerHandler(method, u.c), mws...)
+func (cmr *controllerMappingRoute) DELETE(path, method string, mws ...Handler) {
+	cmr.r.DELETE(path, cmr.warpControllerHandler(method, cmr.c), mws...)
 }
 
-func (u *controllerMappingRoute) ANY(path string, handle string, mws ...Handler) {
+func (cmr *controllerMappingRoute) ANY(path string, handle string, mws ...Handler) {
 	panic("implement me")
 }

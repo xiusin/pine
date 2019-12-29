@@ -31,8 +31,8 @@ type Context struct {
 
 func NewContext(opt *option.Option) *Context {
 	return &Context{
-		params:          NewParams(map[string]string{}), //保存路由参数
-		middlewareIndex: -1,                             // 初始化中间件索引. 默认从0开始索引.
+		params:          NewParams(map[string]string{}),
+		middlewareIndex: -1,                             // 初始化中间件索引.
 		options:         opt,
 	}
 }
@@ -115,8 +115,20 @@ func (c *Context) SessionManger() interfaces.ISessionManager {
 	return sessionInf
 }
 
-func (c *Context) Stop() {
-	c.stopped = true
+// 执行下个中间件
+func (c *Context) Next() {
+	if c.IsStopped() == true {
+		return
+	}
+	c.middlewareIndex++
+	mws := c.route.ExtendsMiddleWare
+	mws = append(mws, c.route.Middleware...)
+	length := len(mws)
+	if length == c.middlewareIndex {
+		c.route.Handle(c)
+	} else {
+		mws[c.middlewareIndex](c)
+	}
 }
 
 func (c *Context) IsStopped() bool {
@@ -188,7 +200,6 @@ func (c *Context) ClientIP() string {
 }
 
 // ************************************** GET QUERY METHOD ***************************************************** //
-
 func (c *Context) GetData() map[string][]string {
 	return c.req.URL.Query()
 }
