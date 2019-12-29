@@ -2,11 +2,13 @@ package router
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/xiusin/router/components/di"
 	"reflect"
 	"strings"
 	"unsafe"
+
+	"github.com/xiusin/router/components/di"
 )
 
 //***********************ControllerMapping***********************//
@@ -42,7 +44,8 @@ func (cmr *controllerMappingRoute) warpControllerHandler(method string, c IContr
 		rf := rs.FieldByName("context") // 利用unsafe设置ctx的值，只提供Ctx()API，不允许修改
 		ptr := unsafe.Pointer(rf.UnsafeAddr())
 		*(**Context)(ptr) = context
-		cmr.autoRegisterService(c).handlerResult(c, rvCtrl.Elem().Type().Name(), method)
+		cmr.registerService(c)
+		cmr.handlerResult(c, rvCtrl.Elem().Type().Name(), method)
 	}
 }
 
@@ -62,49 +65,39 @@ func (cmr *controllerMappingRoute) handlerResult(c reflect.Value, ctrlName, meth
 			if !val.IsValid() {
 				continue
 			}
-			switch v := val.Interface().(type) {
-			case string:
-				body = []byte(v)
-			case []byte:
-				body = v
-			case error:
-				if !val.IsNil() {
-					err = val.Interface().(error)
+			typeName, valEntity := val.Type().Name(), val.Interface()
+			fmt.Println("typeName", typeName)
+			if typeName == "error" && !val.IsNil() {
+				err = valEntity.(error)
+				break
+			}
+			switch val.Type().Kind() {
+			case reflect.Map, reflect.Array, reflect.Slice, reflect.Struct, reflect.Interface:
+				body, err = json.Marshal(valEntity)
+				if err != nil {
 					break
 				}
+			case reflect.String:
+				body = valEntity.([]byte)
 			default:
-				switch val.Type().Kind() {
-				case reflect.Map, reflect.Array, reflect.Slice, reflect.Struct:
-					body, err = json.Marshal(val.Interface())
-					if err != nil {
-						break
-					}
-				case reflect.Interface:
-					if val.Elem().IsValid() {
-						body, err = json.Marshal(val.Elem().Interface())
-						if err != nil {
-							break
-						}
-					}
-				default:
-					if strings.Contains(val.Type().Name(), "int") || strings.Contains(val.Type().Name(), "float") {
-						body = []byte(fmt.Sprintf("%d", val.Interface()))
-					}
+				if strings.Contains(typeName, "int") || strings.Contains(typeName, "float") {
+					body = []byte(fmt.Sprintf("%d", valEntity))
 				}
 			}
 		}
-		err = ctrl.Render().Text(body)
+		if err == nil {
+			err = ctrl.Render().Text(body)
+		}
 	} else if !ctrl.Render().Rendered() { // 没有返回值自动渲染模板
 		tplPath := strings.ToLower(strings.Replace(ctrlName, ControllerSuffix, "", 1) + "/" + method)
 		err = ctrl.Render().HTML(tplPath)
 	}
 	if err != nil {
-		ctrl.Logger().Error("render error", err.Error())
 		panic(err)
 	}
 }
 
-func (cmr *controllerMappingRoute) autoRegisterService(val reflect.Value) *controllerMappingRoute {
+func (cmr *controllerMappingRoute) registerService(val reflect.Value) *controllerMappingRoute {
 	e := val.Type().Elem()
 	fieldNum := e.NumField()
 	for i := 0; i < fieldNum; i++ {
@@ -115,7 +108,7 @@ func (cmr *controllerMappingRoute) autoRegisterService(val reflect.Value) *contr
 		}
 		service, err := di.Get(serviceName)
 		if err != nil {
-			panic("auto resolve service \"" + serviceName + "\" failed!")
+			panic(errors.New(fmt.Sprintf(`resolve service "%s" failed!`, serviceName)))
 		}
 		val.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
 	}
