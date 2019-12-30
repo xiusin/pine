@@ -2,12 +2,15 @@ package router
 
 import (
 	"context"
-	"github.com/xiusin/router/components/option"
+	"errors"
+	"fmt"
+	"math/rand"
 	"mime/multipart"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/xiusin/router/components/di"
 	"github.com/xiusin/router/components/di/interfaces"
@@ -17,23 +20,23 @@ type Context struct {
 	context.Context
 	res             http.ResponseWriter    // 响应对象
 	req             *http.Request          // 请求对象
-	options         *option.Option         // 配置文件
 	route           *RouteEntry            // 当前context匹配到的路由
 	render          *Render                // 模板渲染
-	cookie          *Cookie                // cookie 处理
+	cookie          ICookie                // cookie 处理
 	params          *Params                // 路由参数
 	stopped         bool                   // 是否停止传播中间件
 	middlewareIndex int                    // 中间件起始索引
 	status          int                    //保存状态码
 	Msg             string                 // 附加信息（临时方案， 不知道怎么获取设置的值）
 	keys            map[string]interface{} //设置上下文绑定内容
+	autoParseValue  bool                   // 是否自动解析控制器返回值
 }
 
-func NewContext(opt *option.Option) *Context {
+func NewContext(auto bool) *Context {
 	return &Context{
 		params:          NewParams(map[string]string{}),
-		middlewareIndex: -1,                             // 初始化中间件索引.
-		options:         opt,
+		middlewareIndex: -1, // 初始化中间件索引.
+		autoParseValue:  auto,
 	}
 }
 
@@ -49,6 +52,10 @@ func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
 	c.initCtxComponent(res, req)
 }
 
+func (c *Context) SetCookiesHandler(cookie ICookie) {
+	c.cookie = cookie
+}
+
 func (c *Context) initCtxComponent(res http.ResponseWriter, req *http.Request) {
 	if c.params == nil {
 		c.params = NewParams(make(map[string]string))
@@ -59,11 +66,6 @@ func (c *Context) initCtxComponent(res http.ResponseWriter, req *http.Request) {
 		c.render = NewRender(res)
 	} else {
 		c.render.Reset(res)
-	}
-	if c.cookie == nil {
-		c.cookie = NewCookie(res, req)
-	} else {
-		c.cookie.Reset(res, req)
 	}
 }
 
@@ -81,7 +83,8 @@ func (c *Context) Params() *Params {
 }
 
 func (c *Context) ParseForm() error {
-	return c.req.ParseMultipartForm(c.options.GetMaxMultipartMemory())
+	//return c.req.ParseMultipartForm(c.options.GetMaxMultipartMemory())
+	return nil
 }
 
 func (c *Context) Request() *http.Request {
@@ -166,7 +169,6 @@ func (c *Context) SetStatus(statusCode int) {
 	c.status = statusCode
 	c.res.WriteHeader(statusCode)
 }
-
 
 func (c *Context) Set(key string, value interface{}) {
 	c.keys[key] = value
@@ -299,4 +301,46 @@ func (c *Context) Value(key interface{}) interface{} {
 		}
 	}
 	return nil
+}
+
+// ********************************** COOKIE ************************************************** //
+func (c *Context) getCookiesHandler() ICookie {
+	if c.cookie == nil {
+		c.cookie = NewCookie(c.Writer(), c.Request())
+	}
+	c.cookie.Reset(c.res, c.req)
+	return c.cookie
+}
+
+func (c *Context) SetCookie(name string, value string, maxAge int) {
+	c.getCookiesHandler().Set(name, value, maxAge)
+}
+
+func (c *Context) ExistsCookie(name string) bool {
+	_, err := c.req.Cookie(name)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
+func (c *Context) GetCookie(name string) string {
+	return c.getCookiesHandler().Get(name)
+}
+
+func (c *Context) RemoveCookie(name string) {
+	c.getCookiesHandler().Delete(name)
+}
+
+func (c *Context) GetToken() string {
+	r := rand.Int()
+	t := time.Now().UnixNano()
+	token := fmt.Sprintf("%d%d", r, t)
+	csrfName := c.Value("csrf_name").(string)
+	csrfTime := c.Value("csrf_time").(int)
+	if csrfName == "" {
+		panic(errors.New("please set `csrf_name` and `csrf_time` to context"))
+	}
+	c.getCookiesHandler().Set(csrfName, token, csrfTime)
+	return token
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/viper"
 	"github.com/xiusin/router/components/logger"
 	"github.com/xiusin/router/components/path"
+	"io"
 	"log"
 	"os"
 	"runtime"
@@ -50,6 +51,10 @@ func New(options *Options) *Logger {
 	}
 
 	return l
+}
+
+func (l *Logger) GetOutput() io.Writer {
+	return l.error.Writer()
 }
 
 func (l *Logger) Print(msg string, args ...interface{}) {

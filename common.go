@@ -44,7 +44,7 @@ func RegisterOnInterrupt(handler func()) {
 	shutdownBeforeHandler = append(shutdownBeforeHandler, handler)
 }
 
-func GracefulShutdown(srv *http.Server, quit <-chan os.Signal, done chan<- bool) {
+func GracefulShutdown(srv *http.Server, quit <-chan os.Signal) {
 	<-quit
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -55,13 +55,12 @@ func GracefulShutdown(srv *http.Server, quit <-chan os.Signal, done chan<- bool)
 	for _, beforeHandler := range shutdownBeforeHandler {
 		beforeHandler()
 	}
-	close(done)
 }
 
 func DefaultRecoverHandler(c *Context) {
 	if err := recover(); err != nil {
 		stackInfo, strErr, strFmt := debug.Stack(), fmt.Sprintf("%s", err), "msg: %s  Method: %s  Path: %s\n Stack: %s"
-		go c.Logger().Errorf(strFmt, strErr, c.Request().Method, c.Request().URL.Path, stackInfo)
-		c.Writer().Write([]byte("<h1>" + strErr + "</h1>" + "\n<pre>" + string(stackInfo) + "</pre>"))
+		go c.Logger().Errorf(strFmt, strErr, c.Request().Method, c.Request().URL.RequestURI(), stackInfo)
+		_, _ = c.Writer().Write([]byte("<h1>" + strErr + "</h1>" + "\n<pre>" + string(stackInfo) + "</pre>"))
 	}
 }

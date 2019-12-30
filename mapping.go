@@ -24,7 +24,7 @@ type (
 	}
 
 	// 控制器映射路由
-	controllerMappingRoute struct {
+	registerRouter struct {
 		r IRouter
 		c IController
 	}
@@ -32,11 +32,11 @@ type (
 
 const ServiceTagName = "service"
 
-func newUrlMappingRoute(r IRouter, c IController) *controllerMappingRoute {
-	return &controllerMappingRoute{r: r, c: c}
+func newRegisterRouter(r IRouter, c IController) *registerRouter {
+	return &registerRouter{r: r, c: c}
 }
 
-func (cmr *controllerMappingRoute) warpControllerHandler(method string, c IController) Handler {
+func (cmr *registerRouter) warpControllerHandler(method string, c IController) Handler {
 	rvCtrl := reflect.ValueOf(c)
 	return func(context *Context) {
 		c := reflect.New(rvCtrl.Elem().Type()) // 利用反射构建变量得到value值
@@ -49,7 +49,7 @@ func (cmr *controllerMappingRoute) warpControllerHandler(method string, c IContr
 	}
 }
 
-func (cmr *controllerMappingRoute) handlerResult(c reflect.Value, ctrlName, method string) {
+func (cmr *registerRouter) handlerResult(c reflect.Value, ctrlName, method string) {
 	var err error
 	if c.MethodByName("BeforeAction").IsValid() { // 执行前置操作
 		c.MethodByName("BeforeAction").Call([]reflect.Value{})
@@ -59,45 +59,68 @@ func (cmr *controllerMappingRoute) handlerResult(c reflect.Value, ctrlName, meth
 	}
 	values := c.MethodByName(method).Call([]reflect.Value{})
 	ctrl := c.MethodByName("Ctx").Call(nil)[0].Interface().(*Context)
-	if len(values) > 0 {
-		var body []byte
-		for _, val := range values {
-			if !val.IsValid() {
-				continue
-			}
-			typeName, valEntity := val.Type().Name(), val.Interface()
-			fmt.Println("typeName", typeName)
-			if typeName == "error" && !val.IsNil() {
-				err = valEntity.(error)
-				break
-			}
-			switch val.Type().Kind() {
-			case reflect.Map, reflect.Array, reflect.Slice, reflect.Struct, reflect.Interface:
-				body, err = json.Marshal(valEntity)
-				if err != nil {
-					break
+	if ctrl.autoParseValue {
+		if len(values) > 0 {
+			var body []byte
+			for _, val := range values {
+				if !val.IsValid() || val.IsNil() {
+					continue
 				}
-			case reflect.String:
-				body = valEntity.([]byte)
-			default:
-				if strings.Contains(typeName, "int") || strings.Contains(typeName, "float") {
-					body = []byte(fmt.Sprintf("%d", valEntity))
-				}
+				body, err = cmr.parseValue(val)
 			}
+			if err == nil && len(body) > 0 {
+				err = ctrl.Render().Text(body)
+			}
+		} else if !ctrl.Render().Rendered() { // 没有返回值自动渲染模板
+			tplPath := strings.ToLower(strings.Replace(ctrlName, ControllerSuffix, "", 1) + "/" + method)
+			err = ctrl.Render().HTML(tplPath)
 		}
-		if err == nil {
-			err = ctrl.Render().Text(body)
+		if err != nil {
+			panic(err)
 		}
-	} else if !ctrl.Render().Rendered() { // 没有返回值自动渲染模板
-		tplPath := strings.ToLower(strings.Replace(ctrlName, ControllerSuffix, "", 1) + "/" + method)
-		err = ctrl.Render().HTML(tplPath)
-	}
-	if err != nil {
-		panic(err)
 	}
 }
 
-func (cmr *controllerMappingRoute) registerService(val reflect.Value) *controllerMappingRoute {
+func (cmr *registerRouter) parseValue(val reflect.Value) ([]byte, error) {
+	var value []byte
+	var err error
+	var valInterface = val.Interface()
+	switch val.Type().Kind() {
+	case reflect.Func:
+		panic("return value not supported type func()")
+	case reflect.String:
+		value = []byte(val.String())
+	case reflect.Slice:
+		if val, ok := valInterface.([]byte); ok {
+			value = val
+		} else if value, err = cmr.returnValToJSON(valInterface); err != nil {
+			return nil, err
+		}
+	case reflect.Interface:
+		if errVal, ok := val.Interface().(error); ok {
+			err = errVal
+		} else {
+			value, err = cmr.parseValue(val.Elem())
+		}
+	default:
+		if val.Type().Name() == "error" {
+			err = valInterface.(error)
+		} else if value, err = cmr.returnValToJSON(valInterface); err != nil {
+			return nil, err
+		}
+	}
+	return value, err
+}
+
+func (cmr *registerRouter) returnValToJSON(valInterface interface{}) ([]byte, error) {
+	body, err := json.Marshal(valInterface)
+	if err != nil {
+		return nil, err
+	}
+	return body, nil
+}
+
+func (cmr *registerRouter) registerService(val reflect.Value) {
 	e := val.Type().Elem()
 	fieldNum := e.NumField()
 	for i := 0; i < fieldNum; i++ {
@@ -112,29 +135,28 @@ func (cmr *controllerMappingRoute) registerService(val reflect.Value) *controlle
 		}
 		val.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
 	}
-	return cmr
 }
 
-func (cmr *controllerMappingRoute) GET(path, method string, mws ...Handler) {
+func (cmr *registerRouter) GET(path, method string, mws ...Handler) {
 	cmr.r.GET(path, cmr.warpControllerHandler(method, cmr.c), mws...)
 }
 
-func (cmr *controllerMappingRoute) POST(path, method string, mws ...Handler) {
+func (cmr *registerRouter) POST(path, method string, mws ...Handler) {
 	cmr.r.POST(path, cmr.warpControllerHandler(method, cmr.c), mws...)
 }
 
-func (cmr *controllerMappingRoute) PUT(path, method string, mws ...Handler) {
+func (cmr *registerRouter) PUT(path, method string, mws ...Handler) {
 	cmr.r.PUT(path, cmr.warpControllerHandler(method, cmr.c), mws...)
 }
 
-func (cmr *controllerMappingRoute) HEAD(path, method string, mws ...Handler) {
+func (cmr *registerRouter) HEAD(path, method string, mws ...Handler) {
 	cmr.r.HEAD(path, cmr.warpControllerHandler(method, cmr.c), mws...)
 }
 
-func (cmr *controllerMappingRoute) DELETE(path, method string, mws ...Handler) {
+func (cmr *registerRouter) DELETE(path, method string, mws ...Handler) {
 	cmr.r.DELETE(path, cmr.warpControllerHandler(method, cmr.c), mws...)
 }
 
-func (cmr *controllerMappingRoute) ANY(path string, handle string, mws ...Handler) {
+func (cmr *registerRouter) ANY(path string, handle string, mws ...Handler) {
 	panic("implement me")
 }

@@ -3,13 +3,11 @@ package redis
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/xiusin/router/utils"
 	"time"
 
-	"github.com/xiusin/router/components/cache"
-	"github.com/xiusin/router/components/di"
-	"github.com/xiusin/router/components/di/interfaces"
-
 	"github.com/gomodule/redigo/redis"
+	"github.com/xiusin/router/components/cache"
 )
 
 type Option struct {
@@ -144,11 +142,7 @@ func init() {
 						redis.DialReadTimeout(time.Duration(opt.ReadTimeout)*time.Second),
 						redis.DialWriteTimeout(time.Duration(opt.WriteTimeout)*time.Second))
 					if err != nil {
-						logger, getErr := di.Get("logger")
-						if getErr != nil {
-							panic(getErr)
-						}
-						(logger.(interfaces.ILogger)).Errorf("Dial error: %s", err.Error())
+						utils.Logger().Errorf("Dial error: %s", err.Error())
 						return nil, err
 					}
 					return con, nil

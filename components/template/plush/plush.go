@@ -1,8 +1,6 @@
 package plush
 
 import (
-	"github.com/spf13/viper"
-	"github.com/xiusin/router/components/option"
 	"github.com/xiusin/router/components/template"
 	"io"
 	"io/ioutil"
@@ -20,9 +18,9 @@ type Plush struct {
 	suffix string
 }
 
-func New(dir, suffix string) *Plush {
+func New(dir, suffix string, reload bool) *Plush {
 	t := &Plush{dir: dir}
-	t.debug = viper.GetInt32("ENV") == option.DevMode
+	t.debug = reload
 	t.cache = make(map[string]string)
 	t.suffix = suffix
 	return t

@@ -19,6 +19,7 @@ require (
 	github.com/huandu/xstrings v1.2.0 // indirect
 	github.com/imdario/mergo v0.3.8 // indirect
 	github.com/julienschmidt/httprouter v1.3.0
+	github.com/lucas-clemente/quic-go v0.14.1 // indirect
 	github.com/mitchellh/copystructure v1.0.0 // indirect
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/satori/go.uuid v1.2.0

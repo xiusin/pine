@@ -2,8 +2,6 @@ package view
 
 import (
 	"github.com/Masterminds/sprig"
-	"github.com/spf13/viper"
-	"github.com/xiusin/router/components/option"
 	base "github.com/xiusin/router/components/template"
 	"html/template"
 	"io"
@@ -22,13 +20,13 @@ type Template struct {
 	l      sync.RWMutex
 }
 
-func New(viewDir, suffix string) *Template {
+func New(viewDir, suffix string, reload bool) *Template {
 	tpl := &Template{
 		cache:  map[string]*template.Template{},
 		dir:    viewDir,
 		suffix: suffix,
 	}
-	tpl.debug = viper.GetInt32("ENV") == option.DevMode
+	tpl.debug = reload
 	return tpl
 }
 

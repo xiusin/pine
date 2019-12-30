@@ -10,8 +10,6 @@ import (
 	"sync"
 
 	"github.com/xiusin/router/components/event"
-
-	"github.com/xiusin/router/components/option"
 )
 
 type Router struct {
@@ -33,17 +31,14 @@ var (
 
 // 实例化路由
 // 如果传入nil 则使用默认配置
-func NewBuildInRouter(opt *option.Option) *Router {
-	if opt == nil {
-		opt = option.Default()
-	}
+func NewBuildInRouter() *Router {
 	r := &Router{
 		methodRoutes: initRouteMap(),
 		groups:       map[string]*Router{},
 		base: &base{
-			option:         opt,
+			configuration:  &configuration,
 			notFound:       func(c *Context) { c.Writer().Write([]byte(tpl404)) },
-			pool:           &sync.Pool{New: func() interface{} { return NewContext(opt) }},
+			pool:           &sync.Pool{New: func() interface{} { return NewContext(configuration.autoParseControllerResult) }},
 			recoverHandler: DefaultRecoverHandler,
 		},
 	}
@@ -56,7 +51,7 @@ func (r *Router) GetPrefix() string {
 }
 
 func (r *Router) Handle(c IController) {
-	r.autoRegisterControllerRoute(r, reflect.ValueOf(c), reflect.TypeOf(c), c)
+	r.registerRoute(r, reflect.ValueOf(c), reflect.TypeOf(c), c)
 }
 
 // 添加路由, 内部函数
@@ -193,7 +188,7 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	c := r.pool.Get().(*Context)
 	defer r.pool.Put(c)
 	c.Reset(res, req)
-	res.Header().Set("Server", r.option.GetServerName())
+	res.Header().Set("Server", configuration.serverName)
 	defer r.recoverHandler(c)
 	r.dispatch(c, req)
 }
@@ -203,11 +198,11 @@ func (r *Router) handle(c *Context, urlParsed *url.URL) {
 	event.Trigger(event.EventRequestBefore, c.req)
 	route := r.matchRoute(c, urlParsed)
 	if route != nil {
-		if r.option.GetMaxMultipartMemory() > 0 && c.req.Header.Get("Content-Type") == "multipart/form-data" {
-			if err := c.ParseForm(); err != nil {
-				panic(err)
-			}
-		}
+		//if c.req.Header.Get("Content-Type") == "multipart/form-data" {
+		//	if err := c.ParseForm(); err != nil {
+		//		panic(err)
+		//	}
+		//}
 		c.setRoute(route)
 		c.Next()
 	} else {

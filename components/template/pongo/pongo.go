@@ -1,8 +1,6 @@
 package pongo
 
 import (
-	"github.com/spf13/viper"
-	"github.com/xiusin/router/components/option"
 	"github.com/xiusin/router/components/template"
 	"io"
 	"sync"
@@ -19,9 +17,9 @@ type Pongo struct {
 	suffix string
 }
 
-func New(dir, suffix string) *Pongo {
+func New(dir, suffix string, reload bool) *Pongo {
 	t := &Pongo{ts: pongo2.NewSet("xiusin_templater", pongo2.MustNewLocalFileSystemLoader(dir))}
-	t.ts.Debug = viper.GetInt32("ENV") == option.DevMode
+	t.ts.Debug = reload
 	t.cache = map[string]*pongo2.Template{}
 	t.dir = dir
 	t.suffix = suffix

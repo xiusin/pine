@@ -2,12 +2,10 @@
 一个为了理解Go的一些web框架而开发的框架
 
 ## todo ##
- - [ ] 规范option(需要重构)的配置，做到可(远程)注册可以修改，多驱动方式， ？合并配置文件
  - [ ] 多域名支持实现
  - [ ] 分组路由嵌套
  - [ ] 动态路由缓存
  - [ ] 支持controller的func可以自动注入params 并且函数可以有返回值. 
- - [ ] 兼容动态返回值. doing
 
 ## chunk 和 Trailer ##
 用于分片返回数据
@@ -29,7 +27,7 @@ https://www.jianshu.com/p/4417af75a9f4
 
 1. 如果没有返回值, 并且没有渲染过模板, 会自动调用模板渲染方法. 查找路径为 `ControllerName/MethodName`
 2. 如果返回`inerface{}` , 会自动打印部分能兼容的数据, 返回结果为字符串类型 `text/html`
-3. 如果返回一个非nil的错误, 会直接`panic`
+3. 如果返回一个非nil的错误, 会直接`panic`(不包括复合类型里的error)
 4. 如果返回 string,int 等类型,显示为`text`
 
 ## 疑惑不解之处 ##

@@ -65,6 +65,10 @@ func New(options *Options) *Logger {
 	return &Logger{Logger: zap.New(core, zap.AddCaller()), config: options}
 }
 
+func (l *Logger) GetOutput() io.Writer {
+	return writer(l.config.ErrorLogName, l.config)
+}
+
 func (l *Logger) Print(msg string, args ...interface{}) {
 	l.Logger.Info(msg)
 }
