@@ -19,10 +19,7 @@ type Cookie struct {
 }
 
 func NewCookie(w http.ResponseWriter, r *http.Request) *Cookie {
-	return &Cookie{
-		r: r,
-		w: w,
-	}
+	return &Cookie{r: r, w: w}
 }
 
 func (c *Cookie) Reset(w http.ResponseWriter, req *http.Request) {

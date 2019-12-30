@@ -59,16 +59,6 @@ func (cmr *registerRouter) handlerResult(c reflect.Value, ctrlName, method strin
 	}
 	values := c.MethodByName(method).Call([]reflect.Value{})
 	ctx := c.MethodByName("Ctx").Call(nil)[0].Interface().(*Context)
-	//
-	//sess, _ := ctx.SessionManger().Session(ctx.req, ctx.res)
-	//if sess != nil {
-	//		if err := sess.Save(); err != nil {
-	//			c.Logger().Error("save session is error", err)
-	//		}
-	//}
-	//if ctrl.sess != nil {
-
-	//}
 	if ctx.autoParseValue {
 		if len(values) > 0 {
 			var body []byte

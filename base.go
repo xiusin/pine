@@ -1,12 +1,16 @@
 package router
 
 import (
-	"github.com/xiusin/router/utils"
+	"context"
 	"net/http"
+	"os"
 	"reflect"
 	"regexp"
 	"strings"
 	"sync"
+	"time"
+
+	"github.com/xiusin/router/utils"
 )
 
 type (
@@ -101,13 +105,27 @@ func (r *base) SetNotFound(handler Handler) {
 	r.notFound = handler
 }
 
+func (r *base) gracefulShutdown(srv *http.Server, quit <-chan os.Signal) {
+	<-quit
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	srv.SetKeepAlivesEnabled(false)
+	if err := srv.Shutdown(ctx); err != nil {
+		panic("could not gracefully shutdown the server: %v\n" + err.Error())
+	}
+	for _, beforeHandler := range shutdownBeforeHandler {
+		beforeHandler()
+	}
+	utils.Logger().Print("server was closed")
+}
+
 func (r *base) Run(srv ServerHandler, opts ...Configurator) {
 	if len(opts) > 0 {
 		for _, opt := range opts {
 			opt(r.configuration)
 		}
 	}
-	if err := srv(r); err != nil {
+	if err := srv(r); err != nil && err != http.ErrServerClosed {
 		panic(err)
 	}
 }

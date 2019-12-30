@@ -23,6 +23,7 @@ type Context struct {
 	route           *RouteEntry            // 当前context匹配到的路由
 	render          *Render                // 模板渲染
 	cookie          ICookie                // cookie 处理
+	sess 			interfaces.ISession
 	params          *Params                // 路由参数
 	stopped         bool                   // 是否停止传播中间件
 	middlewareIndex int                    // 中间件起始索引
@@ -119,11 +120,14 @@ func (c *Context) sessionManger() interfaces.ISessionManager {
 }
 
 func (c *Context) Session() interfaces.ISession {
-	is, err := c.sessionManger().Session(c.req, c.res)
-	if err != nil {
-		panic(fmt.Sprintf("get session instance failed: %s", err.Error()))
+	if c.sess == nil {
+		is, err := c.sessionManger().Session(c.req, c.res)
+		if err != nil {
+			panic(fmt.Sprintf("get session instance failed: %s", err.Error()))
+		}
+		c.sess = is
 	}
-	return is
+	return c.sess
 }
 
 // 执行下个中间件

@@ -10,7 +10,6 @@ const ControllerSuffix = "Controller"
 
 type Controller struct {
 	context *Context
-	sess    interfaces.ISession
 }
 
 // 控制器接口定义
@@ -19,6 +18,7 @@ type IController interface {
 	Render() *Render
 	Logger() interfaces.ILogger
 	Session() interfaces.ISession
+	Cookie()  ICookie
 }
 
 var ignoreMethods = map[string]struct{}{} // 自动映射controller需要忽略的方法
@@ -32,6 +32,10 @@ func init() {
 
 func (c *Controller) Ctx() *Context {
 	return c.context
+}
+
+func (c *Controller) Cookie() ICookie {
+	return c.context.cookie
 }
 
 func (c *Controller) Render() *Render {
@@ -51,8 +55,7 @@ func (c *Controller) Logger() interfaces.ILogger {
 }
 
 func (c *Controller) Session() interfaces.ISession {
-	c.sess = c.context.Session()
-	return c.sess
+	return c.context.Session()
 }
 
 func (c *Controller) ViewData(key string, val interface{}) {

@@ -1,12 +1,8 @@
 package router
 
 import (
-	"context"
 	"fmt"
-	"net/http"
-	"os"
 	"runtime/debug"
-	"time"
 )
 
 var (
@@ -15,7 +11,7 @@ var (
 )
 
 const (
-	Version = "dev 0.0.7"
+	Version = "dev 0.0.8"
 	tpl404  = `<!doctype html>
 <html>
 	<head>
@@ -42,19 +38,6 @@ ____  __.__            .__      __________               __
 // register server shutdown func
 func RegisterOnInterrupt(handler func()) {
 	shutdownBeforeHandler = append(shutdownBeforeHandler, handler)
-}
-
-func GracefulShutdown(srv *http.Server, quit <-chan os.Signal) {
-	<-quit
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	srv.SetKeepAlivesEnabled(false)
-	if err := srv.Shutdown(ctx); err != nil {
-		panic("could not gracefully shutdown the server: %v\n" +  err.Error())
-	}
-	for _, beforeHandler := range shutdownBeforeHandler {
-		beforeHandler()
-	}
 }
 
 func DefaultRecoverHandler(c *Context) {

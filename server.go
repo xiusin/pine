@@ -7,6 +7,8 @@ import (
 	"github.com/xiusin/router/utils"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
 	"strings"
 )
 
@@ -27,6 +29,9 @@ func (r *base) newServer(s *http.Server, tls bool) *http.Server {
 	if !r.configuration.withoutFrameworkLog {
 		r.printInfo(s.Addr, tls)
 	}
+	quit := make(chan os.Signal)
+	signal.Notify(quit, os.Interrupt, os.Kill)
+	go r.gracefulShutdown(s, quit)
 	return s
 }
 
