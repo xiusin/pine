@@ -2,7 +2,6 @@ package router
 
 import (
 	"net/http"
-	"time"
 )
 
 type ICookie interface {
@@ -44,7 +43,7 @@ func (c *Cookie) Set(name string, value string, maxAge int) {
 		Value:    value,
 		Secure:   c.secure,
 		HttpOnly: c.httpOnly,
-		Expires:  time.Now().Add(time.Second * time.Duration(maxAge))}
+		MaxAge:   maxAge}
 
 	if c.path == "" {
 		cookie.Path = "/"

@@ -3,27 +3,23 @@ package router
 import (
 	"github.com/xiusin/router/components/di/interfaces"
 	"reflect"
-	"sync"
 )
 
 //================ Controller ====================//
 const ControllerSuffix = "Controller"
 
-type (
-	Controller struct {
-		context *Context
-		sess    interfaces.ISession
-		once    sync.Once
-	}
+type Controller struct {
+	context *Context
+	sess    interfaces.ISession
+}
 
-	// 控制器接口定义
-	IController interface {
-		Ctx() *Context
-		Render() *Render
-		Logger() interfaces.ILogger
-		Session() interfaces.ISession
-	}
-)
+// 控制器接口定义
+type IController interface {
+	Ctx() *Context
+	Render() *Render
+	Logger() interfaces.ILogger
+	Session() interfaces.ISession
+}
 
 var ignoreMethods = map[string]struct{}{} // 自动映射controller需要忽略的方法
 
@@ -55,25 +51,10 @@ func (c *Controller) Logger() interfaces.ILogger {
 }
 
 func (c *Controller) Session() interfaces.ISession {
-	var err error
-	c.once.Do(func() {
-		sm := c.context.SessionManger()
-		if c.sess, err = sm.Session(c.context.Request(), c.context.Writer()); err != nil {
-			c.Logger().Error("get session instance failed", err)
-			panic(err)
-		}
-	})
+	c.sess = c.context.Session()
 	return c.sess
 }
 
 func (c *Controller) ViewData(key string, val interface{}) {
 	c.context.render.ViewData(key, val)
-}
-
-func (c *Controller) AfterAction() {
-	if c.sess != nil {
-		if err := c.sess.Save(); err != nil {
-			c.Logger().Error("save session is error", err)
-		}
-	}
 }

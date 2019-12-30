@@ -58,8 +58,18 @@ func (cmr *registerRouter) handlerResult(c reflect.Value, ctrlName, method strin
 		defer func() { c.MethodByName("AfterAction").Call([]reflect.Value{}) }()
 	}
 	values := c.MethodByName(method).Call([]reflect.Value{})
-	ctrl := c.MethodByName("Ctx").Call(nil)[0].Interface().(*Context)
-	if ctrl.autoParseValue {
+	ctx := c.MethodByName("Ctx").Call(nil)[0].Interface().(*Context)
+	//
+	//sess, _ := ctx.SessionManger().Session(ctx.req, ctx.res)
+	//if sess != nil {
+	//		if err := sess.Save(); err != nil {
+	//			c.Logger().Error("save session is error", err)
+	//		}
+	//}
+	//if ctrl.sess != nil {
+
+	//}
+	if ctx.autoParseValue {
 		if len(values) > 0 {
 			var body []byte
 			for _, val := range values {
@@ -69,11 +79,11 @@ func (cmr *registerRouter) handlerResult(c reflect.Value, ctrlName, method strin
 				body, err = cmr.parseValue(val)
 			}
 			if err == nil && len(body) > 0 {
-				err = ctrl.Render().Text(body)
+				err = ctx.Render().Text(body)
 			}
-		} else if !ctrl.Render().Rendered() { // 没有返回值自动渲染模板
+		} else if !ctx.Render().Rendered() { // 没有返回值自动渲染模板
 			tplPath := strings.ToLower(strings.Replace(ctrlName, ControllerSuffix, "", 1) + "/" + method)
-			err = ctrl.Render().HTML(tplPath)
+			err = ctx.Render().HTML(tplPath)
 		}
 		if err != nil {
 			panic(err)

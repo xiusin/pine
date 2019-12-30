@@ -110,12 +110,20 @@ func (c *Context) Redirect(url string, statusHeader ...int) {
 	http.Redirect(c.res, c.req, url, statusHeader[0])
 }
 
-func (c *Context) SessionManger() interfaces.ISessionManager {
+func (c *Context) sessionManger() interfaces.ISessionManager {
 	sessionInf, ok := di.MustGet("sessionManager").(interfaces.ISessionManager)
 	if !ok {
 		panic("sessionManager组件类型不正确")
 	}
 	return sessionInf
+}
+
+func (c *Context) Session() interfaces.ISession {
+	is, err := c.sessionManger().Session(c.req, c.res)
+	if err != nil {
+		panic(fmt.Sprintf("get session instance failed: %s", err.Error()))
+	}
+	return is
 }
 
 // 执行下个中间件

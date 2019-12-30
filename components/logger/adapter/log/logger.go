@@ -3,7 +3,6 @@ package log
 import (
 	"fmt"
 	"github.com/natefinch/lumberjack"
-	"github.com/spf13/viper"
 	"github.com/xiusin/router/components/logger"
 	"github.com/xiusin/router/components/path"
 	"io"
@@ -24,9 +23,6 @@ func New(options *Options) *Logger {
 	if options == nil {
 		options = DefaultOptions()
 	}
-	if viper.GetInt("env") == 0 {
-		options.OutPutToConsole = true
-	}
 	l := &Logger{
 		info: log.New(&lumberjack.Logger{
 			Filename:   path.LogPath(time.Now().Format(options.RotateLogDirFormat), options.InfoLogName),
@@ -34,20 +30,20 @@ func New(options *Options) *Logger {
 			MaxBackups: options.MaxBackups,
 			MaxAge:     options.MaxAgeDay,
 			Compress:   options.Compress,
-		}, "[INFO] ", options.LogFlag),
+		}, logger.InfoPrefix, options.LogFlag),
 		error: log.New(&lumberjack.Logger{
 			Filename:   path.LogPath(time.Now().Format(options.RotateLogDirFormat), options.ErrorLogName),
 			MaxSize:    options.MaxSizeMB,
 			MaxBackups: options.MaxBackups,
 			MaxAge:     options.MaxAgeDay,
 			Compress:   options.Compress,
-		}, "[ERROR] ", options.LogFlag),
+		}, logger.ErroPrefix, options.LogFlag),
 		config: options}
 
 	// 输出到控制台
 	if options.OutPutToConsole {
-		l.infoConsole = log.New(os.Stdout, "[INFO] ", options.LogFlag)
-		l.errConsole = log.New(os.Stdout, "[ERROR] ", options.LogFlag)
+		l.infoConsole = log.New(os.Stdout, logger.ColorInfoPrefix, options.LogFlag)
+		l.errConsole = log.New(os.Stdout, logger.ColorInfoPrefix, options.LogFlag)
 	}
 
 	return l
@@ -65,7 +61,6 @@ func (l *Logger) Print(msg string, args ...interface{}) {
 			l.infoConsole.Println(args...)
 		}
 	}
-
 }
 
 func (l *Logger) Printf(format string, args ...interface{}) {
