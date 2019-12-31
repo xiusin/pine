@@ -1,8 +1,8 @@
 package cache
 
 import (
-	"encoding/json"
 	"errors"
+	"github.com/xiusin/router/components/json"
 
 	"github.com/xiusin/router/components/di/interfaces"
 )

@@ -2,8 +2,8 @@ package template
 
 import (
 	"bytes"
-	"encoding/json"
 	"encoding/xml"
+	"github.com/xiusin/router/components/json"
 	"io"
 )
 
@@ -36,8 +36,9 @@ func (_ *Template) Text(writer io.Writer, v []byte) error {
 	return err
 }
 
+//todo don't support now
 func (_ *Template) XML(writer io.Writer, v map[string]interface{}) error {
-	b, err := xml.Marshal(v)
+	b, err := xml.MarshalIndent(v, "", " ")
 	if err == nil {
 		_, err = writer.Write(b)
 	}

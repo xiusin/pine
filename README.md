@@ -30,7 +30,3 @@ https://www.jianshu.com/p/4417af75a9f4
 3. 如果返回一个非nil的错误, 会直接`panic`(不包括复合类型里的error)
 4. 如果返回 string,int 等类型,显示为`text`
 
-## 疑惑不解之处 ##
- - [ ] 为什么内嵌的httprouter.router无法继承实现的接口？？
-
-

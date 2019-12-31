@@ -24,6 +24,8 @@ require (
 	github.com/natefinch/lumberjack v2.0.0+incompatible
 	github.com/rogpeppe/go-internal v1.4.0 // indirect
 	github.com/satori/go.uuid v1.2.0
+	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d
+	github.com/smartystreets/goconvey v1.6.4
 	github.com/spf13/viper v1.4.0
 	go.etcd.io/bbolt v1.3.3
 	go.uber.org/zap v1.10.0

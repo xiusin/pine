@@ -1,7 +1,6 @@
 package badger
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/xiusin/router/components/cache"

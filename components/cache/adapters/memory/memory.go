@@ -1,9 +1,9 @@
 package memory
 
 import (
-	"encoding/json"
 	"errors"
 	"github.com/xiusin/router/components/cache"
+	"github.com/xiusin/router/components/json"
 	"github.com/xiusin/router/utils"
 	"sync"
 	"sync/atomic"

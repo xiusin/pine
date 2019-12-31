@@ -1,0 +1,863 @@
+[ERRO] 2019/12/31 14:51:14 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 20 [running]:
+runtime/debug.Stack(0xc000107888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc0001840a0, 0xc00011a100)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc0001840a0, 0xc000102100)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc00018e000, 0xc000102100)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc00018e000, 0xc000102100)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000d3040, 0x1564c60, 0xc0000924c0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 14:51:16 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 20 [running]:
+runtime/debug.Stack(0xc0001a1888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc0000d30e0, 0xc000122180)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc0000d30e0, 0xc0001ac100)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc0001c0000, 0xc0001ac100)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc0001c0000, 0xc0001ac100)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000d3040, 0x1564c60, 0xc0000924c0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 14:51:16 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 20 [running]:
+runtime/debug.Stack(0xc0001a1888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc0001840a0, 0xc00011a380)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc0001840a0, 0xc000102200)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc00018e1c0, 0xc000102200)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc00018e1c0, 0xc000102200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000d3040, 0x1564c60, 0xc0000924c0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 14:51:16 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 20 [running]:
+runtime/debug.Stack(0xc0001a1888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc0000d30e0, 0xc000122280)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc0000d30e0, 0xc0001ac200)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc0001c00e0, 0xc0001ac200)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc0001c00e0, 0xc0001ac200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000d3040, 0x1564c60, 0xc0000924c0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 14:51:17 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 20 [running]:
+runtime/debug.Stack(0xc0001a1888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc000146500)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc000146500)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc000146500)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc000146500, 0xc000124300)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc000146500, 0xc000102300)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc00016e0e0, 0xc000102300)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc00016e0e0, 0xc000102300)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000d3040, 0x1564c60, 0xc0000924c0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 14:51:17 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 20 [running]:
+runtime/debug.Stack(0xc0001a1888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc0000d30e0, 0xc000122380)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc0000d30e0, 0xc000156400)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc0001c01c0, 0xc000156400)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc0001c01c0, 0xc000156400)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000d3040, 0x1564c60, 0xc0000924c0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 14:51:17 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 20 [running]:
+runtime/debug.Stack(0xc0001a1888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc000146500)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc000146500)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc000146500)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc000146500, 0xc000124400)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc000146500, 0xc000102400)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc00016e1c0, 0xc000102400)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc00016e1c0, 0xc000102400)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000d3040, 0x1564c60, 0xc0000924c0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 14:51:17 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 20 [running]:
+runtime/debug.Stack(0xc0001a1888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc0000d30e0, 0xc000122480)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc0000d30e0, 0xc000156500)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc0001c02a0, 0xc000156500)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc0001c02a0, 0xc000156500)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000d3040, 0x1564c60, 0xc0000924c0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 14:51:17 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 20 [running]:
+runtime/debug.Stack(0xc0001a1888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc0000d30e0, 0xc000122580)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc0000d30e0, 0xc000102500)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc0001c0380, 0xc000102500)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc0001c0380, 0xc000102500)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000d3040, 0x1564c60, 0xc0000924c0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 14:51:18 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 20 [running]:
+runtime/debug.Stack(0xc0001a1888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc0000d30e0, 0xc000122680)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc0000d30e0, 0xc000102600)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc0001c0460, 0xc000102600)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc0001c0460, 0xc000102600)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000d3040, 0x1564c60, 0xc0000924c0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 14:51:18 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 20 [running]:
+runtime/debug.Stack(0xc0001a1888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc0001840a0, 0xc00011a480)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc0001840a0, 0xc000102700)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc00018e2a0, 0xc000102700)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc00018e2a0, 0xc000102700)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000d3040, 0x1564c60, 0xc0000924c0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 14:51:18 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 20 [running]:
+runtime/debug.Stack(0xc0001a1888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc0001840a0, 0xc00011a580)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc0001840a0, 0xc0001ac300)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc00018e380, 0xc0001ac300)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc00018e380, 0xc0001ac300)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000d3040, 0x1564c60, 0xc0000924c0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 14:51:23 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 43 [running]:
+runtime/debug.Stack(0xc000161888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc0001840a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc0001840a0, 0xc00011a700)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc0001840a0, 0xc000156600)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc00018e460, 0xc000156600)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc00018e460, 0xc000156600)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0001465a0, 0x1564c60, 0xc000130ac0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 14:51:33 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 69 [running]:
+runtime/debug.Stack(0xc000161888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc000234000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc000234000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc000234000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc000234000, 0xc00021e080)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc000234000, 0xc0001ac600)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc00022e000, 0xc0001ac600)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc00022e000, 0xc0001ac600)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc000184140, 0x1564c60, 0xc000020440)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 14:51:43 msg: runtime error: invalid memory address or nil pointer dereference  Method: GET  Path: /
+ Stack: goroutine 58 [running]:
+runtime/debug.Stack(0xc00015e888, 0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x143f380, 0x183e200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Render).Text(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render.go:46
+github.com/xiusin/router.TestRender_Text.func1.1(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:26 +0x75
+github.com/xiusin/router.(*Context).Next(0xc0000d30e0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000130700, 0xc0000d30e0, 0xc000122c80)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000130700, 0xc0000d30e0, 0xc000102b00)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000130700, 0x1563fe0, 0xc0001c0540, 0xc000102b00)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00016e000, 0x1563fe0, 0xc0001c0540, 0xc000102b00)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000d32c0, 0x1564c60, 0xc000092b40)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 15:03:29 msg: 500  Method: GET  Path: /500
+ Stack: goroutine 31 [running]:
+runtime/debug.Stack(0xc0001ac908, 0x1470720, 0x15c0bd0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0000bd220)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x1470720, 0x15c0bd0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.TestRender_Text.func1.2(0xc0000bd220)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:35 +0x39
+github.com/xiusin/router.(*Context).Next(0xc0000bd220)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc00010aa40, 0xc0000bd220, 0xc000242780)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc00010aa40, 0xc0000bd220, 0xc000136c00)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc00010aa40, 0x15d3a40, 0xc0002ae0e0, 0xc000136c00)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc0001a8000, 0x15d3a40, 0xc0002ae0e0, 0xc000136c00)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc00013b360, 0x15d4c80, 0xc00010b040)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 15:03:29 msg: 500  Method: GET  Path: /500
+ Stack: goroutine 61 [running]:
+runtime/debug.Stack(0xc0001b1908, 0x1470720, 0x15c0bd0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0000bd220)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x1470720, 0x15c0bd0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.TestRender_Text.func1.2(0xc0000bd220)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:35 +0x39
+github.com/xiusin/router.(*Context).Next(0xc0000bd220)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc00010aa40, 0xc0000bd220, 0xc000242880)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc00010aa40, 0xc0000bd220, 0xc000236400)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc00010aa40, 0x15d3a40, 0xc0002ae1c0, 0xc000236400)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc0001a8000, 0x15d3a40, 0xc0002ae1c0, 0xc000236400)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0001de320, 0x15d4c80, 0xc0001b4540)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[31m[ERRO] [0m2019/12/31 15:03:35 msg: 500  Method: GET  Path: /500
+ Stack: goroutine 79 [running]:
+runtime/debug.Stack(0xc00018d908, 0x1470720, 0x15c0bd0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0001f2000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x1470720, 0x15c0bd0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.TestRender_Text.func1.2(0xc0001f2000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:35 +0x39
+github.com/xiusin/router.(*Context).Next(0xc0001f2000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000032e80, 0xc0001f2000, 0xc0001de800)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000032e80, 0xc0001f2000, 0xc0001fc500)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000032e80, 0x15d3a40, 0xc0001ec0e0, 0xc0001fc500)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc000162000, 0x15d3a40, 0xc0001ec0e0, 0xc0001fc500)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0001f2280, 0x15d4c80, 0xc0001e62c0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[31m[ERRO] [0m2019/12/31 15:03:35 msg: 500  Method: GET  Path: /500
+ Stack: goroutine 56 [running]:
+runtime/debug.Stack(0xc0002c0908, 0x1470720, 0x15c0bd0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0002ce0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:45 +0x77
+panic(0x1470720, 0x15c0bd0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.TestRender_Text.func1.2(0xc0002ce0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:35 +0x39
+github.com/xiusin/router.(*Context).Next(0xc0002ce0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000032e80, 0xc0002ce0a0, 0xc0002d6080)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000032e80, 0xc0002ce0a0, 0xc0000ead00)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000032e80, 0x15d3a40, 0xc0002e2000, 0xc0000ead00)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc000162000, 0x15d3a40, 0xc0002e2000, 0xc0000ead00)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc000160500, 0x15d4c80, 0xc000033780)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[31m[ERRO] [0m2019/12/31 15:06:56 msg: 500  Method: GET  Path: /500
+ Stack: goroutine 58 [running]:
+runtime/debug.Stack(0xc00025a0e0, 0x1f4, 0x15c0bf0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0001cc0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:47 +0xa3
+panic(0x1470740, 0x15c0bf0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.TestRender_Text.func1.2(0xc0001cc0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:35 +0x39
+github.com/xiusin/router.(*Context).Next(0xc0001cc0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000032ac0, 0xc0001cc0a0, 0xc000124400)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000032ac0, 0xc0001cc0a0, 0xc000202400)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000032ac0, 0x15d3a60, 0xc00025a0e0, 0xc000202400)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00019a000, 0x15d3a60, 0xc00025a0e0, 0xc000202400)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0001f8280, 0x15d4ca0, 0xc0001d8400)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[31m[ERRO] [0m2019/12/31 15:06:56 msg: 500  Method: GET  Path: /500
+ Stack: goroutine 82 [running]:
+runtime/debug.Stack(0xc0002e0000, 0x1f4, 0x15c0bf0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0002cc0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:47 +0xa3
+panic(0x1470740, 0x15c0bf0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.TestRender_Text.func1.2(0xc0002cc0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:35 +0x39
+github.com/xiusin/router.(*Context).Next(0xc0002cc0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000032ac0, 0xc0002cc0a0, 0xc0002d4080)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000032ac0, 0xc0002cc0a0, 0xc000104800)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000032ac0, 0x15d3a60, 0xc0002e0000, 0xc000104800)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00019a000, 0x15d3a60, 0xc0002e0000, 0xc000104800)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000d5220, 0x15d4ca0, 0xc000094840)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 15:14:54 msg: runtime error: index out of range [0] with length 0  Method: GET  Path: /302
+ Stack: goroutine 5 [running]:
+runtime/debug.Stack(0xc00017c1c0, 0x1f4, 0xc0000d4c20)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0000cdb80)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:47 +0xa3
+panic(0x14e9300, 0xc0000d4c20)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Context).Redirect(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:124
+github.com/xiusin/router.TestNewBuildInRouter.func1.1(0xc0000cdb80)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router_test.go:12 +0x18
+github.com/xiusin/router.(*Context).Next(0xc0000cdb80)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc0000b4dc0, 0xc0000cdb80, 0xc00011a600)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc0000b4dc0, 0xc0000cdb80, 0xc0000fc500)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc0000b4dc0, 0x15d3dc0, 0xc00017c1c0, 0xc0000fc500)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00017c000, 0x15d3dc0, 0xc00017c1c0, 0xc0000fc500)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc00018c000, 0x15d5000, 0xc000020240)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 15:15:07 msg: runtime error: index out of range [0] with length 0  Method: GET  Path: /302
+ Stack: goroutine 5 [running]:
+runtime/debug.Stack(0xc0001ac0e0, 0x1f4, 0xc0001a2100)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc00019e0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:47 +0xa3
+panic(0x14e9300, 0xc0001a2100)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Context).Redirect(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:124
+github.com/xiusin/router.TestNewBuildInRouter.func1.1(0xc00019e0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router_test.go:12 +0x18
+github.com/xiusin/router.(*Context).Next(0xc00019e0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc0000b4dc0, 0xc00019e0a0, 0xc000110300)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc0000b4dc0, 0xc00019e0a0, 0xc0000fc600)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc0000b4dc0, 0x15d3dc0, 0xc0001ac0e0, 0xc0000fc600)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00017c000, 0x15d3dc0, 0xc0001ac0e0, 0xc0000fc600)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc00018c000, 0x15d5000, 0xc000020240)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 15:15:08 msg: runtime error: index out of range [0] with length 0  Method: GET  Path: /302
+ Stack: goroutine 5 [running]:
+runtime/debug.Stack(0xc0001fa000, 0x1f4, 0xc000028220)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc00018c140)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:47 +0xa3
+panic(0x14e9300, 0xc000028220)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Context).Redirect(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:124
+github.com/xiusin/router.TestNewBuildInRouter.func1.1(0xc00018c140)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router_test.go:12 +0x18
+github.com/xiusin/router.(*Context).Next(0xc00018c140)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc0000b4dc0, 0xc00018c140, 0xc00018a180)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc0000b4dc0, 0xc00018c140, 0xc0001cc200)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc0000b4dc0, 0x15d3dc0, 0xc0001fa000, 0xc0001cc200)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00017c000, 0x15d3dc0, 0xc0001fa000, 0xc0001cc200)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc00018c000, 0x15d5000, 0xc000020240)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 15:15:10 msg: runtime error: index out of range [0] with length 0  Method: GET  Path: /302
+ Stack: goroutine 5 [running]:
+runtime/debug.Stack(0xc00017c2a0, 0x1f4, 0xc0000d4ca0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0000cdb80)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:47 +0xa3
+panic(0x14e9300, 0xc0000d4ca0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.(*Context).Redirect(...)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:124
+github.com/xiusin/router.TestNewBuildInRouter.func1.1(0xc0000cdb80)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router_test.go:12 +0x18
+github.com/xiusin/router.(*Context).Next(0xc0000cdb80)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc0000b4dc0, 0xc0000cdb80, 0xc00011a700)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc0000b4dc0, 0xc0000cdb80, 0xc00019a300)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc0000b4dc0, 0x15d3dc0, 0xc00017c2a0, 0xc00019a300)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00017c000, 0x15d3dc0, 0xc00017c2a0, 0xc00019a300)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc00018c000, 0x15d5000, 0xc000020240)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 15:16:56 msg: 500  Method: GET  Path: /500
+ Stack: goroutine 68 [running]:
+runtime/debug.Stack(0xc0001fa0e0, 0x1f4, 0x15c0fa0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0001fe000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:47 +0xa3
+panic(0x1470a40, 0x15c0fa0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.TestRender_Text.func1.2(0xc0001fe000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:36 +0x39
+github.com/xiusin/router.(*Context).Next(0xc0001fe000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc0000b6dc0, 0xc0001fe000, 0xc0001f0580)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc0000b6dc0, 0xc0001fe000, 0xc0000feb00)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc0000b6dc0, 0x15d3e40, 0xc0001fa0e0, 0xc0000feb00)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00018c000, 0x15d3e40, 0xc0001fa0e0, 0xc0000feb00)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc00018a460, 0x15d5080, 0xc0000b7540)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[ERRO] 2019/12/31 15:16:56 msg: 500  Method: GET  Path: /500
+ Stack: goroutine 82 [running]:
+runtime/debug.Stack(0xc0002de000, 0x1f4, 0x15c0fa0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0002e6000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:47 +0xa3
+panic(0x1470a40, 0x15c0fa0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.TestRender_Text.func1.2(0xc0002e6000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:36 +0x39
+github.com/xiusin/router.(*Context).Next(0xc0002e6000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc0000b6dc0, 0xc0002e6000, 0xc0002ce080)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc0000b6dc0, 0xc0002e6000, 0xc000226400)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc0000b6dc0, 0x15d3e40, 0xc0002de000, 0xc000226400)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc00018c000, 0x15d3e40, 0xc0002de000, 0xc000226400)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0001fe280, 0x15d5080, 0xc000020740)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[31m[ERRO] [0m2019/12/31 15:17:14 msg: 500  Method: GET  Path: /500
+ Stack: goroutine 63 [running]:
+runtime/debug.Stack(0xc0001dc2a0, 0x1f4, 0x15c0fa0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0001ba0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:47 +0xa3
+panic(0x1470a40, 0x15c0fa0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.TestRender_Text.func1.2(0xc0001ba0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:36 +0x39
+github.com/xiusin/router.(*Context).Next(0xc0001ba0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc00010ca40, 0xc0001ba0a0, 0xc000110780)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc00010ca40, 0xc0001ba0a0, 0xc00022c700)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc00010ca40, 0x15d3e40, 0xc0001dc2a0, 0xc00022c700)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc0001aa000, 0x15d3e40, 0xc0001dc2a0, 0xc00022c700)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc00024c320, 0x15d5080, 0xc000240480)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[31m[ERRO] [0m2019/12/31 15:17:14 msg: 500  Method: GET  Path: /500
+ Stack: goroutine 33 [running]:
+runtime/debug.Stack(0xc0001aa2a0, 0x1f4, 0x15c0fa0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc000145220)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:47 +0xa3
+panic(0x1470a40, 0x15c0fa0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.TestRender_Text.func1.2(0xc000145220)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:36 +0x39
+github.com/xiusin/router.(*Context).Next(0xc000145220)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc00010ca40, 0xc000145220, 0xc00013ec00)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc00010ca40, 0xc000145220, 0xc000140d00)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc00010ca40, 0x15d3e40, 0xc0001aa2a0, 0xc000140d00)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc0001aa000, 0x15d3e40, 0xc0001aa2a0, 0xc000140d00)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0001454a0, 0x15d5080, 0xc00010d140)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[31m[ERRO] [0m2019/12/31 15:24:52 msg: 500  Method: GET  Path: /500
+ Stack: goroutine 70 [running]:
+runtime/debug.Stack(0xc0002441c0, 0x1f4, 0x15c1080)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0000cf2c0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:47 +0xa3
+panic(0x1470ae0, 0x15c1080)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.TestRender_Text.func1.2(0xc0000cf2c0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:40 +0x39
+github.com/xiusin/router.(*Context).Next(0xc0000cf2c0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000032ac0, 0xc0000cf2c0, 0xc000116600)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000032ac0, 0xc0000cf2c0, 0xc00013aa00)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000032ac0, 0x15d3f20, 0xc0002441c0, 0xc00013aa00)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc000190000, 0x15d3f20, 0xc0002441c0, 0xc00013aa00)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc00013f180, 0x15d5160, 0xc000032f40)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[31m[ERRO] [0m2019/12/31 15:24:52 msg: 500  Method: GET  Path: /500
+ Stack: goroutine 32 [running]:
+runtime/debug.Stack(0xc0001fc2a0, 0x1f4, 0x15c1080)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc000204000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:47 +0xa3
+panic(0x1470ae0, 0x15c1080)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.TestRender_Text.func1.2(0xc000204000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/render_test.go:40 +0x39
+github.com/xiusin/router.(*Context).Next(0xc000204000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000032ac0, 0xc000204000, 0xc0001eab80)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000032ac0, 0xc000204000, 0xc000100700)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000032ac0, 0x15d3f20, 0xc0001fc2a0, 0xc000100700)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc000190000, 0x15d3f20, 0xc0001fc2a0, 0xc000100700)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000cf4a0, 0x15d5160, 0xc0000e2bc0)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[31m[ERRO] [0m2019/12/31 15:27:44 msg: 500  Method: GET  Path: /500
+ Stack: goroutine 84 [running]:
+runtime/debug.Stack(0xc0002641c0, 0x1f4, 0x15c1640)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0001dc0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:47 +0xa3
+panic(0x1470fc0, 0x15c1640)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.TestNewBuildInRouter.func1.3(0xc0001dc0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router_test.go:20 +0x39
+github.com/xiusin/router.(*Context).Next(0xc0001dc0a0)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000115040, 0xc0001dc0a0, 0xc000108880)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000115040, 0xc0001dc0a0, 0xc0000ea600)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000115040, 0x15d4480, 0xc0002641c0, 0xc0000ea600)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc0001a82a0, 0x15d4480, 0xc0002641c0, 0xc0000ea600)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc0000bd400, 0x15d56c0, 0xc000032c40)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+
+[31m[ERRO] [0m2019/12/31 15:27:44 msg: 500  Method: GET  Path: /500
+ Stack: goroutine 116 [running]:
+runtime/debug.Stack(0xc0002ce000, 0x1f4, 0x15c1640)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/debug/stack.go:24 +0x9d
+github.com/xiusin/router.DefaultRecoverHandler(0xc0002d6000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/error.go:47 +0xa3
+panic(0x1470fc0, 0x15c1640)
+	/usr/local/Cellar/go/1.13.5/libexec/src/runtime/panic.go:679 +0x1b2
+github.com/xiusin/router.TestNewBuildInRouter.func1.3(0xc0002d6000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router_test.go:20 +0x39
+github.com/xiusin/router.(*Context).Next(0xc0002d6000)
+	/Users/xiusin/projects/src/github.com/xiusin/router/context.go:158 +0x104
+github.com/xiusin/router.(*Router).handle(0xc000115040, 0xc0002d6000, 0xc0002bc080)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:207 +0xe3
+github.com/xiusin/router.(*Router).dispatch(0xc000115040, 0xc0002d6000, 0xc000139400)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:220 +0x56
+github.com/xiusin/router.(*Router).ServeHTTP(0xc000115040, 0x15d4480, 0xc0002ce000, 0xc000139400)
+	/Users/xiusin/projects/src/github.com/xiusin/router/router.go:193 +0x26f
+net/http.serverHandler.ServeHTTP(0xc0001a82a0, 0x15d4480, 0xc0002ce000, 0xc000139400)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2802 +0xa4
+net/http.(*conn).serve(0xc00013f720, 0x15d56c0, 0xc000115680)
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:1890 +0x875
+created by net/http.(*Server).Serve
+	/usr/local/Cellar/go/1.13.5/libexec/src/net/http/server.go:2928 +0x384
+

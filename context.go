@@ -19,19 +19,31 @@ import (
 
 type Context struct {
 	context.Context
-	res             http.ResponseWriter // 响应对象
-	req             *http.Request       // 请求对象
-	route           *RouteEntry         // 当前context匹配到的路由
-	render          *Render             // 模板渲染
-	cookie          ICookie             // cookie 处理
-	sess            interfaces.ISession
-	params          *Params                // 路由参数
-	stopped         bool                   // 是否停止传播中间件
-	middlewareIndex int                    // 中间件起始索引
-	status          int                    //保存状态码
-	Msg             string                 // 附加信息（临时方案， 不知道怎么获取设置的值）
-	keys            map[string]interface{} //设置上下文绑定内容
-	autoParseValue  bool                   // 是否自动解析控制器返回值
+	// response object
+	res http.ResponseWriter
+	// request object
+	req *http.Request
+	// matched routerEntry
+	route *RouteEntry
+	//  reader service
+	render *Render
+	// cookie cookie manager
+	cookie ICookie
+	// SessionManager
+	sess interfaces.ISession
+	// Request params
+	params *Params
+	// Stop middleware iteration
+	stopped bool
+	// Current middleware iteration index, init with -1
+	middlewareIndex int
+	// Response status code record
+	status int
+	// Temporary recording error information
+	Msg string
+	// Binding some value to context
+	keys           map[string]interface{}
+	autoParseValue bool
 }
 
 func NewContext(auto bool) *Context {
@@ -109,7 +121,7 @@ func (c *Context) Writer() http.ResponseWriter {
 
 func (c *Context) Redirect(url string, statusHeader ...int) {
 	if len(statusHeader) == 0 {
-		statusHeader[0] = http.StatusFound
+		statusHeader = []int{http.StatusFound}
 	}
 	http.Redirect(c.res, c.req, url, statusHeader[0])
 }

@@ -1,7 +1,7 @@
 package badger
 
 import (
-	"encoding/json"
+	"github.com/xiusin/router/components/json"
 	"os"
 	"time"
 

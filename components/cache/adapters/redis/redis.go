@@ -1,8 +1,8 @@
 package redis
 
 import (
-	"encoding/json"
 	"fmt"
+	"github.com/xiusin/router/components/json"
 	"github.com/xiusin/router/utils"
 	"time"
 
