@@ -6,6 +6,10 @@ import (
 )
 
 func Logger() interfaces.ILogger {
-	return di.MustGet("logger").(interfaces.ILogger)
+	logger, ok := di.MustGet("logger").(interfaces.ILogger)
+	if !ok {
+		panic("Type of `logger` component error")
+	}
+	return logger
 }
 

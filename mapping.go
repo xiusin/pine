@@ -12,23 +12,21 @@ import (
 )
 
 //***********************ControllerMapping***********************//
-type (
-	// 控制器路由映射注册接口
-	ControllerRouteMappingInf interface {
-		GET(path string, handle string, mws ...Handler)
-		POST(path string, handle string, mws ...Handler)
-		PUT(path string, handle string, mws ...Handler)
-		HEAD(path string, handle string, mws ...Handler)
-		DELETE(path string, handle string, mws ...Handler)
-		ANY(path string, handle string, mws ...Handler)
-	}
+// 控制器路由映射注册接口
+type ControllerRouteMappingInf interface {
+	GET(path string, handle string, mws ...Handler)
+	POST(path string, handle string, mws ...Handler)
+	PUT(path string, handle string, mws ...Handler)
+	HEAD(path string, handle string, mws ...Handler)
+	DELETE(path string, handle string, mws ...Handler)
+	ANY(path string, handle string, mws ...Handler)
+}
 
-	// 控制器映射路由
-	registerRouter struct {
-		r IRouter
-		c IController
-	}
-)
+// 控制器映射路由
+type registerRouter struct {
+	r IRouter
+	c IController
+}
 
 const ServiceTagName = "service"
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/xiusin/router/utils"
 	"math/rand"
 	"mime/multipart"
 	"net"
@@ -18,12 +19,12 @@ import (
 
 type Context struct {
 	context.Context
-	res             http.ResponseWriter    // 响应对象
-	req             *http.Request          // 请求对象
-	route           *RouteEntry            // 当前context匹配到的路由
-	render          *Render                // 模板渲染
-	cookie          ICookie                // cookie 处理
-	sess 			interfaces.ISession
+	res             http.ResponseWriter // 响应对象
+	req             *http.Request       // 请求对象
+	route           *RouteEntry         // 当前context匹配到的路由
+	render          *Render             // 模板渲染
+	cookie          ICookie             // cookie 处理
+	sess            interfaces.ISession
 	params          *Params                // 路由参数
 	stopped         bool                   // 是否停止传播中间件
 	middlewareIndex int                    // 中间件起始索引
@@ -50,14 +51,14 @@ func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
 	c.route = nil
 	c.stopped = false
 	c.Msg = ""
-	c.initCtxComponent(res, req)
+	c.initCtxComponent(res)
 }
 
 func (c *Context) SetCookiesHandler(cookie ICookie) {
 	c.cookie = cookie
 }
 
-func (c *Context) initCtxComponent(res http.ResponseWriter, req *http.Request) {
+func (c *Context) initCtxComponent(res http.ResponseWriter) {
 	if c.params == nil {
 		c.params = NewParams(make(map[string]string))
 	} else {
@@ -68,6 +69,8 @@ func (c *Context) initCtxComponent(res http.ResponseWriter, req *http.Request) {
 	} else {
 		c.render.Reset(res)
 	}
+	c.cookie = nil
+	c.sess = nil
 }
 
 func (c *Context) Flush() {
@@ -83,10 +86,10 @@ func (c *Context) Params() *Params {
 	return c.params
 }
 
-func (c *Context) ParseForm() error {
-	//return c.req.ParseMultipartForm(c.options.GetMaxMultipartMemory())
-	return nil
-}
+//func (c *Context) ParseForm() error {
+//	//return c.req.ParseMultipartForm(c.options.GetMaxMultipartMemory())
+//	return nil
+//}
 
 func (c *Context) Request() *http.Request {
 	return c.req
@@ -97,7 +100,7 @@ func (c *Context) Header(key string) string {
 }
 
 func (c *Context) Logger() interfaces.ILogger {
-	return di.MustGet("logger").(interfaces.ILogger)
+	return utils.Logger()
 }
 
 func (c *Context) Writer() http.ResponseWriter {
@@ -114,18 +117,18 @@ func (c *Context) Redirect(url string, statusHeader ...int) {
 func (c *Context) sessionManger() interfaces.ISessionManager {
 	sessionInf, ok := di.MustGet("sessionManager").(interfaces.ISessionManager)
 	if !ok {
-		panic("sessionManager组件类型不正确")
+		panic("Type of `sessionManager` component error")
 	}
 	return sessionInf
 }
 
 func (c *Context) Session() interfaces.ISession {
 	if c.sess == nil {
-		is, err := c.sessionManger().Session(c.req, c.res)
+		sess, err := c.sessionManger().Session(c.req, c.res)
 		if err != nil {
-			panic(fmt.Sprintf("get session instance failed: %s", err.Error()))
+			panic(fmt.Sprintf("Get sessionInstance failed: %s", err.Error()))
 		}
-		c.sess = is
+		c.sess = sess
 	}
 	return c.sess
 }
@@ -219,7 +222,8 @@ func (c *Context) GetData() map[string][]string {
 }
 
 func (c *Context) GetInt(key string, defaultVal ...int) (val int, res bool) {
-	val, err := strconv.Atoi(c.req.URL.Query().Get(key))
+	var err error
+	val, err = strconv.Atoi(c.req.URL.Query().Get(key))
 	if err != nil && len(defaultVal) > 0 {
 		val, res = defaultVal[0], true
 	}
@@ -227,7 +231,8 @@ func (c *Context) GetInt(key string, defaultVal ...int) (val int, res bool) {
 }
 
 func (c *Context) GetInt64(key string, defaultVal ...int64) (val int64, res bool) {
-	val, err := strconv.ParseInt(c.req.URL.Query().Get(key), 10, 64)
+	var err error
+	val, err = strconv.ParseInt(c.req.URL.Query().Get(key), 10, 64)
 	if err != nil && len(defaultVal) > 0 {
 		val, res = defaultVal[0], true
 	}
@@ -235,7 +240,8 @@ func (c *Context) GetInt64(key string, defaultVal ...int64) (val int64, res bool
 }
 
 func (c *Context) GetFloat64(key string, defaultVal ...float64) (val float64, res bool) {
-	val, err := strconv.ParseFloat(c.req.URL.Query().Get(key), 64)
+	var err error
+	val, err = strconv.ParseFloat(c.req.URL.Query().Get(key), 64)
 	if err != nil && len(defaultVal) > 0 {
 		val, res = defaultVal[0], true
 	}
@@ -258,7 +264,8 @@ func (c *Context) GetStrings(key string) (val []string, ok bool) {
 
 // ************************************** GET POST DATA METHOD ********************************************** //
 func (c *Context) PostInt(key string, defaultVal ...int) (val int, res bool) {
-	val, err := strconv.Atoi(c.req.PostFormValue(key))
+	var err error
+	val, err = strconv.Atoi(c.req.PostFormValue(key))
 	if err != nil && len(defaultVal) > 0 {
 		val, res = defaultVal[0], true
 	}
@@ -276,7 +283,8 @@ func (c *Context) PostString(key string, defaultVal ...string) (val string, res 
 }
 
 func (c *Context) PostInt64(key string, defaultVal ...int64) (val int64, res bool) {
-	val, err := strconv.ParseInt(c.req.PostFormValue(key), 10, 64)
+	var err error
+	val, err = strconv.ParseInt(c.req.PostFormValue(key), 10, 64)
 	if err != nil && len(defaultVal) > 0 {
 		val, res = defaultVal[0], true
 	}
@@ -351,7 +359,7 @@ func (c *Context) GetToken() string {
 	csrfName := c.Value("csrf_name").(string)
 	csrfTime := c.Value("csrf_time").(int)
 	if csrfName == "" {
-		panic(errors.New("please set `csrf_name` and `csrf_time` to context"))
+		panic(errors.New("Please set `csrf_name` and `csrf_time` parameters to context"))
 	}
 	c.getCookiesHandler().Set(csrfName, token, csrfTime)
 	return token
