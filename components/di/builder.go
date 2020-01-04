@@ -2,6 +2,8 @@ package di
 
 import (
 	"errors"
+	"fmt"
+	"reflect"
 	"sync"
 )
 
@@ -11,103 +13,101 @@ type (
 	  2. 参数必须按顺序传入
 	*/
 	BuilderInf interface {
-		Set(string, BuildHandler, bool) *Definition
-		SetWithParams(string, BuildWithHandler) *Definition
+		Set(interface{}, BuildHandler, bool) *Definition
+		SetWithParams(interface{}, BuildWithHandler) *Definition
 		Add(*Definition)
-		Get(string, ...interface{}) (interface{}, error)
-		GetWithParams(string, ...interface{}) (interface{}, error)
-		MustGet(string, ...interface{}) interface{}
-		GetDefinition(string) (*Definition, error)
-		Delete(string)
-		Exists(string) bool
+		Get(interface{}, ...interface{}) (interface{}, error)
+		GetWithParams(interface{}, ...interface{}) (interface{}, error)
+		MustGet(interface{}, ...interface{}) interface{}
+		GetDefinition(interface{}) (*Definition, error)
+		Exists(interface{}) bool
 	}
 	builder struct {
-		mu       sync.RWMutex
-		services map[string]*Definition
+		services sync.Map
 	}
 	BuildHandler     func(builder BuilderInf) (interface{}, error)
 	BuildWithHandler func(builder BuilderInf, params ...interface{}) (interface{}, error)
 )
 
-const singleton = true
-
-func Singleton() bool {
-	return singleton
-}
-
-func NoSingleton() bool {
-	return !singleton
-}
-
-func (b *builder) GetDefinition(serviceName string) (*Definition, error) {
-	b.mu.RLock()
-	service, ok := b.services[serviceName]
-	b.mu.RUnlock()
+func (b *builder) GetDefinition(serviceAny interface{}) (*Definition, error) {
+	serviceName := ResolveServiceName(serviceAny)
+	service, ok := b.services.Load(serviceName)
 	if !ok {
 		return nil, errors.New("service " + serviceName + " not exists")
 	}
-	return service, nil
+	return service.(*Definition), nil
 }
 
-func (b *builder) Set(serviceName string, handler BuildHandler, singleton bool) *Definition {
-	b.mu.Lock()
-	def := NewDefinition(serviceName, handler, singleton)
-	b.services[serviceName] = def
-	b.mu.Unlock()
+func (b *builder) Set(serviceAny interface{}, handler BuildHandler, singleton bool) *Definition {
+	var def *Definition
+	serviceName := ResolveServiceName(serviceAny)
+	def = NewDefinition(serviceName, handler, singleton)
+	b.services.Store(def.serviceName, def)
 	return def
 }
 
-func (b *builder) SetWithParams(serviceName string, handler BuildWithHandler) *Definition {
-	b.mu.Lock()
+func ResolveServiceName(service interface{}) string {
+	// 接口类型先直接传递字面量值吧, 目前不知道如何实现
+	//ty.Type().Kind() == reflect.Interface ||
+	switch service.(type) {
+	case string:
+		return service.(string)
+	default:
+		ty := reflect.ValueOf(service)
+		if ty.IsValid() && ty.Type().Kind() == reflect.Ptr {
+			return ty.Type().String()
+		}
+		panic("serviceName type is not support" + ty.Type().String())
+	}
+}
+
+func (b *builder) SetWithParams(serviceAny interface{}, handler BuildWithHandler) *Definition {
+	serviceName := ResolveServiceName(serviceAny)
 	def := NewParamsDefinition(serviceName, handler)
-	b.services[serviceName] = def
-	b.mu.Unlock()
+	b.services.Store(def.serviceName, def)
 	return def
 }
 
-func (b *builder) Add(definition *Definition) {
-	b.mu.Lock()
-	b.services[definition.ServiceName()] = definition
-	b.mu.Unlock()
+func (b *builder) Add(def *Definition) {
+	b.services.Store(def.serviceName, def)
 }
 
-func (b *builder) Get(serviceName string, receiver ...interface{}) (interface{}, error) {
-	b.mu.RLock()
-	service, ok := b.services[serviceName]
-	b.mu.RUnlock()
+func (b *builder) Get(serviceAny interface{}, receiver ...interface{}) (interface{}, error) {
+	serviceName := ResolveServiceName(serviceAny)
+	service, ok := b.services.Load(serviceName)
 	if !ok {
-		return nil, errors.New("service " + serviceName + " not exists")
+		return nil, errors.New(fmt.Sprintf("service '%s' not exists", serviceName))
 	}
-	s, err := service.resolve(b)
+	s, err := service.(*Definition).resolve(b)
 	if err != nil {
 		return nil, err
 	}
 	for idx := range receiver {
-		receiver[idx] = service
+		receiver[idx] = service.(*Definition)
 	}
 	return s, nil
 }
 
-func (b *builder) GetWithParams(serviceName string, params ...interface{}) (interface{}, error) {
-	b.mu.RLock()
-	service, ok := b.services[serviceName]
-	b.mu.RUnlock()
+func (b *builder) GetWithParams(serviceAny interface{}, params ...interface{}) (interface{}, error) {
+	serviceName := ResolveServiceName(serviceAny)
+	service, ok := b.services.Load(serviceName)
 	if !ok {
 		return nil, errors.New("service " + serviceName + " not exists")
 	}
-	if !service.IsSingleton() {
+	if !service.(*Definition).IsSingleton() {
 		return nil, errors.New("service is not singleton, cannot use it with GetWithParams")
 	}
-	s, err := service.resolveWithParams(b, params...)
+	s, err := service.(*Definition).resolveWithParams(b, params...)
 	if err != nil {
 		return nil, err
 	}
 	return s, nil
 }
 
-func (b *builder) MustGet(serviceName string, params ...interface{}) interface{} {
+func (b *builder) MustGet(serviceAny interface{}, params ...interface{}) interface{} {
 	var s interface{}
 	var err error
+	serviceName := ResolveServiceName(serviceAny)
 	if len(params) == 0 {
 		s, err = b.Get(serviceName)
 	} else {
@@ -119,51 +119,47 @@ func (b *builder) MustGet(serviceName string, params ...interface{}) interface{}
 	return s
 }
 
-func (b *builder) Exists(serviceName string) bool {
-	b.mu.RLock()
-	_, exists := b.services[serviceName]
-	b.mu.RUnlock()
+func (b *builder) Exists(serviceAny interface{}) bool {
+	var exists = false
+	serviceName := ResolveServiceName(serviceAny)
+	b.services.Range(func(key, value interface{}) bool {
+		if key.(string) == serviceName {
+			exists = true
+			return false
+		}
+		return true
+	})
 	return exists
 }
 
-func (b *builder) Delete(serviceName string) {
-	b.mu.Lock()
-	delete(b.services, serviceName)
-	b.mu.Unlock()
-}
-
-var diDefault = &builder{services: map[string]*Definition{}}
+var diDefault = &builder{}
 
 func Add(definition *Definition) {
 	diDefault.Add(definition)
 }
 
-func Get(serviceName string, receiver ...interface{}) (interface{}, error) {
-	return diDefault.Get(serviceName, receiver...)
+func Get(serviceAny interface{}, receiver ...interface{}) (interface{}, error) {
+	return diDefault.Get(serviceAny, receiver...)
 }
 
-func MustGet(serviceName string, params ...interface{}) interface{} {
-	return diDefault.MustGet(serviceName, params...)
+func MustGet(serviceAny interface{}, params ...interface{}) interface{} {
+	return diDefault.MustGet(serviceAny, params...)
 }
 
-func Exists(serviceName string) bool {
-	return diDefault.Exists(serviceName)
+func Exists(serviceAny interface{}) bool {
+	return diDefault.Exists(serviceAny)
 }
 
-func Delete(serviceName string) {
-	diDefault.Delete(serviceName)
+func GetDefinition(serviceAny interface{}) (*Definition, error) {
+	return diDefault.GetDefinition(serviceAny)
 }
 
-func GetDefinition(serviceName string) (*Definition, error) {
-	return diDefault.GetDefinition(serviceName)
+func Set(serviceAny interface{}, handler BuildHandler, singleton bool) *Definition {
+	return diDefault.Set(serviceAny, handler, singleton)
 }
 
-func Set(serviceName string, handler BuildHandler, singleton bool) *Definition {
-	return diDefault.Set(serviceName, handler, singleton)
-}
-
-func SetWithParams(serviceName string, handler BuildWithHandler) *Definition {
-	return diDefault.SetWithParams(serviceName, handler)
+func SetWithParams(serviceAny interface{}, handler BuildWithHandler) *Definition {
+	return diDefault.SetWithParams(serviceAny, handler)
 }
 
 func GetWithParams(serviceName string, params ...interface{}) (interface{}, error) {
@@ -173,8 +169,9 @@ func GetWithParams(serviceName string, params ...interface{}) (interface{}, erro
 // get all registered services
 func List() []string {
 	var names []string
-	for name := range diDefault.services {
-		names = append(names, name)
-	}
+	diDefault.services.Range(func(key, value interface{}) bool {
+		names = append(names, key.(string))
+		return true
+	})
 	return names
 }

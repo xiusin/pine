@@ -7,15 +7,20 @@ import (
 	"github.com/xiusin/router/components/di/interfaces"
 )
 
-type (
-	Render struct {
-		engine  interfaces.IRenderer
-		writer  http.ResponseWriter
-		tplData H
-		applied bool
-	}
-	H map[string]interface{}
-)
+type H map[string]interface{}
+
+type Render struct {
+	// 渲染引擎
+	engine interfaces.IRenderer
+	// 响应对象
+	writer http.ResponseWriter
+
+	// 模板变量数据
+	tplData H
+
+	// 是否已经渲染过
+	applied bool
+}
 
 func NewRender(writer http.ResponseWriter) *Render {
 	var rendererInf interfaces.IRenderer
@@ -25,11 +30,13 @@ func NewRender(writer http.ResponseWriter) *Render {
 	return &Render{rendererInf, writer, H{}, false}
 }
 
+// 重置实例, contextPool里取出context时会调用Reset
 func (c *Render) Reset(writer http.ResponseWriter) {
 	c.writer = writer
 	c.applied = false
 }
 
+// 是否已经渲染过, 每个请求只能渲染一次结果
 func (c *Render) Rendered() bool {
 	return c.applied
 }
@@ -58,6 +65,7 @@ func (c *Render) JSONP(callback string, v H) error {
 	return c.engine.JSONP(c.writer, callback, v)
 }
 
+// 注册模板数据到Data里
 func (c *Render) ViewData(key string, val interface{}) {
 	c.tplData[key] = val
 }

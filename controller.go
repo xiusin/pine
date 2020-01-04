@@ -21,7 +21,9 @@ type IController interface {
 	Cookie()  ICookie
 }
 
-var ignoreMethods = map[string]struct{}{} // 自动映射controller需要忽略的方法
+// 自动映射controller需要忽略的方法
+// 以阻止自动注册路由时注册对应的函数
+var ignoreMethods = map[string]struct{}{}
 
 func init() {
 	rt := reflect.TypeOf(&Controller{})

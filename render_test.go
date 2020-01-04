@@ -13,7 +13,7 @@ import (
 )
 
 func newServer(register func(r *Router)) *httptest.Server {
-	app := NewBuildInRouter()
+	app := New()
 	di.Set("render", func(builder di.BuilderInf) (i interface{}, e error) {
 		return view.New("views", ".html",true), nil
 	}, true)

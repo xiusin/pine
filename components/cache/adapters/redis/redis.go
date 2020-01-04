@@ -117,7 +117,7 @@ func (cache *Cache) SaveAll(data map[string][]byte, ttl ...int) bool {
 }
 
 func init() {
-	cache.Register("redis", func(option cache.Option) cache.Cache {
+	cache.Register("redis", func(option cache.Option) cache.ICache {
 		opt := option.(*Option)
 		if opt.Host == "" {
 			opt.Host = "127.0.0.1"

@@ -2,14 +2,14 @@ package router
 
 import (
 	"fmt"
+	"github.com/xiusin/router/components/di"
+	"github.com/xiusin/router/components/logger/adapter/log"
 	"net/http"
 	"net/url"
 	"reflect"
 	"regexp"
 	"strings"
 	"sync"
-
-	"github.com/xiusin/router/components/event"
 )
 
 type Router struct {
@@ -29,15 +29,26 @@ var (
 	_                    IRouter = (*Router)(nil)
 )
 
+func init() {
+	di.Set("logger", func(builder di.BuilderInf) (i interface{}, e error) {
+		return log.New(nil), nil
+	}, true)
+}
+
 // 实例化路由
 // 如果传入nil 则使用默认配置
-func NewBuildInRouter() *Router {
+func New() *Router {
 	r := &Router{
 		methodRoutes: initRouteMap(),
 		groups:       map[string]*Router{},
 		base: &base{
-			configuration:  &configuration,
-			notFound:       func(c *Context) { c.Writer().Write([]byte(tpl404)) },
+			configuration: &configuration,
+			notFound: func(c *Context) {
+				DefaultErrTemplateHTML.Execute(c.Writer(), map[string]interface{}{
+					"Message": "Sorry, the page you are looking for could not be found.",
+					"Code":    http.StatusNotFound,
+				})
+			},
 			pool:           &sync.Pool{New: func() interface{} { return NewContext(configuration.autoParseControllerResult) }},
 			recoverHandler: DefaultRecoverHandler,
 		},
@@ -195,7 +206,6 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 
 // 有可处理函数
 func (r *Router) handle(c *Context, urlParsed *url.URL) {
-	event.Trigger(event.EventRequestBefore, c.req)
 	route := r.matchRoute(c, urlParsed)
 	if route != nil {
 		//if c.req.Header.Get("Content-Type") == "multipart/form-data" {
@@ -211,7 +221,6 @@ func (r *Router) handle(c *Context, urlParsed *url.URL) {
 			r.notFound(c)
 		}
 	}
-	event.Trigger(event.EventRequestAfter, c)
 }
 
 // 调度路由
@@ -228,12 +237,13 @@ func initRouteMap() map[string]map[string]*RouteEntry {
 	}
 }
 
+//todo 添加静态资源缓存
 func (r *Router) Static(path, dir string) {
 	r.GET(path, func(i *Context) {
 		http.StripPrefix(
 			strings.TrimSuffix(path, "*filepath"), http.FileServer(http.Dir(dir)),
 		).ServeHTTP(i.Writer(), i.Request())
-	})
+	}, )
 }
 
 // 处理静态文件

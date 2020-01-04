@@ -1,14 +1,12 @@
 package router
 
 import (
-	"errors"
 	"fmt"
+	"github.com/xiusin/router/components/di"
 	"github.com/xiusin/router/components/json"
 	"reflect"
 	"strings"
 	"unsafe"
-
-	"github.com/xiusin/router/components/di"
 )
 
 //***********************ControllerMapping***********************//
@@ -19,7 +17,6 @@ type ControllerRouteMappingInf interface {
 	PUT(path string, handle string, mws ...Handler)
 	HEAD(path string, handle string, mws ...Handler)
 	DELETE(path string, handle string, mws ...Handler)
-	ANY(path string, handle string, mws ...Handler)
 }
 
 // 控制器映射路由
@@ -28,35 +25,98 @@ type registerRouter struct {
 	c IController
 }
 
-const ServiceTagName = "service"
-
 func newRegisterRouter(r IRouter, c IController) *registerRouter {
 	return &registerRouter{r: r, c: c}
 }
 
+// warpControllerHandler 用于包装controller方法为Handler
+// 通过反射传入controller实例用于每次请求构建或新的实例
+//
 func (cmr *registerRouter) warpControllerHandler(method string, c IController) Handler {
 	rvCtrl := reflect.ValueOf(c)
 	return func(context *Context) {
-		c := reflect.New(rvCtrl.Elem().Type()) // 利用反射构建变量得到value值
-		rs := reflect.Indirect(c)
-		rf := rs.FieldByName("context") // 利用unsafe设置ctx的值，只提供Ctx()API，不允许修改
+
+		// 使用反射类型构建一个新的控制器实例
+		// 每次请求都会构建一个新的实例, 请不要再控制器字段使用共享字段, 比如统计请求次数等功能
+		c := reflect.New(rvCtrl.Elem().Type())
+
+		// 给新的控制器赋值context, 利用unsafe设置ctx, 不开放api `SetCtx`，不允许修改
+		rf := reflect.Indirect(c).FieldByName("context")
+
+		// 获取context的地址
 		ptr := unsafe.Pointer(rf.UnsafeAddr())
+
+		// 赋值
 		*(**Context)(ptr) = context
-		cmr.registerService(c)
+
+		// 处理请求
+		// 如果开启解析方法返回值参数, 会自动接收并分析渲染
 		cmr.handlerResult(c, rvCtrl.Elem().Type().Name(), method)
 	}
 }
 
+// handlerResult 处理返回值
+// c是控制器一个反射值
+// ctrlName 控制器名称
+// method 方法名称
 func (cmr *registerRouter) handlerResult(c reflect.Value, ctrlName, method string) {
 	var err error
-	if c.MethodByName("BeforeAction").IsValid() { // 执行前置操作
-		c.MethodByName("BeforeAction").Call([]reflect.Value{})
-	}
-	if c.MethodByName("AfterAction").IsValid() { //执行后置操作
-		defer func() { c.MethodByName("AfterAction").Call([]reflect.Value{}) }()
-	}
-	values := c.MethodByName(method).Call([]reflect.Value{})
+	var methodParams []reflect.Value
+	// 转换为context实体实例
 	ctx := c.MethodByName("Ctx").Call(nil)[0].Interface().(*Context)
+
+	// 请求前置操作, 可以用于初始化等功能
+	beforeAction := c.MethodByName("BeforeAction")
+	if beforeAction.IsValid() {
+		beforeAction.Call(methodParams)
+	}
+
+	// 请求后置操作, 可以用于关闭一些资源, 保存一些内容
+	afterAction := c.MethodByName("AfterAction")
+	if afterAction.IsValid() {
+		defer func() { afterAction.Call(methodParams) }()
+	}
+
+	// 反射执行函数参数, 解析并设置可获取的参数类型
+	mt := c.MethodByName(method).Type()
+
+	if numIn := mt.NumIn(); numIn > 0 {
+		for i := 0; i < numIn; i++ {
+			if in := mt.In(i); in.Kind() == reflect.Ptr || in.Kind() == reflect.Interface {
+				typs := in.String()
+				switch typs {
+				case "*http.Request":
+					methodParams = append(methodParams, reflect.ValueOf(ctx.req))
+				case "http.ResponseWriter":
+					methodParams = append(methodParams, reflect.ValueOf(ctx.res))
+				case "interfaces.ISession":
+					methodParams = append(methodParams, reflect.ValueOf(ctx.Session()))
+				case "*router.Params":
+					methodParams = append(methodParams, reflect.ValueOf(ctx.Params()))
+				case "router.ICookie":
+					methodParams = append(methodParams, reflect.ValueOf(ctx.getCookiesHandler()))
+				case "*router.Render":
+					methodParams = append(methodParams, reflect.ValueOf(ctx.Render()))
+				default:
+					// 在di容器内查找服务, 如果可以得到则加入参数列表, 否则终止程序
+					if di.Exists(typs) {
+						methodParams = append(methodParams, reflect.ValueOf(di.MustGet(typs)))
+					} else {
+						panic(fmt.Sprintf("con't resolve service `%s` in di", typs))
+					}
+				}
+			} else {
+				// 不支持的参数直接中断程序
+				panic(fmt.Sprintf("controller %s method: %s params(NO.%d)(%s)  not support. only ptr or interface ", c.Type().String(), mt.Name(), i, in.String()))
+			}
+		}
+	}
+
+	values := c.MethodByName(method).Call(methodParams)
+
+	// 查看是否设置了解析返回值
+	// 只接收返回值  error, interface, string , int , map struct 等.
+	// 具体查看函数: parseValue
 	if ctx.autoParseValue {
 		if len(values) > 0 {
 			var body []byte
@@ -69,9 +129,17 @@ func (cmr *registerRouter) handlerResult(c reflect.Value, ctrlName, method strin
 			if err == nil && len(body) > 0 {
 				err = ctx.Render().Text(body)
 			}
-		} else if !ctx.Render().Rendered() { // 没有返回值自动渲染模板
-			tplPath := strings.ToLower(strings.Replace(ctrlName, ControllerSuffix, "", 1) + "/" + method)
-			err = ctx.Render().HTML(tplPath)
+		} else if !ctx.Render().Rendered() {
+			// 如果是异步请求渲染json
+			if ctx.IsAjax() {
+				err = ctx.Render().JSON(ctx.Render().tplData)
+			} else {
+				// 没有返回值视为需要渲染指定的模板内容
+				tplPath := strings.ToLower(strings.Replace(ctrlName, ControllerSuffix, "", 1) + "/" + method)
+
+				// 渲染模板
+				err = ctx.Render().HTML(tplPath)
+			}
 		}
 		if err != nil {
 			panic(err)
@@ -84,23 +152,37 @@ func (cmr *registerRouter) parseValue(val reflect.Value) ([]byte, error) {
 	var err error
 	var valInterface = val.Interface()
 	switch val.Type().Kind() {
+
+	// 如果参数为Func 终止程序
 	case reflect.Func:
 		panic("return value not supported type func()")
+
+		// 如果是字符串直接返回
 	case reflect.String:
 		value = []byte(val.String())
+
+		// 如果返回的为切片
 	case reflect.Slice:
+
+		//字节切片直接返回, 其他切片进行json转换
 		if val, ok := valInterface.([]byte); ok {
 			value = val
 		} else if value, err = cmr.returnValToJSON(valInterface); err != nil {
 			return nil, err
 		}
+
+	// 如果是interface
 	case reflect.Interface:
+
+		// 判断是不是err类型
 		if errVal, ok := val.Interface().(error); ok {
 			err = errVal
 		} else {
+			// 使用相同的方法分析参数
 			value, err = cmr.parseValue(val.Elem())
 		}
 	default:
+		// 其他类型, 如果为err类型返回错误, 其他的转换为json
 		if val.Type().Name() == "error" {
 			err = valInterface.(error)
 		} else if value, err = cmr.returnValToJSON(valInterface); err != nil {
@@ -116,23 +198,6 @@ func (cmr *registerRouter) returnValToJSON(valInterface interface{}) ([]byte, er
 		return nil, err
 	}
 	return body, nil
-}
-
-func (cmr *registerRouter) registerService(val reflect.Value) {
-	e := val.Type().Elem()
-	fieldNum := e.NumField()
-	for i := 0; i < fieldNum; i++ {
-		serviceName := e.Field(i).Tag.Get(ServiceTagName)
-		fieldName := e.Field(i).Name
-		if serviceName == "" || fieldName == ControllerSuffix {
-			continue
-		}
-		service, err := di.Get(serviceName)
-		if err != nil {
-			panic(errors.New(fmt.Sprintf(`resolve service "%s" failed!`, serviceName)))
-		}
-		val.Elem().FieldByName(fieldName).Set(reflect.ValueOf(service))
-	}
 }
 
 func (cmr *registerRouter) GET(path, method string, mws ...Handler) {
@@ -153,8 +218,4 @@ func (cmr *registerRouter) HEAD(path, method string, mws ...Handler) {
 
 func (cmr *registerRouter) DELETE(path, method string, mws ...Handler) {
 	cmr.r.DELETE(path, cmr.warpControllerHandler(method, cmr.c), mws...)
-}
-
-func (cmr *registerRouter) ANY(path string, handle string, mws ...Handler) {
-	panic("implement me")
 }

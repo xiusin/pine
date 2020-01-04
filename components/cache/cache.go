@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-type Cache interface {
+type ICache interface {
 	Get(string) ([]byte, error)
 	Save(string, []byte, ...int) bool
 	Delete(string) bool
@@ -17,7 +17,7 @@ var adapters = map[string]AdapterBuilder{}
 
 var mu sync.RWMutex
 
-type AdapterBuilder func(option Option) Cache
+type AdapterBuilder func(option Option) ICache
 
 // 注册适配器
 func Register(adapterName string, builder AdapterBuilder) {
@@ -32,7 +32,7 @@ func Register(adapterName string, builder AdapterBuilder) {
 	mu.Unlock()
 }
 
-func NewAdapter(adapterName string, option Option) (adapter Cache, err error) {
+func NewAdapter(adapterName string, option Option) (adapter ICache, err error) {
 	mu.RLock()
 	builder, ok := adapters[adapterName]
 	mu.RUnlock()

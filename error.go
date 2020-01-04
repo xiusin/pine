@@ -4,30 +4,60 @@ import (
 	"fmt"
 	"net/http"
 	"runtime/debug"
+	"text/template"
 )
 
 var (
-	shutdownBeforeHandler []func()
-	errCodeCallHandler    = make(map[int]Handler)
+	shutdownBeforeHandler  []func()
+	errCodeCallHandler     = make(map[int]Handler)
+	DefaultErrTemplateHTML = template.Must(template.New("ErrTemplate").Parse(`<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{.Code}} {{ .Message }}</title>
+  <link href="//fonts.googleapis.com/css?family=Open+Sans:300,400,700" rel="stylesheet" type="text/css">
+  <style>
+    html {-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
+    html, body {
+      margin: 0;
+      background-color: #fff;
+      color: #636b6f;
+      font-family: 'Open Sans', sans-serif;
+      font-weight: 100;
+      height: 80vh;
+    }
+    .container {
+      align-items: center;
+      display: flex;
+      justify-content: center;
+      position: relative;
+      height: 80vh;
+    }
+    .content {
+      text-align: center;
+    }
+    .title {
+      font-size: 36px;
+      font-weight: bold;
+      padding: 20px;
+    }
+  </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="content">
+        <div class="title">{{ .Code }} {{ .Message }} </div>
+      </div>
+    </div>
+  </body>
+</html>`))
 )
 
 const (
-	Version = "dev 0.0.8"
-	tpl404  = `<!doctype html>
-<html>
-	<head>
-		<title>Not Found</title>
-		<style>
-			html, body {color: #636b6f;font-family: 'Raleway', sans-serif;font-weight: 100;height: 100vh;margin: 0;}
-			.flex-center {text-shadow: 0px 1px 7px #000; height: 100vh; align-items: center;display: flex;justify-content: center; position: relative; text-align: center; font-size: 36px;padding: 20px;}
-		</style>
-	</head>
-	<body>
-		<div class="flex-center">Sorry, the page you are looking for could not be found.</div>
-	</body>
-</html>
-`
-	Logo = `
+	Version = "dev 0.0.9"
+	Logo    = `
 ____  __.__            .__      __________               __                
 \   \/  |__|__ __ _____|__| ____\______   \ ____  __ ___/  |_  ___________ 
  \     /|  |  |  /  ___|  |/    \|       _//  _ \|  |  \   ___/ __ \_  __ \
@@ -46,6 +76,9 @@ func DefaultRecoverHandler(c *Context) {
 		c.SetStatus(http.StatusInternalServerError)
 		stackInfo, strErr, strFmt := debug.Stack(), fmt.Sprintf("%s", err), "msg: %s  Method: %s  Path: %s\n Stack: %s"
 		go c.Logger().Errorf(strFmt, strErr, c.Request().Method, c.Request().URL.RequestURI(), stackInfo)
-		_, _ = c.Writer().Write([]byte("<h1>" + strErr + "</h1>" + "\n<pre>" + string(stackInfo) + "</pre>"))
+		_ = DefaultErrTemplateHTML.Execute(c.Writer(), map[string]interface{}{
+			"Message": strErr,
+			"Code": http.StatusInternalServerError,
+		})
 	}
 }

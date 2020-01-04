@@ -68,7 +68,7 @@ func (r *base) registerRoute(ro IRouter, refVal reflect.Value, refType reflect.T
 			name := refType.Method(i).Name
 			m := refVal.MethodByName(name)
 			if _, ok := ignoreMethods[name]; !ok {
-				if m.IsValid() && m.Type().NumIn() == 0 {
+				if m.IsValid() {
 					r.matchMethod(ro, name, routeWrapper.warpControllerHandler(name, c))
 				}
 			}

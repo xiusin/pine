@@ -26,7 +26,7 @@ func (o *Option) ToString() string {
 }
 
 func init() {
-	cache.Register("badger", func(option cache.Option) cache.Cache {
+	cache.Register("badger", func(option cache.Option) cache.ICache {
 		var err error
 		revOpt := option.(*Option)
 		if revOpt.Path == "" {

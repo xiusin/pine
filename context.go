@@ -56,13 +56,9 @@ func NewContext(auto bool) *Context {
 
 // 重置Context对象
 func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
-	c.req = req
-	c.res = res
-	c.middlewareIndex = -1
-	c.status = http.StatusOK
-	c.route = nil
-	c.stopped = false
-	c.Msg = ""
+	c.req, c.res, c.route = req, res, nil
+	c.middlewareIndex, c.status = -1, http.StatusOK
+	c.stopped, c.Msg = false, ""
 	c.initCtxComponent(res)
 }
 
@@ -180,7 +176,10 @@ func (c *Context) Abort(statusCode int, msg string) {
 	if ok {
 		handler(c)
 	} else {
-		panic(msg)
+		DefaultErrTemplateHTML.Execute(c.Writer(), map[string]interface{}{
+			"Message": c.Msg,
+			"Code":    statusCode,
+		})
 	}
 }
 

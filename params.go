@@ -31,6 +31,7 @@ func (c *Params) GetDefault(key, defaultVal string) string {
 	return defaultVal
 }
 
+
 func (c *Params) GetInt(key string, defaultVal ...int) (val int, res bool) {
 	val, err := strconv.Atoi(c.Get(key))
 	if err != nil && len(defaultVal) > 0 {

@@ -5,7 +5,7 @@ import (
 )
 
 type Config struct {
-	Cache          cache.Cache
+	Cache          cache.ICache
 	CookieName     string
 	CookieMaxAge   int
 	CookieSecure   bool
