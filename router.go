@@ -2,14 +2,15 @@ package router
 
 import (
 	"fmt"
-	"github.com/xiusin/router/components/di"
-	"github.com/xiusin/router/components/logger/adapter/log"
 	"net/http"
 	"net/url"
 	"reflect"
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/xiusin/router/components/di"
+	"github.com/xiusin/router/components/logger/adapter/log"
 )
 
 type Router struct {
@@ -21,12 +22,23 @@ type Router struct {
 }
 
 var (
-	urlSeparator                 = "/"                                                                       // url地址分隔符
-	patternRoutes                = map[string][]*RouteEntry{}                                                // 记录匹配路由映射
-	namedRoutes                  = map[string]*RouteEntry{}                                                  // 命名路由保存
-	patternRouteCompiler         = regexp.MustCompile("[:*](\\w[A-Za-z0-9_/]+)(<.+?>)?")                     // 正则匹配规则
-	patternMap                   = map[string]string{":int": "<\\d+>", ":string": "<[\\w0-9\\_\\.\\+\\-]+>"} //规则字段映射
-	_                    IRouter = (*Router)(nil)
+
+	// url地址分隔符
+	urlSeparator = "/"
+
+	// 记录匹配路由映射， 不管是分组还是非分组的正则路由均记录到此变量
+	patternRoutes = map[string][]*RouteEntry{}
+
+	// 命名路由保存
+	//namedRoutes                  = map[string]*RouteEntry{}
+
+	// 正则匹配规则
+	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_/]+)(<.+?>)?")
+
+	// 路由规则与字段映射
+	patternMap = map[string]string{":int": "<\\d+>", ":string": "<[\\w0-9\\_\\.\\+\\-]+>"}
+
+	_ IRouter = (*Router)(nil)
 )
 
 func init() {
@@ -41,19 +53,24 @@ func New() *Router {
 	r := &Router{
 		methodRoutes: initRouteMap(),
 		groups:       map[string]*Router{},
+
+		// 初始base
 		base: &base{
 			configuration: &configuration,
 			notFound: func(c *Context) {
-				DefaultErrTemplateHTML.Execute(c.Writer(), map[string]interface{}{
+				_ = DefaultErrTemplateHTML.Execute(c.Writer(), map[string]interface{}{
 					"Message": "Sorry, the page you are looking for could not be found.",
 					"Code":    http.StatusNotFound,
 				})
 			},
-			pool:           &sync.Pool{New: func() interface{} { return NewContext(configuration.autoParseControllerResult) }},
+			pool: &sync.Pool{New: func() interface{} {
+				return NewContext(configuration.autoParseControllerResult)
+			}},
 			recoverHandler: DefaultRecoverHandler,
 		},
 	}
 	r.base.handler = r
+
 	return r
 }
 
@@ -137,6 +154,10 @@ func (r *Router) getPattern(str string) (paramName, pattern string) {
 }
 
 // 匹配路由
+// 首先直接匹配路由或者在分组内匹配路由
+// 其次， 匹配正则路由
+// 如果匹配到路由， 直接返回处理函数
+// 否则返回nil, 外部由notFound接管或空响应
 func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *RouteEntry {
 	pathInfos := strings.Split(urlParsed.Path, urlSeparator)
 	l := len(pathInfos)
@@ -195,6 +216,7 @@ func (r *Router) Use(middleWares ...Handler) {
 	r.middleWares = append(r.middleWares, middleWares...)
 }
 
+// 继承实现Handler interface
 func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	c := r.pool.Get().(*Context)
 	defer r.pool.Put(c)
@@ -208,28 +230,24 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (r *Router) handle(c *Context, urlParsed *url.URL) {
 	route := r.matchRoute(c, urlParsed)
 	if route != nil {
-		//if c.req.Header.Get("Content-Type") == "multipart/form-data" {
-		//	if err := c.ParseForm(); err != nil {
-		//		panic(err)
-		//	}
-		//}
 		c.setRoute(route)
 		c.Next()
 	} else {
 		c.SetStatus(http.StatusNotFound)
+		// 设置了notFound函数
 		if r.notFound != nil {
 			r.notFound(c)
 		}
 	}
 }
 
-// 调度路由
+// 调度
+// 解析地址并且处理路由参数
 func (r *Router) dispatch(c *Context, req *http.Request) {
-	urlParsed, _ := url.ParseRequestURI(req.RequestURI) // 解析地址参数
+	urlParsed, _ := url.ParseRequestURI(req.RequestURI)
 	r.handle(c, urlParsed)
 }
 
-// 初始化RouteMap
 func initRouteMap() map[string]map[string]*RouteEntry {
 	return map[string]map[string]*RouteEntry{
 		http.MethodGet: {}, http.MethodPost: {}, http.MethodPut: {},
