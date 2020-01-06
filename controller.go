@@ -5,7 +5,6 @@ import (
 	"reflect"
 )
 
-//================ Controller ====================//
 const ControllerSuffix = "Controller"
 
 type Controller struct {
@@ -32,34 +31,42 @@ func init() {
 	}
 }
 
+// 获取请求上下文实例
 func (c *Controller) Ctx() *Context {
 	return c.context
 }
 
+// 获取CookieManager
 func (c *Controller) Cookie() ICookie {
 	return c.context.cookie
 }
 
+// 获取渲染对象
 func (c *Controller) Render() *Render {
 	return c.context.render
 }
 
+// 获取请求地址参数对象
 func (c *Controller) Param() *Params {
 	return c.context.params
 }
 
+// 渲染模板页面方法
 func (c *Controller) View(name string) error {
 	return c.context.render.HTML(name)
 }
 
+// 获取日志对象
 func (c *Controller) Logger() interfaces.ILogger {
 	return c.context.Logger()
 }
 
+// 获取Session对象
 func (c *Controller) Session() interfaces.ISession {
 	return c.context.Session()
 }
 
+//设置模板数据变量
 func (c *Controller) ViewData(key string, val interface{}) {
 	c.context.render.ViewData(key, val)
 }

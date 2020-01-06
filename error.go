@@ -75,7 +75,7 @@ func DefaultRecoverHandler(c *Context) {
 	if err := recover(); err != nil {
 		c.SetStatus(http.StatusInternalServerError)
 		stackInfo, strErr, strFmt := debug.Stack(), fmt.Sprintf("%s", err), "msg: %s  Method: %s  Path: %s\n Stack: %s"
-		go c.Logger().Errorf(strFmt, strErr, c.Request().Method, c.Request().URL.RequestURI(), stackInfo)
+		c.Logger().Errorf(strFmt, strErr, c.Request().Method, c.Request().URL.RequestURI(), stackInfo)
 		_ = DefaultErrTemplateHTML.Execute(c.Writer(), map[string]interface{}{
 			"Message": strErr,
 			"Code": http.StatusInternalServerError,

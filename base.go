@@ -42,12 +42,13 @@ type (
 	}
 
 	base struct {
-		started        bool
-		handler        http.Handler
-		recoverHandler Handler
-		pool           *sync.Pool
-		configuration  *Configuration
-		notFound       Handler
+		started               bool
+		handler               http.Handler
+		recoverHandler        Handler
+		pool                  *sync.Pool
+		configuration         *Configuration
+		notFound              Handler
+		GetMaxMultipartMemory int64
 	}
 
 	routeMaker func(path string, handle Handler, mws ...Handler) *RouteEntry

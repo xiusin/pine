@@ -2,19 +2,15 @@ package router
 
 import (
 	"context"
-	"errors"
 	"fmt"
+	"github.com/xiusin/router/components/di"
+	"github.com/xiusin/router/components/di/interfaces"
 	"github.com/xiusin/router/utils"
-	"math/rand"
 	"mime/multipart"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
-
-	"github.com/xiusin/router/components/di"
-	"github.com/xiusin/router/components/di/interfaces"
 )
 
 type Context struct {
@@ -51,6 +47,7 @@ func NewContext(auto bool) *Context {
 		params:          NewParams(map[string]string{}),
 		middlewareIndex: -1, // 初始化中间件索引.
 		autoParseValue:  auto,
+		keys:            map[string]interface{}{},
 	}
 }
 
@@ -59,6 +56,7 @@ func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
 	c.req, c.res, c.route = req, res, nil
 	c.middlewareIndex, c.status = -1, http.StatusOK
 	c.stopped, c.Msg = false, ""
+	c.keys = map[string]interface{}{}
 	c.initCtxComponent(res)
 }
 
@@ -303,7 +301,8 @@ func (c *Context) PostInt64(key string, defaultVal ...int64) (val int64, res boo
 }
 
 func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, res bool) {
-	val, err := strconv.ParseFloat(c.req.PostFormValue(key), 64)
+	var err  error
+	val, err = strconv.ParseFloat(c.req.PostFormValue(key), 64)
 	if err != nil && len(defaultVal) > 0 {
 		val, res = defaultVal[0], true
 	}
@@ -361,17 +360,4 @@ func (c *Context) GetCookie(name string) string {
 
 func (c *Context) RemoveCookie(name string) {
 	c.getCookiesHandler().Delete(name)
-}
-
-func (c *Context) GetToken() string {
-	r := rand.Int()
-	t := time.Now().UnixNano()
-	token := fmt.Sprintf("%d%d", r, t)
-	csrfName := c.Value("csrf_name").(string)
-	csrfTime := c.Value("csrf_time").(int)
-	if csrfName == "" {
-		panic(errors.New("Please set `csrf_name` and `csrf_time` parameters to context"))
-	}
-	c.getCookiesHandler().Set(csrfName, token, csrfTime)
-	return token
 }
