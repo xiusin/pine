@@ -80,7 +80,7 @@ func (c *Context) initCtxComponent(res http.ResponseWriter) {
 }
 
 func (c *Context) Flush() {
-	//TODO
+	//TODO chunk send
 	c.Writer().(http.Flusher).Flush()
 }
 
@@ -92,10 +92,10 @@ func (c *Context) Params() *Params {
 	return c.params
 }
 
-//func (c *Context) ParseForm() error {
-//	//return c.req.ParseMultipartForm(c.options.GetMaxMultipartMemory())
-//	return nil
-//}
+func (c *Context) ParseForm() error {
+	return c.req.ParseMultipartForm(c.M)
+	return nil
+}
 
 func (c *Context) Request() *http.Request {
 	return c.req

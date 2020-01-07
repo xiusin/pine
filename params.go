@@ -33,7 +33,8 @@ func (c *Params) GetDefault(key, defaultVal string) string {
 
 
 func (c *Params) GetInt(key string, defaultVal ...int) (val int, res bool) {
-	val, err := strconv.Atoi(c.Get(key))
+	var err error
+	val, err = strconv.Atoi(c.Get(key))
 	if err != nil && len(defaultVal) > 0 {
 		val, res = defaultVal[0], true
 	}
@@ -41,7 +42,8 @@ func (c *Params) GetInt(key string, defaultVal ...int) (val int, res bool) {
 }
 
 func (c *Params) GetInt64(key string, defaultVal ...int64) (val int64, res bool) {
-	val, err := strconv.ParseInt(c.Get(key), 10, 64)
+	var err error
+	val, err = strconv.ParseInt(c.Get(key), 10, 64)
 	if err != nil && len(defaultVal) > 0 {
 		val, res = defaultVal[0], true
 	}
@@ -49,7 +51,8 @@ func (c *Params) GetInt64(key string, defaultVal ...int64) (val int64, res bool)
 }
 
 func (c *Params) GetFloat64(key string, defaultVal ...float64) (val float64, res bool) {
-	val, err := strconv.ParseFloat(c.Get(key), 64)
+	var err error
+	val, err = strconv.ParseFloat(c.Get(key), 64)
 	if err != nil && len(defaultVal) > 0 {
 		val, res = defaultVal[0], true
 	}

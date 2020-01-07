@@ -79,7 +79,7 @@ func (r *Router) GetPrefix() string {
 }
 
 func (r *Router) Handle(c IController) {
-	r.registerRoute(r, reflect.ValueOf(c), reflect.TypeOf(c), c)
+	r.registerRoute(r, c)
 }
 
 // 添加路由, 内部函数

@@ -9,33 +9,36 @@ import (
 	"unsafe"
 )
 
-//***********************ControllerMapping***********************//
-// 控制器路由映射注册接口
-type ControllerRouteMappingInf interface {
+type IRouterWrapper interface {
+	warpControllerHandler(string, IController) Handler
+
 	GET(path string, handle string, mws ...Handler)
+
 	POST(path string, handle string, mws ...Handler)
+
 	PUT(path string, handle string, mws ...Handler)
+
 	HEAD(path string, handle string, mws ...Handler)
+
 	DELETE(path string, handle string, mws ...Handler)
 }
 
 // 控制器映射路由
-type registerRouter struct {
-	r IRouter
-	c IController
+type routerWrapper struct {
+	router IRouter
+	controller IController
 }
 
-func newRegisterRouter(r IRouter, c IController) *registerRouter {
-	return &registerRouter{r: r, c: c}
+func newRouterWrapper(router IRouter, controller IController) *routerWrapper {
+	return &routerWrapper{router, controller}
 }
 
 // warpControllerHandler 用于包装controller方法为Handler
 // 通过反射传入controller实例用于每次请求构建或新的实例
 //
-func (cmr *registerRouter) warpControllerHandler(method string, c IController) Handler {
-	rvCtrl := reflect.ValueOf(c)
+func (cmr *routerWrapper) warpControllerHandler(method string, controller IController) Handler {
+	rvCtrl := reflect.ValueOf(controller)
 	return func(context *Context) {
-
 		// 使用反射类型构建一个新的控制器实例
 		// 每次请求都会构建一个新的实例, 请不要再控制器字段使用共享字段, 比如统计请求次数等功能
 		c := reflect.New(rvCtrl.Elem().Type())
@@ -59,22 +62,22 @@ func (cmr *registerRouter) warpControllerHandler(method string, c IController) H
 // c是控制器一个反射值
 // ctrlName 控制器名称
 // method 方法名称
-func (cmr *registerRouter) handlerResult(c reflect.Value, ctrlName, method string) {
+func (cmr *routerWrapper) handlerResult(c reflect.Value, ctrlName, method string) {
 	var err error
-	var methodParams []reflect.Value
+	var ins []reflect.Value
 	// 转换为context实体实例
 	ctx := c.MethodByName("Ctx").Call(nil)[0].Interface().(*Context)
 
 	// 请求前置操作, 可以用于初始化等功能
 	beforeAction := c.MethodByName("BeforeAction")
 	if beforeAction.IsValid() {
-		beforeAction.Call(methodParams)
+		beforeAction.Call(ins)
 	}
 
 	// 请求后置操作, 可以用于关闭一些资源, 保存一些内容
 	afterAction := c.MethodByName("AfterAction")
 	if afterAction.IsValid() {
-		defer func() { afterAction.Call(methodParams) }()
+		defer func() { afterAction.Call(ins) }()
 	}
 
 	// 反射执行函数参数, 解析并设置可获取的参数类型
@@ -86,21 +89,21 @@ func (cmr *registerRouter) handlerResult(c reflect.Value, ctrlName, method strin
 				typs := in.String()
 				switch typs {
 				case "*http.Request":
-					methodParams = append(methodParams, reflect.ValueOf(ctx.req))
+					ins = append(ins, reflect.ValueOf(ctx.req))
 				case "http.ResponseWriter":
-					methodParams = append(methodParams, reflect.ValueOf(ctx.res))
+					ins = append(ins, reflect.ValueOf(ctx.res))
 				case "interfaces.ISession":
-					methodParams = append(methodParams, reflect.ValueOf(ctx.Session()))
+					ins = append(ins, reflect.ValueOf(ctx.Session()))
 				case "*router.Params":
-					methodParams = append(methodParams, reflect.ValueOf(ctx.Params()))
+					ins = append(ins, reflect.ValueOf(ctx.Params()))
 				case "router.ICookie":
-					methodParams = append(methodParams, reflect.ValueOf(ctx.getCookiesHandler()))
+					ins = append(ins, reflect.ValueOf(ctx.getCookiesHandler()))
 				case "*router.Render":
-					methodParams = append(methodParams, reflect.ValueOf(ctx.Render()))
+					ins = append(ins, reflect.ValueOf(ctx.Render()))
 				default:
 					// 在di容器内查找服务, 如果可以得到则加入参数列表, 否则终止程序
 					if di.Exists(typs) {
-						methodParams = append(methodParams, reflect.ValueOf(di.MustGet(typs)))
+						ins = append(ins, reflect.ValueOf(di.MustGet(typs)))
 					} else {
 						panic(fmt.Sprintf("con't resolve service `%s` in di", typs))
 					}
@@ -112,7 +115,7 @@ func (cmr *registerRouter) handlerResult(c reflect.Value, ctrlName, method strin
 		}
 	}
 
-	values := c.MethodByName(method).Call(methodParams)
+	values := c.MethodByName(method).Call(ins)
 
 	// 查看是否设置了解析返回值
 	// 只接收返回值  error, interface, string , int , map struct 等.
@@ -147,7 +150,7 @@ func (cmr *registerRouter) handlerResult(c reflect.Value, ctrlName, method strin
 	}
 }
 
-func (cmr *registerRouter) parseValue(val reflect.Value) ([]byte, error) {
+func (cmr *routerWrapper) parseValue(val reflect.Value) ([]byte, error) {
 	var value []byte
 	var err error
 	var valInterface = val.Interface()
@@ -192,7 +195,7 @@ func (cmr *registerRouter) parseValue(val reflect.Value) ([]byte, error) {
 	return value, err
 }
 
-func (cmr *registerRouter) returnValToJSON(valInterface interface{}) ([]byte, error) {
+func (cmr *routerWrapper) returnValToJSON(valInterface interface{}) ([]byte, error) {
 	body, err := json.Marshal(valInterface)
 	if err != nil {
 		return nil, err
@@ -200,22 +203,22 @@ func (cmr *registerRouter) returnValToJSON(valInterface interface{}) ([]byte, er
 	return body, nil
 }
 
-func (cmr *registerRouter) GET(path, method string, mws ...Handler) {
-	cmr.r.GET(path, cmr.warpControllerHandler(method, cmr.c), mws...)
+func (cmr *routerWrapper) GET(path, method string, mws ...Handler) {
+	cmr.router.GET(path, cmr.warpControllerHandler(method, cmr.controller), mws...)
 }
 
-func (cmr *registerRouter) POST(path, method string, mws ...Handler) {
-	cmr.r.POST(path, cmr.warpControllerHandler(method, cmr.c), mws...)
+func (cmr *routerWrapper) POST(path, method string, mws ...Handler) {
+	cmr.router.POST(path, cmr.warpControllerHandler(method, cmr.controller), mws...)
 }
 
-func (cmr *registerRouter) PUT(path, method string, mws ...Handler) {
-	cmr.r.PUT(path, cmr.warpControllerHandler(method, cmr.c), mws...)
+func (cmr *routerWrapper) PUT(path, method string, mws ...Handler) {
+	cmr.router.PUT(path, cmr.warpControllerHandler(method, cmr.controller), mws...)
 }
 
-func (cmr *registerRouter) HEAD(path, method string, mws ...Handler) {
-	cmr.r.HEAD(path, cmr.warpControllerHandler(method, cmr.c), mws...)
+func (cmr *routerWrapper) HEAD(path, method string, mws ...Handler) {
+	cmr.router.HEAD(path, cmr.warpControllerHandler(method, cmr.controller), mws...)
 }
 
-func (cmr *registerRouter) DELETE(path, method string, mws ...Handler) {
-	cmr.r.DELETE(path, cmr.warpControllerHandler(method, cmr.c), mws...)
+func (cmr *routerWrapper) DELETE(path, method string, mws ...Handler) {
+	cmr.router.DELETE(path, cmr.warpControllerHandler(method, cmr.controller), mws...)
 }
