@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"reflect"
 	"regexp"
 	"strings"
 	"sync"

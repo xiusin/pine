@@ -91,11 +91,11 @@ func (c *Context) Render() *Render {
 func (c *Context) Params() *Params {
 	return c.params
 }
-
-func (c *Context) ParseForm() error {
-	return c.req.ParseMultipartForm(c.M)
-	return nil
-}
+//
+//func (c *Context) ParseForm() error {
+//	return c.req.ParseMultipartForm(c)
+//	return nil
+//}
 
 func (c *Context) Request() *http.Request {
 	return c.req
