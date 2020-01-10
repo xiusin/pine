@@ -12,9 +12,9 @@ import (
 	"strings"
 )
 
-type ServerHandler func(*base) error
+type ServerHandler func(*Router) error
 
-func (r *base) newServer(s *http.Server, tls bool) *http.Server {
+func (r *Router) newServer(s *http.Server, tls bool) *http.Server {
 	if s.Handler == nil {
 		s.Handler = r.handler
 	} else {
@@ -36,13 +36,13 @@ func (r *base) newServer(s *http.Server, tls bool) *http.Server {
 }
 
 func Server(s *http.Server) ServerHandler {
-	return func(r *base) error {
+	return func(r *Router) error {
 		s := r.newServer(s, false)
 		return s.ListenAndServe()
 	}
 }
 
-func (_ *base) printInfo(addr string, tls bool) {
+func (_ *Router) printInfo(addr string, tls bool) {
 	if strings.HasPrefix(addr, ":") {
 		addr = "0.0.0.0" + addr
 	}
@@ -61,7 +61,7 @@ func Addr(addr string) ServerHandler {
 }
 
 func Func(f func() error) ServerHandler {
-	return func(_ *base) error {
+	return func(_ *Router) error {
 		utils.Logger().Print("start server with callback")
 		return f()
 	}
@@ -69,7 +69,7 @@ func Func(f func() error) ServerHandler {
 
 func TLS(addr, certFile, keyFile string) ServerHandler {
 	s := &http.Server{Addr: addr}
-	return func(b *base) error {
+	return func(b *Router) error {
 		s = b.newServer(s, true)
 		config := new(tls.Config)
 		var err error
