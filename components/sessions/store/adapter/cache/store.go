@@ -3,21 +3,18 @@ package cache
 import (
 	"errors"
 	"github.com/xiusin/router/components/json"
-
-	"github.com/xiusin/router/components/di/interfaces"
+	"github.com/xiusin/router/components/sessions"
 )
 
 type Store struct {
 	*Config
 }
 
-var emptyJsonStr = "{}"
-
 func NewStore(config *Config) *Store {
 	return &Store{config}
 }
 
-func (store *Store) GetConfig() interfaces.ISessionConfig {
+func (store *Store) GetConfig() sessions.ISessionConfig {
 	return store.Config
 }
 
@@ -30,7 +27,7 @@ func (store *Store) Read(id string, receiver interface{}) error {
 			return err
 		}
 	} else {
-		sess = []byte(emptyJsonStr)
+		sess = []byte("{}")
 	}
 	return json.Unmarshal(sess, receiver)
 }
@@ -41,7 +38,7 @@ func (store *Store) Save(id string, val interface{}) error {
 		return err
 	}
 	id = getId(id)
-	if string(s) == emptyJsonStr {
+	if string(s) == "{}" {
 		store.Cache.Delete(id)
 		return nil
 	} else if store.Cache.Save(id, s) {

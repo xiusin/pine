@@ -2,11 +2,11 @@ package utils
 
 import (
 	"github.com/xiusin/router/components/di"
-	"github.com/xiusin/router/components/di/interfaces"
+	"github.com/xiusin/router/components/logger"
 )
 
-func Logger() interfaces.ILogger {
-	logger, ok := di.MustGet("logger").(interfaces.ILogger)
+func Logger() logger.ILogger {
+	logger, ok := di.MustGet("logger").(logger.ILogger)
 	if !ok {
 		panic("Type of `logger` component error")
 	}

@@ -1,4 +1,4 @@
-package interfaces
+package template
 
 import (
 	"io"

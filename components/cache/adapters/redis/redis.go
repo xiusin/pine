@@ -2,12 +2,9 @@ package redis
 
 import (
 	"fmt"
-	"github.com/xiusin/router/components/json"
+	redisgo "github.com/gomodule/redigo/redis"
 	"github.com/xiusin/router/utils"
 	"time"
-
-	"github.com/gomodule/redigo/redis"
-	"github.com/xiusin/router/components/cache"
 )
 
 type Option struct {
@@ -25,51 +22,43 @@ type Option struct {
 	TTL            int
 }
 
-func (o *Option) ToString() string {
-	s, err := json.Marshal(o)
-	if err != nil {
-		return ""
-	}
-	return string(s)
-}
-
-type Cache struct {
+type redis struct {
 	option *Option
 	prefix string
 	ttl    int
-	pool   *redis.Pool
+	pool   *redisgo.Pool
 }
 
-func (cache *Cache) getCacheKey(key string) string {
+func (cache *redis) getCacheKey(key string) string {
 	return cache.prefix + key
 }
 
-func (cache *Cache) Pool() *redis.Pool {
+func (cache *redis) Pool() *redisgo.Pool {
 	return cache.pool
 }
 
-func (cache *Cache) Get(key string) ([]byte, error) {
+func (cache *redis) Get(key string) ([]byte, error) {
 	client := cache.pool.Get()
-	s, err := redis.Bytes(client.Do("GET", cache.getCacheKey(key)))
+	s, err := redisgo.Bytes(client.Do("GET", cache.getCacheKey(key)))
 	_ = client.Close()
 	return s, err
 }
 
-func (cache *Cache) GetAny(callback func(*redis.Conn)) {
+func (cache *redis) GetAny(callback func(*redisgo.Conn)) {
 	client := cache.pool.Get()
 	callback(&client)
 	_ = client.Close()
 }
 
-func (cache *Cache) SetCachePrefix(prefix string) {
+func (cache *redis) SetCachePrefix(prefix string) {
 	cache.prefix = prefix
 }
 
-func (cache *Cache) SetTTL(ttl int) {
+func (cache *redis) SetTTL(ttl int) {
 	cache.ttl = ttl
 }
 
-func (cache *Cache) Save(key string, val []byte, ttl ...int) bool {
+func (cache *redis) Save(key string, val []byte, ttl ...int) bool {
 	if len(ttl) == 0 {
 		ttl = []int{cache.ttl}
 	}
@@ -82,16 +71,16 @@ func (cache *Cache) Save(key string, val []byte, ttl ...int) bool {
 	return true
 }
 
-func (cache *Cache) Delete(key string) bool {
+func (cache *redis) Delete(key string) bool {
 	client := cache.pool.Get()
 	_, _ = client.Do("DEL", cache.getCacheKey(key))
 	_ = client.Close()
 	return true
 }
 
-func (cache *Cache) Exists(key string) bool {
+func (cache *redis) Exists(key string) bool {
 	client := cache.pool.Get()
-	isKeyExit, _ := redis.Bool(client.Do("EXISTS", cache.getCacheKey(key)))
+	isKeyExit, _ := redisgo.Bool(client.Do("EXISTS", cache.getCacheKey(key)))
 	_ = client.Close()
 	if isKeyExit {
 		return true
@@ -99,7 +88,7 @@ func (cache *Cache) Exists(key string) bool {
 	return false
 }
 
-func (cache *Cache) SaveAll(data map[string][]byte, ttl ...int) bool {
+func (cache *redis) SaveAll(data map[string][]byte, ttl ...int) bool {
 	if len(ttl) == 0 {
 		ttl[0] = cache.ttl
 	}
@@ -116,38 +105,35 @@ func (cache *Cache) SaveAll(data map[string][]byte, ttl ...int) bool {
 	return true
 }
 
-func init() {
-	cache.Register("redis", func(option cache.Option) cache.ICache {
-		opt := option.(*Option)
-		if opt.Host == "" {
-			opt.Host = "127.0.0.1"
-		}
-		if opt.Port == 0 {
-			opt.Port = 6379
-		}
-		return &Cache{
-			prefix: "",
-			option: opt,
-			ttl:    opt.TTL,
-			pool: &redis.Pool{
-				MaxIdle:     opt.MaxIdle,
-				MaxActive:   opt.MaxActive,
-				IdleTimeout: time.Duration(opt.MaxIdleTimeout) * time.Second,
-				Wait:        opt.Wait,
-				Dial: func() (redis.Conn, error) {
-					con, err := redis.Dial("tcp", fmt.Sprintf("%s:%d", opt.Host, opt.Port),
-						redis.DialPassword(opt.Password),
-						redis.DialDatabase(opt.DbIndex),
-						redis.DialConnectTimeout(time.Duration(opt.ConnectTimeout)*time.Second),
-						redis.DialReadTimeout(time.Duration(opt.ReadTimeout)*time.Second),
-						redis.DialWriteTimeout(time.Duration(opt.WriteTimeout)*time.Second))
-					if err != nil {
-						utils.Logger().Errorf("Dial error: %s", err.Error())
-						return nil, err
-					}
-					return con, nil
-				},
+func New(opt *Option) *redis {
+	if opt.Host == "" {
+		opt.Host = "127.0.0.1"
+	}
+	if opt.Port == 0 {
+		opt.Port = 6379
+	}
+	return &redis{
+		prefix: "",
+		option: opt,
+		ttl:    opt.TTL,
+		pool: &redisgo.Pool{
+			MaxIdle:     opt.MaxIdle,
+			MaxActive:   opt.MaxActive,
+			IdleTimeout: time.Duration(opt.MaxIdleTimeout) * time.Second,
+			Wait:        opt.Wait,
+			Dial: func() (redisgo.Conn, error) {
+				con, err := redisgo.Dial("tcp", fmt.Sprintf("%s:%d", opt.Host, opt.Port),
+					redisgo.DialPassword(opt.Password),
+					redisgo.DialDatabase(opt.DbIndex),
+					redisgo.DialConnectTimeout(time.Duration(opt.ConnectTimeout)*time.Second),
+					redisgo.DialReadTimeout(time.Duration(opt.ReadTimeout)*time.Second),
+					redisgo.DialWriteTimeout(time.Duration(opt.WriteTimeout)*time.Second))
+				if err != nil {
+					utils.Logger().Errorf("Dial error: %s", err.Error())
+					return nil, err
+				}
+				return con, nil
 			},
-		}
-	})
+		},
+	}
 }

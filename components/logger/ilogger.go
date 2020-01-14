@@ -1,4 +1,4 @@
-package interfaces
+package logger
 
 import "io"
 

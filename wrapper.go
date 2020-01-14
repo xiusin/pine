@@ -13,13 +13,9 @@ type IRouterWrapper interface {
 	warpControllerHandler(string, IController) Handler
 
 	GET(path string, handle string, mws ...Handler)
-
 	POST(path string, handle string, mws ...Handler)
-
 	PUT(path string, handle string, mws ...Handler)
-
 	HEAD(path string, handle string, mws ...Handler)
-
 	DELETE(path string, handle string, mws ...Handler)
 }
 

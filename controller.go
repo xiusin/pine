@@ -1,7 +1,8 @@
 package router
 
 import (
-	"github.com/xiusin/router/components/di/interfaces"
+	"github.com/xiusin/router/components/logger"
+	"github.com/xiusin/router/components/sessions"
 	"reflect"
 )
 
@@ -11,13 +12,17 @@ type Controller struct {
 	context *Context
 }
 
+var _ IController = (*Controller)(nil)
+
 // 控制器接口定义
 type IController interface {
 	Ctx() *Context
+
 	Render() *Render
-	Logger() interfaces.ILogger
-	Session() interfaces.ISession
-	Cookie()  ICookie
+
+	Logger() logger.ILogger
+	Session() sessions.ISession
+	Cookie() ICookie
 }
 
 // 自动映射controller需要忽略的方法
@@ -57,12 +62,12 @@ func (c *Controller) View(name string) error {
 }
 
 // 获取日志对象
-func (c *Controller) Logger() interfaces.ILogger {
+func (c *Controller) Logger() logger.ILogger {
 	return c.context.Logger()
 }
 
 // 获取Session对象
-func (c *Controller) Session() interfaces.ISession {
+func (c *Controller) Session() sessions.ISession {
 	return c.context.Session()
 }
 

@@ -98,13 +98,7 @@ func (e *event) All() []string {
 	return keys
 }
 
-//新建事件对象, 一个实例托管事件
-func New() *event {
-	return &event{}
-}
-
-// 默认事件
-var defaultEvent = New()
+var defaultEvent = &event{}
 
 func Register(eventName string, callback interface{}) {
 	defaultEvent.Register(eventName, callback)

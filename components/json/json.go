@@ -2,23 +2,23 @@ package json
 
 import "encoding/json"
 
-var _default = struct {
-	marshaler   func(v interface{}) ([]byte, error)
-	unMarshaler func(data []byte, v interface{}) error
+var marshal = struct {
+	marshaller   func(v interface{}) ([]byte, error)
+	unMarshaller func(data []byte, v interface{}) error
 }{
-	marshaler:   json.Marshal,
-	unMarshaler: json.Unmarshal,
+	marshaller:   json.Marshal,
+	unMarshaller: json.Unmarshal,
 }
 
-func ReplaceHandler(marshaler func(v interface{}) ([]byte, error), unMarshaler func(data []byte, v interface{}) error) {
-	_default.marshaler = marshaler
-	_default.unMarshaler = unMarshaler
+func ReplaceHandler(marshaller func(v interface{}) ([]byte, error), unMarshaller func(data []byte, v interface{}) error) {
+	marshal.marshaller = marshaller
+	marshal.unMarshaller = unMarshaller
 }
 
 func Marshal(v interface{}) ([]byte, error) {
-	return _default.marshaler(v)
+	return marshal.marshaller(v)
 }
 
 func Unmarshal(data []byte, v interface{}) error {
-	return _default.unMarshaler(data, v)
+	return marshal.unMarshaller(data, v)
 }

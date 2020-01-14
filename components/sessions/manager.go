@@ -2,7 +2,6 @@ package sessions
 
 import (
 	uuid "github.com/satori/go.uuid"
-	"github.com/xiusin/router/components/di/interfaces"
 	"net/http"
 	"sync"
 )
@@ -10,11 +9,11 @@ import (
 type Manager struct {
 	l       sync.Mutex
 	counter int
-	store   interfaces.ISessionStore
+	store   ISessionStore
 	name    string
 }
 
-func New(store interfaces.ISessionStore) *Manager {
+func New(store ISessionStore) *Manager {
 	return &Manager{store: store}
 }
 
@@ -23,7 +22,7 @@ func GetSessionId() string {
 	return u.String()
 }
 
-func (m *Manager) Session(r *http.Request, w http.ResponseWriter) (interfaces.ISession, error) {
+func (m *Manager) Session(r *http.Request, w http.ResponseWriter) (ISession, error) {
 	var cookie *http.Cookie
 	var err error
 	config := m.store.GetConfig()

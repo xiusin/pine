@@ -1,13 +1,10 @@
 package badger
 
 import (
-	"github.com/xiusin/router/components/json"
-	"os"
-	"time"
-
-	"github.com/xiusin/router/components/cache"
 	"github.com/xiusin/router/components/path"
 	"github.com/xiusin/router/utils"
+	"os"
+	"time"
 
 	badgerDB "github.com/dgraph-io/badger"
 )
@@ -20,37 +17,28 @@ type Option struct {
 	Prefix string
 }
 
-func (o *Option) ToString() string {
-	s, _ := json.Marshal(o)
-	return string(s)
-}
-
-func init() {
-	cache.Register("badger", func(option cache.Option) cache.ICache {
-		var err error
-		revOpt := option.(*Option)
-		if revOpt.Path == "" {
-			revOpt.Path = path.StoragePath("data")
-		}
-		opt := badgerDB.DefaultOptions(revOpt.Path)
-		opt.Dir = revOpt.Path
-		if !utils.IsDir(revOpt.Path) {
-			if err := os.MkdirAll(revOpt.Path, os.ModePerm); err != nil {
-				panic(err)
-			}
-		}
-		opt.ValueDir = revOpt.Path
-		db, err := badgerDB.Open(opt)
-		if err != nil {
+func New(revOpt *Option) *badger {
+	var err error
+	if revOpt.Path == "" {
+		revOpt.Path = path.StoragePath("data")
+	}
+	opt := badgerDB.DefaultOptions(revOpt.Path)
+	opt.Dir = revOpt.Path
+	if !utils.IsDir(revOpt.Path) {
+		if err := os.MkdirAll(revOpt.Path, os.ModePerm); err != nil {
 			panic(err)
 		}
-		mem := &badger{
-			client: db,
-			option: revOpt,
-			prefix: revOpt.Prefix,
-		}
-		return mem
-	})
+	}
+	opt.ValueDir = revOpt.Path
+	db, err := badgerDB.Open(opt)
+	if err != nil {
+		panic(err)
+	}
+	return &badger{
+		client: db,
+		option: revOpt,
+		prefix: revOpt.Prefix,
+	}
 }
 
 type badger struct {

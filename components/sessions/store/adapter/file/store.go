@@ -3,14 +3,13 @@ package file
 import (
 	"bytes"
 	"encoding/gob"
+	"github.com/xiusin/router/components/sessions"
 	"io/ioutil"
 	"os"
 	"path"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/xiusin/router/components/di/interfaces"
 )
 
 type Store struct {
@@ -27,7 +26,7 @@ func NewStore(config *Config) *Store {
 	return store
 }
 
-func (store *Store) GetConfig() interfaces.ISessionConfig {
+func (store *Store) GetConfig() sessions.ISessionConfig {
 	return store.config
 }
 

@@ -1,10 +1,10 @@
 package router
 
 import (
-	"context"
 	"fmt"
 	"github.com/xiusin/router/components/di"
-	"github.com/xiusin/router/components/di/interfaces"
+	"github.com/xiusin/router/components/logger"
+	"github.com/xiusin/router/components/sessions"
 	"github.com/xiusin/router/utils"
 	"mime/multipart"
 	"net"
@@ -14,7 +14,6 @@ import (
 )
 
 type Context struct {
-	context.Context
 	// response object
 	res http.ResponseWriter
 	// request object
@@ -26,7 +25,7 @@ type Context struct {
 	// cookie cookie manager
 	cookie ICookie
 	// SessionManager
-	sess interfaces.ISession
+	sess sessions.ISession
 	// Request params
 	params *Params
 	// Stop middleware iteration
@@ -105,7 +104,7 @@ func (c *Context) Header(key string) string {
 	return c.req.Header.Get(key)
 }
 
-func (c *Context) Logger() interfaces.ILogger {
+func (c *Context) Logger() logger.ILogger {
 	return utils.Logger()
 }
 
@@ -120,15 +119,15 @@ func (c *Context) Redirect(url string, statusHeader ...int) {
 	http.Redirect(c.res, c.req, url, statusHeader[0])
 }
 
-func (c *Context) sessionManger() interfaces.ISessionManager {
-	sessionInf, ok := di.MustGet("sessionManager").(interfaces.ISessionManager)
+func (c *Context) sessionManger() sessions.ISessionManager {
+	sessionInf, ok := di.MustGet("sessionManager").(sessions.ISessionManager)
 	if !ok {
 		panic("Type of `sessionManager` component error")
 	}
 	return sessionInf
 }
 
-func (c *Context) Session() interfaces.ISession {
+func (c *Context) Session() sessions.ISession {
 	if c.sess == nil {
 		sess, err := c.sessionManger().Session(c.req, c.res)
 		if err != nil {

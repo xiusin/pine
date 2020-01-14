@@ -1,9 +1,9 @@
 package badger
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/xiusin/router/components/cache"
 	bolt "go.etcd.io/bbolt"
 
 	"github.com/xiusin/router/components/path"
@@ -32,40 +32,36 @@ func (o *Option) ToString() string {
 	return string(s)
 }
 
-func init() {
-	cache.Register("bbolt", func(option cache.Option) cache.Cache {
-		var err error
-		revOpt := option.(*Option)
-		if revOpt.Path == "" {
-			revOpt.Path = path.StoragePath("data")
-		}
-		if revOpt.Path == "" {
-			revOpt.BucketName = "MyBucket"
-		}
-		if revOpt.DbName == "" {
-			revOpt.DbName = "data.db"
-		}
-		db, err := bolt.Open(revOpt.DbName, 0600, revOpt.BoltOpt)
+func New(opt *Option) *bbolt {
+	var err error
+	if opt.Path == "" {
+		opt.Path = path.StoragePath("data")
+	}
+	if opt.Path == "" {
+		opt.BucketName = "MyBucket"
+	}
+	if opt.DbName == "" {
+		opt.DbName = "data.db"
+	}
+	db, err := bolt.Open(opt.DbName, 0600, opt.BoltOpt)
+	if err != nil {
+		panic(err)
+	}
+	err = db.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte(opt.BucketName))
 		if err != nil {
-			panic(err)
+			return fmt.Errorf("create bucket: %s", err)
 		}
-		err = db.Update(func(tx *bolt.Tx) error {
-			_, err := tx.CreateBucketIfNotExists([]byte(revOpt.BucketName))
-			if err != nil {
-				return fmt.Errorf("create bucket: %s", err)
-			}
-			return nil
-		})
-		if err != nil {
-			panic(err)
-		}
-		mem := &bbolt{
-			client: db,
-			option: revOpt,
-			prefix: revOpt.Prefix,
-		}
-		return mem
+		return nil
 	})
+	if err != nil {
+		panic(err)
+	}
+	return &bbolt{
+		client: db,
+		option: opt,
+		prefix: opt.Prefix,
+	}
 }
 
 func (c *bbolt) Get(key string) (val []byte, err error) {
@@ -75,14 +71,6 @@ func (c *bbolt) Get(key string) (val []byte, err error) {
 		return nil
 	})
 	return
-}
-
-//todo 如何动态调整桶
-func (c *bbolt) SetBucketName(name ...string) cache.Cache {
-	if len(name) == 0 {
-		name = append(name, c.option.BucketName)
-	}
-	return c
 }
 
 func (c *bbolt) Save(key string, val []byte, ttl ...int) bool {

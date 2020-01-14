@@ -1,4 +1,4 @@
-package interfaces
+package sessions
 
 import (
 	"net/http"

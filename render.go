@@ -1,17 +1,17 @@
 package router
 
 import (
+	"github.com/xiusin/router/components/template"
 	"net/http"
 
 	"github.com/xiusin/router/components/di"
-	"github.com/xiusin/router/components/di/interfaces"
 )
 
 type H map[string]interface{}
 
 type Render struct {
 	// 渲染引擎
-	engine interfaces.IRenderer
+	engine template.IRenderer
 	// 响应对象
 	writer http.ResponseWriter
 
@@ -23,9 +23,9 @@ type Render struct {
 }
 
 func NewRender(writer http.ResponseWriter) *Render {
-	var rendererInf interfaces.IRenderer
+	var rendererInf template.IRenderer
 	if di.Exists("render") {
-		rendererInf = di.MustGet("render").(interfaces.IRenderer)
+		rendererInf = di.MustGet("render").(template.IRenderer)
 	}
 	return &Render{rendererInf, writer, H{}, false}
 }

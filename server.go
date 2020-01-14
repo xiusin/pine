@@ -17,9 +17,8 @@ type ServerHandler func(*Router) error
 func (r *Router) newServer(s *http.Server, tls bool) *http.Server {
 	if s.Handler == nil {
 		s.Handler = r.handler
-	} else {
-		r.handler = s.Handler
 	}
+	r.handler = s.Handler
 	if s.ErrorLog == nil {
 		s.ErrorLog = log.New(utils.Logger().GetOutput(), logger.HttpErroPrefix, log.Lshortfile|log.LstdFlags)
 	}

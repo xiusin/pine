@@ -2,7 +2,6 @@ package sessions
 
 import (
 	"errors"
-	"github.com/xiusin/router/components/di/interfaces"
 	"net/http"
 	"sync"
 )
@@ -16,12 +15,12 @@ type Session struct {
 	id      string
 	data    map[string]Entry
 	l       sync.RWMutex
-	store   interfaces.ISessionStore
+	store   ISessionStore
 	request *http.Request
 	writer  http.ResponseWriter
 }
 
-func newSession(id string, r *http.Request, w http.ResponseWriter, store interfaces.ISessionStore) (*Session, error) {
+func newSession(id string, r *http.Request, w http.ResponseWriter, store ISessionStore) (*Session, error) {
 	sess := &Session{
 		request: r,
 		writer: w,

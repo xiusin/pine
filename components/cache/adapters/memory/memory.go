@@ -2,8 +2,6 @@ package memory
 
 import (
 	"errors"
-	"github.com/xiusin/router/components/cache"
-	"github.com/xiusin/router/components/json"
 	"github.com/xiusin/router/utils"
 	"sync"
 	"sync/atomic"
@@ -18,7 +16,7 @@ type (
 		Prefix     string
 		maxMemSize int // bit
 	}
-	Memory struct {
+	memory struct {
 		prefix    string
 		totalSize int32
 		option    *Option
@@ -32,42 +30,29 @@ type (
 )
 
 var (
-	once              sync.Once
 	keyNotExistsError = errors.New("key not exists")
-	defaultMem        *Memory
 )
 
-func init() {
-	cache.Register("memory", func(option cache.Option) cache.Cache {
-		opt := option.(*Option)
-		once.Do(func() {
-			if opt.maxMemSize == 0 {
-				opt.maxMemSize = 500 * 1024 * 1024
-			}
-			if opt.GCInterval == 0 {
-				opt.GCInterval = 30
-			}
-			defaultMem = &Memory{
-				prefix: opt.Prefix,
-				option: opt,
-			}
-			go defaultMem.expirationCheck()
-		})
-		return defaultMem //只对外开放一个实例
-	})
+func New(opt *Option) *memory {
+	if opt.maxMemSize == 0 {
+		opt.maxMemSize = 500 * 1024 * 1024
+	}
+	if opt.GCInterval == 0 {
+		opt.GCInterval = 30
+	}
+	cache := &memory{
+		prefix: opt.Prefix,
+		option: opt,
+	}
+	go cache.expirationCheck()
+	return cache
 }
 
-// 直接保存到内存
-func (o *Option) ToString() string {
-	s, _ := json.Marshal(o)
-	return string(s)
-}
-
-func (m *Memory) getExpireAt(ttl int) time.Time {
+func (m *memory) getExpireAt(ttl int) time.Time {
 	return time.Now().Add(time.Duration(ttl))
 }
 
-func (m *Memory) Get(key string) ([]byte, error) {
+func (m *memory) Get(key string) ([]byte, error) {
 	if data, ok := m.store.Load(m.getKey(key)); ok {
 		d, ok := data.(*entry)
 		if ok && time.Now().Sub(d.ExpiresAt) > 0 {
@@ -80,11 +65,11 @@ func (m *Memory) Get(key string) ([]byte, error) {
 	return []byte(""), keyNotExistsError
 }
 
-func (m *Memory) getKey(key string) string {
+func (m *memory) getKey(key string) string {
 	return m.prefix + key
 }
 
-func (m *Memory) Save(key string, val []byte, ttl ...int) bool {
+func (m *memory) Save(key string, val []byte, ttl ...int) bool {
 	if len(ttl) == 0 {
 		ttl[0] = m.option.TTL
 	}
@@ -104,7 +89,7 @@ func (m *Memory) Save(key string, val []byte, ttl ...int) bool {
 	return true
 }
 
-func (m *Memory) Delete(key string) bool {
+func (m *memory) Delete(key string) bool {
 	if data, ok := m.store.Load(m.getKey(key)); ok {
 		d, ok := data.(*entry)
 		if ok {
@@ -115,7 +100,7 @@ func (m *Memory) Delete(key string) bool {
 	return true
 }
 
-func (m *Memory) Exists(key string) bool {
+func (m *memory) Exists(key string) bool {
 	if data, ok := m.store.Load(m.getKey(key)); ok {
 		d, ok := data.(*entry)
 		if ok && time.Now().Sub(d.ExpiresAt) > 0 {
@@ -128,7 +113,7 @@ func (m *Memory) Exists(key string) bool {
 	return false
 }
 
-func (m *Memory) SaveAll(data map[string][]byte, ttl ...int) bool {
+func (m *memory) SaveAll(data map[string][]byte, ttl ...int) bool {
 	if len(ttl) == 0 {
 		ttl[0] = m.option.TTL
 	}
@@ -138,24 +123,21 @@ func (m *Memory) SaveAll(data map[string][]byte, ttl ...int) bool {
 	return true
 }
 
-func (m *Memory) Clear() {
+func (m *memory) Clear() {
 	m.store = sync.Map{}
 }
 
-// 简单化实现, 定时清理辣鸡数据
-func (m *Memory) expirationCheck() {
-	tick := time.Tick(time.Duration(m.option.GCInterval) * time.Second)
-	for _ = range tick {
-		func() {
-			now := time.Now()
-			m.store.Range(func(key, value interface{}) bool {
-				item, ok := value.(*entry)
-				if ok && now.Sub(item.ExpiresAt) <= 0 {
-					atomic.AddInt32(&m.totalSize, -item.size)
-					m.store.Delete(key)
-				}
-				return true
-			})
-		}()
+// 简单化实现
+func (m *memory) expirationCheck() {
+	for range time.Tick(time.Duration(m.option.GCInterval) * time.Second) {
+		now := time.Now()
+		m.store.Range(func(key, value interface{}) bool {
+			item, ok := value.(*entry)
+			if ok && now.Sub(item.ExpiresAt) <= 0 {
+				atomic.AddInt32(&m.totalSize, -item.size)
+				m.store.Delete(key)
+			}
+			return true
+		})
 	}
 }
