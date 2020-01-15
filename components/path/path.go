@@ -18,13 +18,6 @@ func init() {
 		panic(err)
 	}
 	rootPath = curPath
-	//if f, err := os.Stat(StoragePath()); err != nil || f.IsDir() != true {
-	//	os.MkdirAll(StoragePath(), 0755)
-	//	os.MkdirAll(LogPath(), 0755)
-	//}
-	//if f, err := os.Stat(PublicPath()); err != nil || f.IsDir() != true {
-	//	os.MkdirAll(PublicPath(), 0755)
-	//}
 	aliasMapping = map[string]string{
 		"@app":    RootPath(),
 		"@log":    LogPath(),

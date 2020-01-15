@@ -2,7 +2,6 @@ package oss
 
 import (
 	"github.com/aliyun/aliyun-oss-go-sdk/oss"
-	"github.com/xiusin/router/components/storage"
 	"io"
 	"strings"
 )
@@ -137,27 +136,24 @@ func (o *Option) checkValid() bool {
 	}
 }
 
-func init() {
-	storage.Register("oss", func(option storage.Option) storage.IStorage {
-		opt := option.(*Option)
-		if !opt.checkValid() {
-			panic("oss option is not valid")
-		}
-		client, err := oss.New(opt.GetEndpoint(), opt.AccessKeyId, opt.AccessKeySecret)
-		if err != nil {
-			panic(err)
-		}
-		ok, err := client.IsBucketExist(opt.BucketName)
-		if err != nil {
-			panic(err)
-		}
-		if !ok {
-			err = client.CreateBucket(opt.BucketName)
-		}
-		if err != nil {
-			panic(err)
-		}
-		instance := &Oss{client: client, option: opt}
-		return instance
-	})
+func New(opt *Option) *Oss {
+	if !opt.checkValid() {
+		panic("oss option is not valid")
+	}
+	client, err := oss.New(opt.GetEndpoint(), opt.AccessKeyId, opt.AccessKeySecret)
+	if err != nil {
+		panic(err)
+	}
+	ok, err := client.IsBucketExist(opt.BucketName)
+	if err != nil {
+		panic(err)
+	}
+	if !ok {
+		err = client.CreateBucket(opt.BucketName)
+	}
+	if err != nil {
+		panic(err)
+	}
+	instance := &Oss{client: client, option: opt}
+	return instance
 }

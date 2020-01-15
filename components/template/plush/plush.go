@@ -1,6 +1,7 @@
 package plush
 
 import (
+	"fmt"
 	"github.com/xiusin/router/components/template"
 	"io"
 	"io/ioutil"
@@ -9,51 +10,50 @@ import (
 	"github.com/gobuffalo/plush"
 )
 
-type Plush struct {
+type tPlush struct {
 	template.Template
-	cache  map[string]string
+	cache  sync.Map
 	l      sync.RWMutex
 	dir    string
 	debug  bool
 	suffix string
 }
 
-func New(dir, suffix string, reload bool) *Plush {
-	t := &Plush{dir: dir}
+func New(dir, suffix string, reload bool) *tPlush {
+	t := &tPlush{dir: dir}
 	t.debug = reload
-	t.cache = make(map[string]string)
 	t.suffix = suffix
 	return t
 }
 
-func (p *Plush) AddFunc(funcName string, funcEntry interface{}) {
+func (p *tPlush) AddFunc(funcName string, funcEntry interface{}) {
 	p.l.Lock()
 	_ = plush.Helpers.Add(funcName, funcEntry)
 	p.l.Unlock()
 }
 
-func (t *Plush) getViewPath(viewName string) string {
-	return t.dir + "/" + viewName + "." + t.suffix
-}
-
-func (p *Plush) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
-	p.l.RLock()
-	html, ok := p.cache[name]
-	p.l.RUnlock()
+func (p *tPlush) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
+	viewPath := fmt.Sprintf("%s/%s%s", p.dir, name, p.suffix)
+	var html string
+	//todo ABA 问题
+	data, ok := p.cache.Load(viewPath)
 	if !ok || p.debug {
 		p.l.Lock()
-		defer p.l.Unlock()
-		s, err := ioutil.ReadFile(p.getViewPath(name)) // 读取模板内容
+		s, err := ioutil.ReadFile(viewPath)
 		if err != nil {
+			p.l.Unlock()
 			return err
 		}
-		p.cache[name] = string(s)
-		html = p.cache[name]
+		p.l.Unlock()
+		html = string(s)
+		p.cache.Store(viewPath, html)
+	} else {
+		html = data.(string)
 	}
-	html, err := plush.BuffaloRenderer(html, binding, nil)
+	t, err := plush.BuffaloRenderer(html, binding, nil)
 	if err != nil {
 		return err
 	}
-	_, err = writer.Write([]byte(html))
+	_, err = writer.Write([]byte(t))
 	return err
 }

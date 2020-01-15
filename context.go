@@ -87,6 +87,12 @@ func (c *Context) Render() *Render {
 	return c.render
 }
 
+// 动态添加func模板函数
+func (c *Context) AddTplFunc(funcName string, funcEntry interface{})  {
+	c.render.engine.AddFunc(funcName, funcEntry, true)
+}
+
+
 func (c *Context) Params() *Params {
 	return c.params
 }

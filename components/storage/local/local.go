@@ -1,7 +1,7 @@
 package local
 
 import (
-	"github.com/xiusin/router/components/storage"
+	"fmt"
 	"github.com/xiusin/router/utils"
 	"io"
 	"io/ioutil"
@@ -68,16 +68,13 @@ func (o *Local) List(dir ...string) (fs []os.FileInfo, err error) {
 	return
 }
 
-func init() {
-	storage.Register("local", func(option storage.Option) storage.IStorage {
-		opt := option.(*Option)
-		opt.LocalBaseDir = strings.TrimRight(opt.LocalBaseDir, "/") + "/"
-		opt.Domain = strings.TrimRight(opt.Domain, "/") + "/"
-		if !utils.IsDir(opt.LocalBaseDir) {
-			if err := os.MkdirAll(opt.LocalBaseDir, 0644); err != nil {
-				panic(err)
-			}
+func New(opt *Option) *Local {
+	opt.LocalBaseDir = fmt.Sprintf("%s/", strings.TrimRight(opt.LocalBaseDir, "/"))
+	opt.Domain = fmt.Sprintf("%s/", strings.TrimRight(opt.Domain, "/"))
+	if !utils.IsDir(opt.LocalBaseDir) {
+		if err := os.MkdirAll(opt.LocalBaseDir, 0644); err != nil {
+			panic(err)
 		}
-		return &Local{option: opt}
-	})
+	}
+	return &Local{option: opt}
 }

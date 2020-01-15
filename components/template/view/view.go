@@ -1,67 +1,83 @@
 package view
 
 import (
-	"github.com/Masterminds/sprig"
+	"fmt"
 	base "github.com/xiusin/router/components/template"
 	"html/template"
 	"io"
+	"os"
+	"path"
+	"path/filepath"
 	"reflect"
 	"sync"
 )
 
-var funcMap = template.FuncMap{}
-
-type Template struct {
+type view struct {
 	base.Template
-	debug  bool
-	dir    string
-	suffix string
-	cache  map[string]*template.Template
-	l      sync.RWMutex
+	funcMap  template.FuncMap
+	template *template.Template
+
+	debug   bool
+	dir     string
+	suffix  string
+	tplList []string
+
+	once sync.Once
 }
 
-func New(viewDir, suffix string, reload bool) *Template {
-	tpl := &Template{
-		cache:  map[string]*template.Template{},
-		dir:    viewDir,
-		suffix: suffix,
+func New(viewDir, suffix string, reload bool) *view {
+	return initTemplate(viewDir, suffix, reload)
+}
+
+func initTemplate(viewDir, suffix string, reload bool) *view {
+	tpl := &view{dir: viewDir, suffix: suffix, debug: reload, funcMap: map[string]interface{}{}}
+	if !reload {
+		tpl.walk()
 	}
-	tpl.debug = reload
 	return tpl
 }
 
-func (t *Template) AddFunc(funcName string, funcEntry interface{}) {
-	// 只接受函数参数 .kind大类型  .type 具体类型
-	if reflect.ValueOf(funcEntry).Kind() == reflect.Func {
-		t.l.Lock()
-		funcMap[funcName] = funcEntry
-		t.l.Unlock()
-	}
-}
-
-func (t *Template) getViewPath(viewName string) string {
-	return t.dir + "/" + viewName + "." + t.suffix
-}
-
-func (t *Template) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
-	var (
-		tpl *template.Template
-		ok  bool
-		err error
-	)
-	t.l.RLock()
-	tpl, ok = t.cache[name]
-	t.l.RUnlock()
-	if !ok || t.debug {
-		t.l.Lock()
-		defer t.l.Unlock()
-		tpl, err = template.ParseFiles(t.getViewPath(name))
-		if err != nil {
-			return err
+func (t *view) walk() {
+	if err := filepath.Walk(t.dir, func(targetPath string, info os.FileInfo, err error) error {
+		if info != nil && !info.IsDir() {
+			relPath, err := filepath.Rel(t.dir, targetPath)
+			if err != nil {
+				return err
+			}
+			if path.Ext(relPath) == t.suffix {
+				t.tplList = append(t.tplList, path.Join(t.dir, relPath))
+			}
 		}
-		tpl.Funcs(funcMap)
-		tpl.Funcs(sprig.FuncMap())
-		t.cache[name] = tpl
+		return nil
+	}); err != nil {
+		panic(err)
 	}
-	return tpl.ExecuteTemplate(writer, name, binding)
+}
+
+func (t *view) AddFunc(funcName string, funcEntry interface{}) {
+	if reflect.ValueOf(funcEntry).Kind() == reflect.Func {
+		t.funcMap[funcName] = funcEntry
+	}
+}
+
+func (t *view) getViewName(viewName string, fullName bool) string {
+	if fullName {
+		return fmt.Sprintf("%s/%s%s", t.dir, viewName, t.suffix)
+	} else {
+		return fmt.Sprintf("%s%s", viewName, t.suffix)
+	}
+}
+
+func (t *view) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
+	if t.debug {
+		funcMap := t.funcMap
+		t = initTemplate(t.dir, t.suffix, t.debug)
+		t.tplList = []string{t.getViewName(name, true)}
+		t.funcMap = funcMap
+	}
+	t.once.Do(func() {
+		tmp := template.New(t.dir).Funcs(t.funcMap)
+		t.template = template.Must(tmp.ParseFiles(t.tplList...))
+	})
+	return t.template.ExecuteTemplate(writer, t.getViewName(name, false), binding)
 }
