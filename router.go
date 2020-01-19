@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/xiusin/router/utils"
 	"net/http"
-	"net/url"
 	"os"
 	"reflect"
 	"regexp"
@@ -22,6 +21,7 @@ type RouteEntry struct {
 	Middleware        []Handler
 	ExtendsMiddleWare []Handler
 	Handle            Handler
+	resolved          bool
 	IsPattern         bool
 	Param             []string
 	Pattern           string
@@ -51,7 +51,7 @@ type IRouter interface {
 type routeMaker func(path string, handle Handler, mws ...Handler) *RouteEntry
 
 // 定义路由处理函数类型
-type Handler func(*Context)
+type Handler func(ctx *Context)
 
 type Router struct {
 	started            bool
@@ -64,7 +64,14 @@ type Router struct {
 	prefix             string
 	methodRoutes       map[string]map[string]*RouteEntry //分类命令规则
 	middleWares        []Handler
-	groups             map[string]*Router // 分组路由保存
+
+	// 分组路由保存
+	// 完整前缀 => 路由
+	groups map[string]*Router
+
+	// 记录注册的subDomain
+	subDomains map[string]*Router
+	domain     string
 }
 
 var (
@@ -99,6 +106,7 @@ func New() *Router {
 	r := &Router{
 		methodRoutes: initRouteMap(),
 		groups:       map[string]*Router{},
+		subDomains:   map[string]*Router{},
 
 		configuration: &configuration,
 		notFound: func(c *Context) {
@@ -159,6 +167,23 @@ func (_ *Router) upperCharToUnderLine(path string) string {
 	}), "_")
 }
 
+// 设置子域名, 绑定整个r实例
+func (r *Router) SubDomain(subDomain string) *Router {
+	s := &Router{
+		//recoverHandler:     r.recoverHandler,
+		//pool:               r.pool,
+		//configuration:      r.configuration,
+		//notFound:           r.notFound,
+		middleWares: r.middleWares,
+		groups:      map[string]*Router{},
+		subDomains:  r.subDomains,
+		domain:      "",
+	}
+	s.methodRoutes = initRouteMap()
+	r.subDomains[subDomain] = s
+	return s
+}
+
 func (r *Router) SetRecoverHandler(handler Handler) {
 	r.recoverHandler = handler
 }
@@ -208,7 +233,7 @@ func (r *Router) Handle(c IController) {
 // *filepath 指定router.Static代理目录下所有文件标志
 // :param 支持路由段内嵌
 func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) *RouteEntry {
-	originName := r.GetPrefix() + path
+	originName := r.prefix + path
 	var (
 		params    []string
 		pattern   string
@@ -221,6 +246,7 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) *
 		for cons, str := range patternMap { //替换正则匹配映射
 			path = strings.Replace(path, cons, str, -1)
 		}
+
 		isPattern, _ := regexp.MatchString("[:*]", r.GetPrefix()+path)
 		if isPattern {
 			uriPartials := strings.Split(r.GetPrefix()+path, urlSeparator)[1:]
@@ -233,13 +259,13 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) *
 					})
 				} else if strings.HasPrefix(v, "*") {
 					param, patternStr := r.getPattern(v)
-					pattern += urlSeparator + "?" + patternStr + "?"
+					pattern = fmt.Sprintf("%s%s?%s?", pattern, urlSeparator, patternStr)
 					params = append(params, param)
 				} else {
 					pattern = pattern + urlSeparator + v
 				}
 			}
-			pattern = "^" + pattern + "$"
+			pattern = fmt.Sprintf("^%s$", pattern)
 		}
 	}
 
@@ -252,6 +278,7 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) *
 		Pattern:    pattern,
 		OriginStr:  originName,
 	}
+	//fmt.Printf("%+v\n", route)
 	if pattern != "" {
 		patternRoutes[pattern] = append(patternRoutes[pattern], route)
 	} else {
@@ -268,7 +295,7 @@ func (r *Router) getPattern(str string) (paramName, pattern string) {
 	}
 	pattern = strings.Trim(strings.Trim(params[0][2], "<"), ">")
 	if pattern != "" {
-		pattern = "(" + pattern + ")"
+		pattern = fmt.Sprintf("(%s)", pattern)
 	}
 	paramName = params[0][1]
 	return
@@ -279,45 +306,80 @@ func (r *Router) getPattern(str string) (paramName, pattern string) {
 // 其次， 匹配正则路由
 // 如果匹配到路由， 直接返回处理函数
 // 否则返回nil, 外部由notFound接管或空响应
-func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *RouteEntry {
-	pathInfos := strings.Split(urlParsed.Path, urlSeparator)
-	l := len(pathInfos)
+func (r *Router) matchRoute(ctx *Context) *RouteEntry {
+	sub := strings.Replace(strings.SplitN(ctx.req.Host, ":", 1)[0], r.domain, "", 1)
+	var ok bool
+	if sub != "" {
+		if r, ok = r.subDomains[sub]; !ok {
+			return nil
+		}
+	}
+	pathInfos := strings.Split(ctx.req.URL.Path, urlSeparator)
+	method, l := ctx.Request().Method, len(pathInfos)
 	for i := 1; i <= l; i++ {
 		p := strings.Join(pathInfos[:i], urlSeparator)
-		route, ok := r.methodRoutes[ctx.Request().Method][p]
-		if ok { // 直接匹配到路由
-			if route.Method != ctx.Request().Method {
+		if route, ok := r.methodRoutes[method][p]; ok {
+			if route.Method != method {
 				continue
+			}
+			if !route.resolved {
+				route.ExtendsMiddleWare = r.middleWares
+				route.resolved = true
 			}
 			return route
 		}
+
 		// 在路由分组内查找
 		group, ok := r.groups[p]
 		if ok {
-			path := urlSeparator + strings.Join(pathInfos[i:], urlSeparator)
-			for routePath, route := range group.methodRoutes[ctx.Request().Method] {
-				if routePath != path || route.Method != ctx.Request().Method {
-					continue
-				}
-				route.ExtendsMiddleWare = group.middleWares
+			if route := group.lookupGroupRoute(i, method, pathInfos); route != nil {
 				return route
 			}
 		}
 	}
+
 	// 匹配正则规则
 	for pattern, routes := range patternRoutes {
 		reg := regexp.MustCompile(pattern)
-		matched := reg.FindAllStringSubmatch(urlParsed.Path, -1)
+		matched := reg.FindAllStringSubmatch(ctx.req.URL.Path, -1)
 		for _, route := range routes {
-			if len(matched) == 0 || len(matched[0]) == 0 || route.Method != ctx.Request().Method {
+			if len(matched) == 0 || len(matched[0]) == 0 || route.Method != method {
 				continue
 			}
 			subMatched := matched[0][1:]
 			for k, param := range route.Param {
 				ctx.Params().Set(param, subMatched[k])
 			}
-			route.ExtendsMiddleWare = r.middleWares
+			if !route.resolved {
+				route.ExtendsMiddleWare = r.middleWares
+				route.resolved = true
+			}
 			return route
+		}
+	}
+	return nil
+}
+
+func (r *Router) lookupGroupRoute(i int, method string, pathInfos []string) *RouteEntry {
+	path := urlSeparator + strings.Join(pathInfos[i:], urlSeparator)
+	for routePath, route := range r.methodRoutes[method] {
+		if routePath != path || route.Method != method {
+			continue
+		}
+		// 额外的中间件
+		if !route.resolved {
+			route.ExtendsMiddleWare = r.middleWares
+			route.resolved = true
+		}
+		return route
+	}
+	if r.groups != nil {
+		for _, v := range r.groups {
+			if i+1 < len(pathInfos) {
+				if route := v.lookupGroupRoute(i+1, method, pathInfos); route != nil {
+					return route
+				}
+			}
 		}
 	}
 	return nil
@@ -325,7 +387,13 @@ func (r *Router) matchRoute(ctx *Context, urlParsed *url.URL) *RouteEntry {
 
 // 路由分组
 func (r *Router) Group(prefix string, middleWares ...Handler) *Router {
-	g := &Router{prefix: prefix}
+	prefix = r.prefix + prefix
+
+	g := &Router{
+		prefix:      prefix,
+		groups:      map[string]*Router{},
+		middleWares: r.middleWares[:]}
+
 	g.methodRoutes = initRouteMap()
 	g.middleWares = append(g.middleWares, middleWares...)
 	r.groups[prefix] = g
@@ -344,12 +412,12 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	c.Reset(res, req)
 	res.Header().Set("Server", configuration.serverName)
 	defer r.recoverHandler(c)
-	r.dispatch(c, req)
+	r.handle(c)
 }
 
 // 有可处理函数
-func (r *Router) handle(c *Context, urlParsed *url.URL) {
-	route := r.matchRoute(c, urlParsed)
+func (r *Router) handle(c *Context) {
+	route := r.matchRoute(c)
 	if route != nil {
 		c.setRoute(route)
 		c.Next()
@@ -360,13 +428,6 @@ func (r *Router) handle(c *Context, urlParsed *url.URL) {
 			r.notFound(c)
 		}
 	}
-}
-
-// 调度
-// 解析地址并且处理路由参数
-func (r *Router) dispatch(c *Context, req *http.Request) {
-	urlParsed, _ := url.ParseRequestURI(req.RequestURI)
-	r.handle(c, urlParsed)
 }
 
 func initRouteMap() map[string]map[string]*RouteEntry {

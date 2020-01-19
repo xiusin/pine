@@ -24,9 +24,9 @@ type ISessionStore interface {
 }
 
 type ISession interface {
-	Set(string, interface{}) error
-	Get(string) (interface{}, error)
-	AddFlush(string, interface{}) error
+	Set(string, string) error
+	Get(string) (string, error)
+	AddFlush(string, string) error
 	Remove(string) error
 	Save() error
 	Clear() error

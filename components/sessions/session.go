@@ -34,26 +34,26 @@ func newSession(id string, r *http.Request, w http.ResponseWriter, store ISessio
 	return sess, nil
 }
 
-func (sess *Session) Set(key string, val interface{}) error {
+func (sess *Session) Set(key string, val string) error {
 	sess.l.Lock()
 	sess.data[key] = Entry{Val: val, Flash: false}
 	sess.l.Unlock()
 	return nil
 }
 
-func (sess *Session) Get(key string) (interface{}, error) {
+func (sess *Session) Get(key string) (string, error) {
 	sess.l.RLock()
 	defer sess.l.RUnlock()
 	if val, ok := sess.data[key]; ok {
-		if val.Val.(string) == "" {
-			return nil, errors.New("sess val is empty")
+		if val.Val == "" {
+			return "", errors.New("sess val is empty")
 		}
-		return val.Val, nil
+		return val.Val.(string), nil
 	}
-	return nil, errors.New("sess key " + key + " not exists")
+	return "", errors.New("sess key " + key + " not exists")
 }
 
-func (sess *Session) AddFlush(key string, val interface{}) error {
+func (sess *Session) AddFlush(key string, val string) error {
 	sess.l.Lock()
 	sess.data[key] = Entry{Val: val, Flash: true}
 	sess.l.Unlock()

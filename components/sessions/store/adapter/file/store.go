@@ -21,7 +21,7 @@ type Store struct {
 func NewStore(config *Config) *Store {
 	store := &Store{config: config}
 	store.once.Do(func() {
-		go store.ClearExpiredFile()
+		go store.cleanup()
 	})
 	return store
 }
@@ -30,7 +30,7 @@ func (store *Store) GetConfig() sessions.ISessionConfig {
 	return store.config
 }
 
-func (store *Store) ClearExpiredFile() {
+func (store *Store) cleanup() {
 	d := uint32(store.config.GetGcDivisor())
 	for {
 		if d > store.counter || store.counter > 0 && store.counter%d == 0 {

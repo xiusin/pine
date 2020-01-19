@@ -78,29 +78,28 @@ func (c *Context) initCtxComponent(res http.ResponseWriter) {
 	c.sess = nil
 }
 
-func (c *Context) Flush() {
-	//TODO chunk send
-	c.Writer().(http.Flusher).Flush()
+// @see: https://www.jianshu.com/p/4417af75a9f4
+// todo 客户端断开自动关闭flush
+func (c *Context) Flush(data string) {
+	if c.Writer().Header().Get("Transfer-Encoding") == "" {
+		c.Writer().Header().Add("Transfer-Encoding", "chunked")
+		c.Writer().Header().Add("Content-Type", "text/html")
+		c.Writer().WriteHeader(http.StatusOK)
+	}
+	_, err := c.Writer().Write([]byte(data + "\r\n"))
+	if err != nil {
+		panic(err)
+	}
+	(c.Writer().(http.Flusher)).Flush()
 }
 
 func (c *Context) Render() *Render {
 	return c.render
 }
 
-// 动态添加func模板函数
-func (c *Context) AddTplFunc(funcName string, funcEntry interface{})  {
-	c.render.engine.AddFunc(funcName, funcEntry, true)
-}
-
-
 func (c *Context) Params() *Params {
 	return c.params
 }
-//
-//func (c *Context) ParseForm() error {
-//	return c.req.ParseMultipartForm(c)
-//	return nil
-//}
 
 func (c *Context) Request() *http.Request {
 	return c.req

@@ -5,5 +5,5 @@ type ICache interface {
 	Save(string, []byte, ...int) bool
 	Delete(string) bool
 	Exists(string) bool
-	SaveAll(map[string][]byte, ...int) bool
+	Batch(map[string][]byte, ...int) bool
 }

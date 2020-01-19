@@ -25,6 +25,10 @@ func (r *Router) newServer(s *http.Server, tls bool) *http.Server {
 	if s.Addr == "" {
 		s.Addr = ":9528"
 	}
+	addrInfo := strings.SplitN(s.Addr, ":", 1)
+
+ 	r.domain = addrInfo[0]
+
 	if !r.configuration.withoutFrameworkLog {
 		r.printInfo(s.Addr, tls)
 	}

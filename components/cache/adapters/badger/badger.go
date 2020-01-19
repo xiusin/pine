@@ -4,20 +4,19 @@ import (
 	"github.com/xiusin/router/components/path"
 	"github.com/xiusin/router/utils"
 	"os"
+	"runtime"
 	"time"
 
 	badgerDB "github.com/dgraph-io/badger"
 )
 
-// 直接保存到内存
-// 支持国人开发
 type Option struct {
 	TTL    int // sec
 	Path   string
 	Prefix string
 }
 
-func New(revOpt *Option) *badger {
+func New(revOpt Option) *badger {
 	var err error
 	if revOpt.Path == "" {
 		revOpt.Path = path.StoragePath("data")
@@ -34,11 +33,13 @@ func New(revOpt *Option) *badger {
 	if err != nil {
 		panic(err)
 	}
-	return &badger{
+	b := badger{
 		client: db,
-		option: revOpt,
+		option: &revOpt,
 		prefix: revOpt.Prefix,
 	}
+	runtime.SetFinalizer(&b, func(b *badger) { _ = b.client.Close() })
+	return &b
 }
 
 type badger struct {
@@ -103,9 +104,9 @@ func (c *badger) Exists(key string) bool {
 	return true
 }
 
-func (c *badger) SaveAll(data map[string][]byte, ttl ...int) bool {
+func (c *badger) Batch(data map[string][]byte, ttl ...int) bool {
 	if len(ttl) == 0 {
-		ttl[0] = c.option.TTL
+		ttl =[]int{c.option.TTL}
 	}
 	tx := c.client.NewTransaction(true)
 	for key, val := range data {
@@ -119,10 +120,16 @@ func (c *badger) SaveAll(data map[string][]byte, ttl ...int) bool {
 	return false
 }
 
-func (c *badger) GetAny(callback func(*badgerDB.DB)) {
+func (c *badger) Do(callback func(*badgerDB.DB)) {
 	callback(c.client)
 }
 
 func (c *badger) Client() *badgerDB.DB {
 	return c.client
 }
+
+//func (c *badger) Clear() {
+//	if err := c.client.DropAll(); err != nil {
+//		panic(err)
+//	}
+//}

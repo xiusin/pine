@@ -14,6 +14,9 @@ type Config struct {
 }
 
 func (c *Config) GetCookieName() string {
+	if c.CookieName == "" {
+		c.CookieName = "SESSION_ID"
+	}
 	return c.CookieName
 }
 
