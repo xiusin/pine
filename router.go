@@ -21,7 +21,7 @@ type RouteEntry struct {
 	Middleware        []Handler
 	ExtendsMiddleWare []Handler
 	Handle            Handler
-	resolved          bool
+	resolved          bool // needed
 	IsPattern         bool
 	Param             []string
 	Pattern           string
