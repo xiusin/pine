@@ -31,7 +31,6 @@ func newRouterWrapper(router IRouter, controller IController) *routerWrapper {
 
 // warpControllerHandler 用于包装controller方法为Handler
 // 通过反射传入controller实例用于每次请求构建或新的实例
-//
 func (cmr *routerWrapper) warpControllerHandler(method string, controller IController) Handler {
 	rvCtrl := reflect.ValueOf(controller)
 	return func(context *Context) {

@@ -17,16 +17,25 @@ import (
 )
 
 type RouteEntry struct {
-	Method            string
-	Middleware        []Handler
+	Method string
+	// 路由自身的中间件
+	Middleware []Handler
+	// 继承的全局中间件或者分组中间件
 	ExtendsMiddleWare []Handler
-	Handle            Handler
-	resolved          bool // needed
-	IsPattern         bool
-	Param             []string
-	Pattern           string
-	OriginStr         string
-	controller        IController
+	// 处理函数
+	Handle Handler
+	// 记录解析状态, 如果已解析就直接拿取对象实体
+	resolved bool
+	// 是否为正则数组 (保留参数)
+	IsPattern bool
+	// 地址参数
+	Param []string
+	// 匹配字符串, 根据输入内容转换为可匹配的正则字符串
+	Pattern string
+	// 原始路由字符串
+	OriginStr string
+	// 绑定的控制器实例
+	controller IController
 }
 
 type IRouter interface {
@@ -149,6 +158,7 @@ func (r *Router) registerRoute(router IRouter, controller IController) {
 }
 
 // 自动注册映射处理函数的http请求方法
+// 自动剔除方法前缀匹配为method, 如 GetIndex => index [GET]
 func (r *Router) matchMethod(router IRouter, path string, handle Handler) {
 	var methods = map[string]routeMaker{"Get": router.GET, "Post": router.POST, "Head": router.HEAD, "Delete": router.DELETE, "Put": router.PUT}
 	fmtStr := "autoRegisterRoute:[method: %s] %s"
@@ -167,7 +177,11 @@ func (_ *Router) upperCharToUnderLine(path string) string {
 	}), "_")
 }
 
-// 设置子域名, 绑定整个r实例
+// 设置子域名
+// 路由查找时自动匹配域名前缀
+// Examples:
+// 		r.SubDomain("www") => 当通过www域名访问时可以实现访问到其下绑定的路由.
+
 func (r *Router) SubDomain(subDomain string) *Router {
 	s := &Router{
 		//recoverHandler:     r.recoverHandler,
