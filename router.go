@@ -3,7 +3,6 @@ package router
 import (
 	"context"
 	"fmt"
-	"github.com/xiusin/router/utils"
 	"net/http"
 	"os"
 	"reflect"
@@ -145,7 +144,7 @@ func (r *Router) registerRoute(router IRouter, controller IController) {
 	} else {
 		// 自动根据前缀注册路由
 		format := "%s not exists method RegisterRoute(*controllerMappingRoute)"
-		utils.Logger().Printf(format, typ.String())
+		Logger().Printf(format, typ.String())
 		num, routeWrapper := typ.NumMethod(), wrapper
 		for i := 0; i < num; i++ {
 			name := typ.Method(i).Name
@@ -165,7 +164,7 @@ func (r *Router) matchMethod(router IRouter, path string, handle Handler) {
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
 			route := urlSeparator + r.upperCharToUnderLine(strings.TrimLeft(path, method))
-			utils.Logger().Printf(fmtStr, method, router.GetPrefix()+route)
+			Logger().Printf(fmtStr, method, router.GetPrefix()+route)
 			routeMaker(route, handle)
 		}
 	}
@@ -217,7 +216,7 @@ func (r *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal) {
 	for _, beforeHandler := range shutdownBeforeHandler {
 		beforeHandler()
 	}
-	utils.Logger().Print("server was closed")
+	Logger().Print("server was closed")
 }
 
 func (r *Router) Run(srv ServerHandler, opts ...Configurator) {

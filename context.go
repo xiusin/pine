@@ -2,10 +2,8 @@ package router
 
 import (
 	"fmt"
-	"github.com/xiusin/router/components/di"
 	"github.com/xiusin/router/components/logger"
 	"github.com/xiusin/router/components/sessions"
-	"github.com/xiusin/router/utils"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -80,13 +78,15 @@ func (c *Context) initCtxComponent(res http.ResponseWriter) {
 
 // @see: https://www.jianshu.com/p/4417af75a9f4
 // todo 客户端断开自动关闭flush
-func (c *Context) Flush(data string) {
+func (c *Context) Flush(data []byte) {
 	if c.Writer().Header().Get("Transfer-Encoding") == "" {
 		c.Writer().Header().Add("Transfer-Encoding", "chunked")
 		c.Writer().Header().Add("Content-Type", "text/html")
 		c.Writer().WriteHeader(http.StatusOK)
 	}
-	_, err := c.Writer().Write([]byte(data + "\r\n"))
+
+	data = append(data, '\n')
+	_, err := c.Writer().Write(data)
 	if err != nil {
 		panic(err)
 	}
@@ -110,7 +110,7 @@ func (c *Context) Header(key string) string {
 }
 
 func (c *Context) Logger() logger.ILogger {
-	return utils.Logger()
+	return Logger()
 }
 
 func (c *Context) Writer() http.ResponseWriter {
@@ -125,7 +125,7 @@ func (c *Context) Redirect(url string, statusHeader ...int) {
 }
 
 func (c *Context) sessionManger() sessions.ISessionManager {
-	sessionInf, ok := di.MustGet("sessionManager").(sessions.ISessionManager)
+	sessionInf, ok := Make("sessionManager").(sessions.ISessionManager)
 	if !ok {
 		panic("Type of `sessionManager` component error")
 	}

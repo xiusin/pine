@@ -4,7 +4,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/xiusin/router/components/logger"
-	"github.com/xiusin/router/utils"
 	"log"
 	"net/http"
 	"os"
@@ -20,7 +19,7 @@ func (r *Router) newServer(s *http.Server, tls bool) *http.Server {
 	}
 	r.handler = s.Handler
 	if s.ErrorLog == nil {
-		s.ErrorLog = log.New(utils.Logger().GetOutput(), logger.HttpErroPrefix, log.Lshortfile|log.LstdFlags)
+		s.ErrorLog = log.New(Logger().GetOutput(), logger.HttpErroPrefix, log.Lshortfile|log.LstdFlags)
 	}
 	if s.Addr == "" {
 		s.Addr = ":9528"
@@ -65,7 +64,7 @@ func Addr(addr string) ServerHandler {
 
 func Func(f func() error) ServerHandler {
 	return func(_ *Router) error {
-		utils.Logger().Print("start server with callback")
+		Logger().Print("start server with callback")
 		return f()
 	}
 }

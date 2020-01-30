@@ -1,7 +1,6 @@
 package router
 
 import (
-	"github.com/xiusin/router/utils"
 	"net/http/pprof"
 )
 
@@ -26,7 +25,7 @@ func pprofTrace(c *Context) {
 }
 
 func EnableProfile(r *Router) {
-	utils.Logger().Print("register ProfileRouter", "/debug/pprof/")
+	Logger().Print("register ProfileRouter", "/debug/pprof/")
 	r.GET("/debug/pprof/", pprofIndex)
 	r.GET("/debug/pprof/allocs", pprofIndex)
 	r.GET("/debug/pprof/block", pprofIndex)

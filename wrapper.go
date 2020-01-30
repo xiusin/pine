@@ -21,7 +21,7 @@ type IRouterWrapper interface {
 
 // 控制器映射路由
 type routerWrapper struct {
-	router IRouter
+	router     IRouter
 	controller IController
 }
 
@@ -100,7 +100,7 @@ func (cmr *routerWrapper) handlerResult(c reflect.Value, ctrlName, method string
 					if di.Exists(typs) {
 						ins = append(ins, reflect.ValueOf(di.MustGet(typs)))
 					} else {
-						panic(fmt.Sprintf("con't resolve service `%s` in di", typs))
+						panic(fmt.Sprintf("con't resolve service `%s@%s` in di", typs, in.PkgPath()))
 					}
 				}
 			} else {
@@ -133,10 +133,11 @@ func (cmr *routerWrapper) handlerResult(c reflect.Value, ctrlName, method string
 				err = ctx.Render().JSON(ctx.Render().tplData)
 			} else {
 				// 没有返回值视为需要渲染指定的模板内容
-				tplPath := strings.ToLower(strings.Replace(ctrlName, ControllerSuffix, "", 1) + "/" + method)
-
-				// 渲染模板
-				err = ctx.Render().HTML(tplPath)
+				err = ctx.Render().HTML(
+					strings.ToLower(
+						fmt.Sprintf(
+							"%s/%s",
+							strings.Replace(ctrlName, ControllerSuffix, "", 1), method)))
 			}
 		}
 		if err != nil {

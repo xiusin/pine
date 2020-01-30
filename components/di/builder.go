@@ -16,7 +16,7 @@ type (
 		Set(interface{}, BuildHandler, bool) *Definition
 		SetWithParams(interface{}, BuildWithHandler) *Definition
 		Add(*Definition)
-		Get(interface{}, ...interface{}) (interface{}, error)
+		Get(interface{}) (interface{}, error)
 		GetWithParams(interface{}, ...interface{}) (interface{}, error)
 		MustGet(interface{}, ...interface{}) interface{}
 		GetDefinition(interface{}) (*Definition, error)
@@ -55,7 +55,7 @@ func ResolveServiceName(service interface{}) string {
 	default:
 		ty := reflect.ValueOf(service)
 		if ty.IsValid() && ty.Type().Kind() == reflect.Ptr {
-			return ty.Type().String()
+			return fmt.Sprintf("%s@%s", ty.Type().String(), ty.Type().PkgPath())
 		}
 		panic("serviceName type is not support" + ty.Type().String())
 	}
@@ -72,7 +72,7 @@ func (b *builder) Add(def *Definition) {
 	b.services.Store(def.serviceName, def)
 }
 
-func (b *builder) Get(serviceAny interface{}, receiver ...interface{}) (interface{}, error) {
+func (b *builder) Get(serviceAny interface{}) (interface{}, error) {
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
@@ -81,9 +81,6 @@ func (b *builder) Get(serviceAny interface{}, receiver ...interface{}) (interfac
 	s, err := service.(*Definition).resolve(b)
 	if err != nil {
 		return nil, err
-	}
-	for idx := range receiver {
-		receiver[idx] = service.(*Definition)
 	}
 	return s, nil
 }
@@ -132,44 +129,36 @@ func (b *builder) Exists(serviceAny interface{}) bool {
 	return exists
 }
 
-var diDefault = &builder{}
+var di = &builder{}
 
-func Add(definition *Definition) {
-	diDefault.Add(definition)
-}
-
-func Get(serviceAny interface{}, receiver ...interface{}) (interface{}, error) {
-	return diDefault.Get(serviceAny, receiver...)
+func Get(serviceAny interface{}) (interface{}, error) {
+	return di.Get(serviceAny)
 }
 
 func MustGet(serviceAny interface{}, params ...interface{}) interface{} {
-	return diDefault.MustGet(serviceAny, params...)
+	return di.MustGet(serviceAny, params...)
 }
 
 func Exists(serviceAny interface{}) bool {
-	return diDefault.Exists(serviceAny)
-}
-
-func GetDefinition(serviceAny interface{}) (*Definition, error) {
-	return diDefault.GetDefinition(serviceAny)
+	return di.Exists(serviceAny)
 }
 
 func Set(serviceAny interface{}, handler BuildHandler, singleton bool) *Definition {
-	return diDefault.Set(serviceAny, handler, singleton)
+	return di.Set(serviceAny, handler, singleton)
 }
 
 func SetWithParams(serviceAny interface{}, handler BuildWithHandler) *Definition {
-	return diDefault.SetWithParams(serviceAny, handler)
+	return di.SetWithParams(serviceAny, handler)
 }
 
 func GetWithParams(serviceName string, params ...interface{}) (interface{}, error) {
-	return diDefault.GetWithParams(serviceName, params...)
+	return di.GetWithParams(serviceName, params...)
 }
 
 // get all registered services
 func List() []string {
 	var names []string
-	diDefault.services.Range(func(key, value interface{}) bool {
+	di.services.Range(func(key, value interface{}) bool {
 		names = append(names, key.(string))
 		return true
 	})

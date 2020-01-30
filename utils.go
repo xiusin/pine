@@ -1,4 +1,4 @@
-package utils
+package router
 
 import (
 	"github.com/xiusin/router/components/di"
@@ -6,12 +6,13 @@ import (
 )
 
 func Logger() logger.ILogger {
-	logger, ok := di.MustGet("logger").(logger.ILogger)
+	iLogger, ok := Make("logger").(logger.ILogger)
 	if !ok {
 		panic("Type of `logger` component error")
 	}
-	return logger
+	return iLogger
 }
 
-
-
+func Make(service interface{}, params ...interface{}) interface{} {
+	return di.MustGet(service, params...)
+}

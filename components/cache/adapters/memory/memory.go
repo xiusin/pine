@@ -2,7 +2,7 @@ package memory
 
 import (
 	"errors"
-	"github.com/xiusin/router/utils"
+	"github.com/xiusin/router"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -85,7 +85,7 @@ func (m *memory) Save(key string, val []byte, ttl ...int) bool {
 		atomic.AddInt32(&m.totalSize, data.size)
 		m.store.Store(m.getKey(key), data)
 	} else {
-		utils.Logger().Error("已超出设置内存限制, 无法存储")
+		router.Logger().Error("已超出设置内存限制, 无法存储")
 		return false
 	}
 	return true
