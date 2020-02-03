@@ -17,7 +17,6 @@ var (
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{.Code}} {{ .Message }}</title>
-  <link href="//fonts.googleapis.com/css?family=Open+Sans:300,400,700" rel="stylesheet" type="text/css">
   <style>
     html {-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
     html, body {
@@ -33,7 +32,7 @@ var (
       display: flex;
       justify-content: center;
       position: relative;
-      height: 80vh;
+      height: 85vh;
     }
     .content {
       text-align: center;
@@ -43,6 +42,13 @@ var (
       font-weight: bold;
       padding: 20px;
     }
+	.logo {
+		text-align: left;
+	}
+	.footer {
+		float:right;
+		margin-right:10px;
+	}
   </style>
   </head>
   <body>
@@ -51,6 +57,7 @@ var (
         <div class="title">{{ .Code }} {{ .Message }} </div>
       </div>
     </div>
+	<div class="footer"><pre class="logo">` + Logo + `</pre></div>
   </body>
 </html>`))
 )
@@ -78,7 +85,7 @@ func DefaultRecoverHandler(c *Context) {
 		c.Logger().Errorf(strFmt, strErr, c.Request().Method, c.Request().URL.RequestURI(), stackInfo)
 		_ = DefaultErrTemplateHTML.Execute(c.Writer(), map[string]interface{}{
 			"Message": strErr,
-			"Code": http.StatusInternalServerError,
+			"Code":    http.StatusInternalServerError,
 		})
 	}
 }

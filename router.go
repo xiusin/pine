@@ -320,7 +320,7 @@ func (r *Router) getPattern(str string) (paramName, pattern string) {
 // 如果匹配到路由， 直接返回处理函数
 // 否则返回nil, 外部由notFound接管或空响应
 func (r *Router) matchRoute(ctx *Context) *RouteEntry {
-	sub := strings.Replace(strings.SplitN(ctx.req.Host, ":", 1)[0], r.domain, "", 1)
+	sub := strings.Replace(strings.Split(ctx.req.Host, ":")[0], r.domain, "", 1)
 	var ok bool
 	if sub != "" {
 		if r, ok = r.subDomains[sub]; !ok {
@@ -342,7 +342,7 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 			return route
 		}
 
-		// 在路由分组内查找
+		// find in groups
 		group, ok := r.groups[p]
 		if ok {
 			if route := group.lookupGroupRoute(i, method, pathInfos); route != nil {
@@ -351,7 +351,7 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 		}
 	}
 
-	// 匹配正则规则
+	// pattern route
 	for pattern, routes := range patternRoutes {
 		reg := regexp.MustCompile(pattern)
 		matched := reg.FindAllStringSubmatch(ctx.req.URL.Path, -1)
@@ -379,7 +379,6 @@ func (r *Router) lookupGroupRoute(i int, method string, pathInfos []string) *Rou
 		if routePath != path || route.Method != method {
 			continue
 		}
-		// 额外的中间件
 		if !route.resolved {
 			route.ExtendsMiddleWare = r.middleWares
 			route.resolved = true
@@ -398,7 +397,6 @@ func (r *Router) lookupGroupRoute(i int, method string, pathInfos []string) *Rou
 	return nil
 }
 
-// 路由分组
 func (r *Router) Group(prefix string, middleWares ...Handler) *Router {
 	prefix = r.prefix + prefix
 
@@ -413,7 +411,7 @@ func (r *Router) Group(prefix string, middleWares ...Handler) *Router {
 	return g
 }
 
-// 针对全局的router引入中间件
+// register global middleware
 func (r *Router) Use(middleWares ...Handler) {
 	r.middleWares = append(r.middleWares, middleWares...)
 }
@@ -430,6 +428,9 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (r *Router) handle(c *Context) {
 	route := r.matchRoute(c)
 	if route != nil {
+		if err := c.req.ParseForm(); err != nil {
+			panic(err)
+		}
 		c.setRoute(route).Next()
 	} else {
 		c.SetStatus(http.StatusNotFound)

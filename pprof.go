@@ -25,7 +25,6 @@ func pprofTrace(c *Context) {
 }
 
 func EnableProfile(r *Router) {
-	Logger().Print("register ProfileRouter", "/debug/pprof/")
 	r.GET("/debug/pprof/", pprofIndex)
 	r.GET("/debug/pprof/allocs", pprofIndex)
 	r.GET("/debug/pprof/block", pprofIndex)

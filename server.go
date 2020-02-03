@@ -24,10 +24,11 @@ func (r *Router) newServer(s *http.Server, tls bool) *http.Server {
 	if s.Addr == "" {
 		s.Addr = ":9528"
 	}
-	addrInfo := strings.SplitN(s.Addr, ":", 1)
-
- 	r.domain = addrInfo[0]
-
+	addrInfo := strings.Split(s.Addr, ":")
+	if addrInfo[0] == "" {
+		addrInfo[0] = "0.0.0.0"
+	}
+	r.domain = addrInfo[0]
 	if !r.configuration.withoutFrameworkLog {
 		r.printInfo(s.Addr, tls)
 	}
@@ -44,9 +45,9 @@ func Server(s *http.Server) ServerHandler {
 	}
 }
 
-func (_ *Router) printInfo(addr string, tls bool) {
+func (r *Router) printInfo(addr string, tls bool) {
 	if strings.HasPrefix(addr, ":") {
-		addr = "0.0.0.0" + addr
+		addr = r.domain + addr
 	}
 	if tls {
 		addr = "https://" + addr

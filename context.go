@@ -77,7 +77,7 @@ func (c *Context) initCtxComponent(res http.ResponseWriter) {
 }
 
 // @see: https://www.jianshu.com/p/4417af75a9f4
-// todo 客户端断开自动关闭flush
+// todo  automatically turn off `flush` when the client is disconnected
 func (c *Context) Flush(data []byte) {
 	if c.Writer().Header().Get("Transfer-Encoding") == "" {
 		c.Writer().Header().Add("Transfer-Encoding", "chunked")
@@ -143,7 +143,7 @@ func (c *Context) Session() sessions.ISession {
 	return c.sess
 }
 
-// 执行下个中间件
+// Next execute next middleware or handler
 func (c *Context) Next() {
 	if c.IsStopped() == true {
 		return
@@ -179,10 +179,12 @@ func (c *Context) Abort(statusCode int, msg string) {
 	if ok {
 		handler(c)
 	} else {
-		DefaultErrTemplateHTML.Execute(c.Writer(), map[string]interface{}{
+		if err := DefaultErrTemplateHTML.Execute(c.Writer(), map[string]interface{}{
 			"Message": c.Msg,
 			"Code":    statusCode,
-		})
+		}); err != nil {
+				panic(err)
+		}
 	}
 }
 
@@ -230,7 +232,6 @@ func (c *Context) ClientIP() string {
 	return ""
 }
 
-// ************************************** GET QUERY METHOD ***************************************************** //
 func (c *Context) GetData() map[string][]string {
 	return c.req.URL.Query()
 }
@@ -271,12 +272,10 @@ func (c *Context) GetString(key string, defaultVal ...string) string {
 }
 
 func (c *Context) GetStrings(key string) (val []string, ok bool) {
-	//like php style
 	val, ok = c.req.URL.Query()[key+"[]"]
 	return
 }
 
-// ************************************** GET POST DATA METHOD ********************************************** //
 func (c *Context) PostInt(key string, defaultVal ...int) (val int, res bool) {
 	var err error
 	val, err = strconv.Atoi(c.req.PostFormValue(key))
@@ -319,7 +318,6 @@ func (c *Context) PostData() map[string][]string {
 }
 
 func (c *Context) PostStrings(key string) (val []string, ok bool) {
-	//like php style
 	val, ok = c.req.PostForm[key+"[]"]
 	return
 }
@@ -338,7 +336,6 @@ func (c *Context) Value(key interface{}) interface{} {
 	return nil
 }
 
-// ********************************** COOKIE ************************************************** //
 func (c *Context) getCookiesHandler() ICookie {
 	if c.cookie == nil {
 		c.cookie = NewCookie(c.Writer(), c.Request())
