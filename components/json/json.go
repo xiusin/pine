@@ -10,7 +10,7 @@ var marshal = struct {
 	unMarshaller: json.Unmarshal,
 }
 
-func ReplaceHandler(marshaller func(v interface{}) ([]byte, error), unMarshaller func(data []byte, v interface{}) error) {
+func ReplaceFunc(marshaller func(v interface{}) ([]byte, error), unMarshaller func(data []byte, v interface{}) error) {
 	marshal.marshaller = marshaller
 	marshal.unMarshaller = unMarshaller
 }

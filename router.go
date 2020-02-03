@@ -79,7 +79,10 @@ type Router struct {
 
 	// 记录注册的subDomain
 	subDomains map[string]*Router
-	domain     string
+
+	subDomain string
+
+	domain string
 }
 
 var (
@@ -179,7 +182,8 @@ func (_ *Router) upperCharToUnderLine(path string) string {
 // 设置子域名
 // 路由查找时自动匹配域名前缀
 // Examples:
-// 		r.SubDomain("www") => 当通过www域名访问时可以实现访问到其下绑定的路由.
+// 		r.SubDomain("www.") => 当通过www域名访问时可以实现访问到其下绑定的路由.
+// 		r.subDomain.("user.").subDomain("center.") => center.user.domain.com
 
 func (r *Router) SubDomain(subDomain string) *Router {
 	s := &Router{
@@ -190,10 +194,10 @@ func (r *Router) SubDomain(subDomain string) *Router {
 		middleWares: r.middleWares,
 		groups:      map[string]*Router{},
 		subDomains:  r.subDomains,
-		domain:      "",
 	}
 	s.methodRoutes = initRouteMap()
-	r.subDomains[subDomain] = s
+	s.subDomain = subDomain + r.subDomain
+	r.subDomains[s.subDomain] = s
 	return s
 }
 
