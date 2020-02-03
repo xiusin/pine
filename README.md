@@ -8,7 +8,8 @@
  - [x] 支持controller的func可以自动注入params 并且函数可以有返回值. 
  - [x] 支持controller级别的前置：`BeforeAction`和后置操作: `AfterAction`
  - [x] 通过反射控制器(仅支持controller)函数注入参数(支持context里可获取的组件和di里注册的, di解析是根据传入serviceName的具体interface和ptr名称)
-
+ - [ ] 去除*filepath的路由特殊处理
+ 
  # 动态返回值 #
 > 此功能只能用于mvc模式, 根据方法自动兼容显示内容
 

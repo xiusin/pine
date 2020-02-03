@@ -32,7 +32,7 @@ type RouteEntry struct {
 	// 匹配字符串, 根据输入内容转换为可匹配的正则字符串
 	Pattern string
 	// 原始路由字符串
-	OriginStr string
+	originStr string
 	// 绑定的控制器实例
 	controller IController
 }
@@ -52,8 +52,8 @@ type IRouter interface {
 	SetNotFound(handler Handler)
 	SetRecoverHandler(Handler)
 
-	StaticFile(string, string)
-	Static(string, string)
+	StaticFile(string, string, ...Handler)
+	Static(string, string, ...Handler)
 }
 
 type routeMaker func(path string, handle Handler, mws ...Handler) *RouteEntry
@@ -187,10 +187,6 @@ func (_ *Router) upperCharToUnderLine(path string) string {
 
 func (r *Router) SubDomain(subDomain string) *Router {
 	s := &Router{
-		//recoverHandler:     r.recoverHandler,
-		//pool:               r.pool,
-		//configuration:      r.configuration,
-		//notFound:           r.notFound,
 		middleWares: r.middleWares,
 		groups:      map[string]*Router{},
 		subDomains:  r.subDomains,
@@ -293,9 +289,9 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) *
 		IsPattern:  isPattern,
 		Param:      params,
 		Pattern:    pattern,
-		OriginStr:  originName,
+		originStr:  originName,
 	}
-	//fmt.Printf("%+v\n", route)
+
 	if pattern != "" {
 		patternRoutes[pattern] = append(patternRoutes[pattern], route)
 	} else {
@@ -422,7 +418,6 @@ func (r *Router) Use(middleWares ...Handler) {
 	r.middleWares = append(r.middleWares, middleWares...)
 }
 
-// 继承实现Handler interface
 func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	c := r.pool.Get().(*Context)
 	defer r.pool.Put(c)
@@ -432,15 +427,12 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	r.handle(c)
 }
 
-// 有可处理函数
 func (r *Router) handle(c *Context) {
 	route := r.matchRoute(c)
 	if route != nil {
-		c.setRoute(route)
-		c.Next()
+		c.setRoute(route).Next()
 	} else {
 		c.SetStatus(http.StatusNotFound)
-		// 设置了notFound函数
 		if r.notFound != nil {
 			r.notFound(c)
 		}
@@ -454,18 +446,16 @@ func initRouteMap() map[string]map[string]*RouteEntry {
 	}
 }
 
-//todo 添加静态资源缓存
-func (r *Router) Static(path, dir string) {
+func (r *Router) Static(path, dir string, mws ...Handler) {
+	fileServer, prefix := http.FileServer(http.Dir(dir)), strings.TrimSuffix(path, "*filepath")
 	r.GET(path, func(i *Context) {
-		http.StripPrefix(
-			strings.TrimSuffix(path, "*filepath"), http.FileServer(http.Dir(dir)),
-		).ServeHTTP(i.Writer(), i.Request())
-	}, )
+		http.StripPrefix(prefix, fileServer).ServeHTTP(i.Writer(), i.Request())
+	}, mws...)
 }
 
 // 处理静态文件
-func (r *Router) StaticFile(path, file string) {
-	r.GET(path, func(c *Context) { http.ServeFile(c.Writer(), c.Request(), file) })
+func (r *Router) StaticFile(path, file string, mws ...Handler) {
+	r.GET(path, func(c *Context) { http.ServeFile(c.Writer(), c.Request(), file) }, mws...)
 }
 
 func (r *Router) GET(path string, handle Handler, mws ...Handler) *RouteEntry {

@@ -167,8 +167,9 @@ func (c *Context) getRoute() *RouteEntry {
 	return c.route
 }
 
-func (c *Context) setRoute(route *RouteEntry) {
+func (c *Context) setRoute(route *RouteEntry) *Context{
 	c.route = route
+	return c
 }
 
 func (c *Context) Abort(statusCode int, msg string) {
