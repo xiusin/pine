@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/fatih/color"
-	"github.com/xiusin/router/components/logger"
+	"github.com/xiusin/router/logger"
 	"log"
 	"net/http"
 	"os"

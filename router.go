@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xiusin/router/components/di"
-	"github.com/xiusin/router/components/logger/adapter/log"
+	"github.com/xiusin/router/di"
+	"github.com/xiusin/router/logger/adapter/log"
 )
 
 type RouteEntry struct {

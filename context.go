@@ -2,8 +2,8 @@ package router
 
 import (
 	"fmt"
-	"github.com/xiusin/router/components/logger"
-	"github.com/xiusin/router/components/sessions"
+	"github.com/xiusin/router/logger"
+	"github.com/xiusin/router/sessions"
 	"mime/multipart"
 	"net"
 	"net/http"

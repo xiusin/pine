@@ -2,8 +2,8 @@ package router
 
 import (
 	"fmt"
-	"github.com/xiusin/router/components/di"
-	"github.com/xiusin/router/components/json"
+	"github.com/xiusin/router/di"
+	"github.com/xiusin/router/json"
 	"reflect"
 	"strings"
 	"unsafe"

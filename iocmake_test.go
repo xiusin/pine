@@ -1,7 +1,7 @@
 package router
 
 import (
-	"github.com/xiusin/router/components/di"
+	"github.com/xiusin/router/di"
 	"testing"
 )
 

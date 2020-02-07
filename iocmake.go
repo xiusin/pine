@@ -1,8 +1,8 @@
 package router
 
 import (
-	"github.com/xiusin/router/components/di"
-	"github.com/xiusin/router/components/logger"
+	"github.com/xiusin/router/di"
+	"github.com/xiusin/router/logger"
 )
 
 func Make(service interface{}, params ...interface{}) interface{} {

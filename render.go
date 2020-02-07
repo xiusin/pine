@@ -1,17 +1,17 @@
 package router
 
 import (
-	"github.com/xiusin/router/components/template"
+	"github.com/xiusin/router/template"
 	"net/http"
 
-	"github.com/xiusin/router/components/di"
+	"github.com/xiusin/router/di"
 )
 
 type H map[string]interface{}
 
 type Render struct {
-	engine template.IRenderer
-	writer http.ResponseWriter
+	engine  template.IRenderer
+	writer  http.ResponseWriter
 	tplData H
 
 	applied bool
