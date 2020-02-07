@@ -81,8 +81,8 @@ func (cmr *routerWrapper) handlerResult(c reflect.Value, ctrlName, method string
 	if numIn := mt.NumIn(); numIn > 0 {
 		for i := 0; i < numIn; i++ {
 			if in := mt.In(i); in.Kind() == reflect.Ptr || in.Kind() == reflect.Interface {
-				typs := in.String()
-				switch typs {
+				inType := in.String()
+				switch inType {
 				case "*http.Request":
 					ins = append(ins, reflect.ValueOf(ctx.req))
 				case "http.ResponseWriter":
@@ -97,14 +97,14 @@ func (cmr *routerWrapper) handlerResult(c reflect.Value, ctrlName, method string
 					ins = append(ins, reflect.ValueOf(ctx.Render()))
 				default:
 					// 在di容器内查找服务, 如果可以得到则加入参数列表, 否则终止程序
-					if di.Exists(typs) {
-						ins = append(ins, reflect.ValueOf(di.MustGet(typs)))
+					if di.Exists(inType) {
+						ins = append(ins, reflect.ValueOf(di.MustGet(inType)))
 					} else {
-						panic(fmt.Sprintf("con't resolve service `%s@%s` in di", typs, in.PkgPath()))
+						panic(fmt.Sprintf("con't resolve service `%s@%s` in di", inType, in.PkgPath()))
 					}
 				}
 			} else {
-				// 不支持的参数直接中断程序
+				// unsupported
 				panic(fmt.Sprintf("controller %s method: %s params(NO.%d)(%s)  not support. only ptr or interface ", c.Type().String(), mt.Name(), i, in.String()))
 			}
 		}
