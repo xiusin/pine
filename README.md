@@ -1,5 +1,4 @@
 # XiusinRouter #
-一个为了理解Go的一些web框架而开发的框架
 
 ## todo ##
  - [x] 多域名支持实现, 支持多级路由链式注册
@@ -24,7 +23,7 @@
 `controller`自动解析参数是对比参数pkgPath,以确定是否为真实参数类型.  
 
 # subdomain注册 # 
-期望实现  aa.bb.cc.com 链式注册. 其次, 直接绑定本地0.0.0.0的时候亦可解析域名前缀
+支持 aa.bb.cc.com 链式注册. 
 
 ```go
 package main
