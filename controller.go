@@ -25,12 +25,12 @@ type IController interface {
 }
 
 // 自动映射controller需要忽略的方法, 阻止自动注册路由时注册对应的函数
-var ignoreMethods = map[string]struct{}{}
+var reflectingNeedIgnoreMethods = map[string]struct{}{}
 
 func init() {
 	rt := reflect.TypeOf(&Controller{})
 	for i := 0; i < rt.NumMethod(); i++ {
-		ignoreMethods[rt.Method(i).Name] = struct{}{}
+		reflectingNeedIgnoreMethods[rt.Method(i).Name] = struct{}{}
 	}
 }
 

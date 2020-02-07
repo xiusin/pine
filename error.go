@@ -8,9 +8,9 @@ import (
 )
 
 var (
-	shutdownBeforeHandler  []func()
-	errCodeCallHandler     = make(map[int]Handler)
-	DefaultErrTemplateHTML = template.Must(template.New("ErrTemplate").Parse(`<!DOCTYPE html>
+	shutdownBeforeHandler []func()
+	errCodeCallHandler    = make(map[int]Handler)
+	DefaultErrTemplate    = template.Must(template.New("ErrTemplate").Parse(`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
@@ -83,9 +83,6 @@ func DefaultRecoverHandler(c *Context) {
 		c.SetStatus(http.StatusInternalServerError)
 		stackInfo, strErr, strFmt := debug.Stack(), fmt.Sprintf("%s", err), "msg: %s  Method: %s  Path: %s\n Stack: %s"
 		c.Logger().Errorf(strFmt, strErr, c.Request().Method, c.Request().URL.RequestURI(), stackInfo)
-		_ = DefaultErrTemplateHTML.Execute(c.Writer(), map[string]interface{}{
-			"Message": strErr,
-			"Code":    http.StatusInternalServerError,
-		})
+		_ = DefaultErrTemplate.Execute(c.Writer(), H{"Message": strErr, "Code": http.StatusInternalServerError})
 	}
 }

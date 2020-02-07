@@ -3,7 +3,7 @@ package di
 import "sync"
 
 type Definition struct {
-	mu            sync.Mutex
+	sync.Mutex
 	shared        bool
 	serviceName   string
 	instance      interface{}
@@ -37,8 +37,8 @@ func (d *Definition) IsResolved() bool {
 }
 
 func (d *Definition) resolve(builder BuilderInf) (service interface{}, err error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.Lock()
+	defer d.Unlock()
 	if !d.IsResolved() || !d.IsSingleton() {
 		service, err = d.factory(builder)
 		if d.IsSingleton() && !d.IsResolved() {
@@ -51,8 +51,8 @@ func (d *Definition) resolve(builder BuilderInf) (service interface{}, err error
 }
 
 func (d *Definition) resolveWithParams(builder BuilderInf, params ...interface{}) (service interface{}, err error) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.Lock()
+	defer d.Unlock()
 	service, err = d.paramsFactory(builder, params...)
 	return service, nil
 }

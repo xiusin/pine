@@ -6,6 +6,7 @@ type Configuration struct {
 	charset                   string
 	withoutFrameworkLog       bool
 	autoParseControllerResult bool
+	autoParseForm             bool
 }
 
 var configuration = Configuration{}
@@ -15,6 +16,12 @@ type Configurator func(o *Configuration)
 func WithServerName(srvName string) Configurator {
 	return func(o *Configuration) {
 		o.serverName = srvName
+	}
+}
+
+func WithAutoParseForm(autoParseForm bool) Configurator {
+	return func(o *Configuration) {
+		o.autoParseForm = autoParseForm
 	}
 }
 

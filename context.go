@@ -167,7 +167,7 @@ func (c *Context) getRoute() *RouteEntry {
 	return c.route
 }
 
-func (c *Context) setRoute(route *RouteEntry) *Context{
+func (c *Context) setRoute(route *RouteEntry) *Context {
 	c.route = route
 	return c
 }
@@ -179,11 +179,8 @@ func (c *Context) Abort(statusCode int, msg string) {
 	if ok {
 		handler(c)
 	} else {
-		if err := DefaultErrTemplateHTML.Execute(c.Writer(), map[string]interface{}{
-			"Message": c.Msg,
-			"Code":    statusCode,
-		}); err != nil {
-				panic(err)
+		if err := DefaultErrTemplate.Execute(c.Writer(), H{"Message": c.Msg, "Code": statusCode}); err != nil {
+			panic(err)
 		}
 	}
 }
@@ -305,7 +302,7 @@ func (c *Context) PostInt64(key string, defaultVal ...int64) (val int64, res boo
 }
 
 func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, res bool) {
-	var err  error
+	var err error
 	val, err = strconv.ParseFloat(c.req.PostFormValue(key), 64)
 	if err != nil && len(defaultVal) > 0 {
 		val, res = defaultVal[0], true
@@ -363,3 +360,4 @@ func (c *Context) GetCookie(name string) string {
 func (c *Context) RemoveCookie(name string) {
 	c.getCookiesHandler().Delete(name)
 }
+

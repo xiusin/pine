@@ -53,6 +53,6 @@ func (c *Cookie) Set(name string, value string, maxAge int) {
 func (c *Cookie) Delete(name string) {
 	http.SetCookie(c.w, &http.Cookie{
 		Name:   name,
-		Path:   c.path, // need path
+		Path:   c.path,
 		MaxAge: -1})
 }

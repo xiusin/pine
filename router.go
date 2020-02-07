@@ -78,11 +78,9 @@ type Router struct {
 	groups map[string]*Router
 
 	// 记录注册的subDomain
-	subDomains map[string]*Router
-
-	subDomain string
-
-	domain string
+	registeredSubdomains map[string]*Router
+	subdomain            string
+	hostname             string
 }
 
 var (
@@ -115,20 +113,15 @@ func init() {
 // 如果传入nil 则使用默认配置
 func New() *Router {
 	r := &Router{
-		methodRoutes: initRouteMap(),
-		groups:       map[string]*Router{},
-		subDomains:   map[string]*Router{},
+		methodRoutes:         initRouteMap(),
+		groups:               map[string]*Router{},
+		registeredSubdomains: map[string]*Router{},
 
 		configuration: &configuration,
 		notFound: func(c *Context) {
-			_ = DefaultErrTemplateHTML.Execute(c.Writer(), map[string]interface{}{
-				"Message": "Sorry, the page you are looking for could not be found.",
-				"Code":    http.StatusNotFound,
-			})
+			DefaultErrTemplate.Execute(c.Writer(), H{"Message": "Sorry, the page you are looking for could not be found.", "Code": http.StatusNotFound})
 		},
-		pool: &sync.Pool{New: func() interface{} {
-			return NewContext(configuration.autoParseControllerResult)
-		}},
+		pool:           &sync.Pool{New: func() interface{} { return NewContext(configuration.autoParseControllerResult) }},
 		recoverHandler: DefaultRecoverHandler,
 	}
 	r.handler = r
@@ -151,11 +144,11 @@ func (r *Router) registerRoute(router IRouter, controller IController) {
 		num, routeWrapper := typ.NumMethod(), wrapper
 		for i := 0; i < num; i++ {
 			name := typ.Method(i).Name
-			if _, ok := ignoreMethods[name]; !ok && val.MethodByName(name).IsValid() {
+			if _, ok := reflectingNeedIgnoreMethods[name]; !ok && val.MethodByName(name).IsValid() {
 				r.matchMethod(router, name, routeWrapper.warpControllerHandler(name, controller))
 			}
 		}
-		ignoreMethods = nil
+		reflectingNeedIgnoreMethods = nil
 	}
 }
 
@@ -184,16 +177,15 @@ func (_ *Router) upperCharToUnderLine(path string) string {
 // Examples:
 // 		r.SubDomain("www.") => 当通过www域名访问时可以实现访问到其下绑定的路由.
 // 		r.subDomain.("user.").subDomain("center.") => center.user.domain.com
-
-func (r *Router) SubDomain(subDomain string) *Router {
+func (r *Router) Subdomain(subdomain string) *Router {
 	s := &Router{
-		middleWares: r.middleWares,
-		groups:      map[string]*Router{},
-		subDomains:  r.subDomains,
+		middleWares:          r.middleWares,
+		groups:               map[string]*Router{},
+		registeredSubdomains: r.registeredSubdomains,
 	}
 	s.methodRoutes = initRouteMap()
-	s.subDomain = subDomain + r.subDomain
-	r.subDomains[s.subDomain] = s
+	s.subdomain = subdomain + r.subdomain
+	r.registeredSubdomains[s.subdomain] = s
 	return s
 }
 
@@ -316,14 +308,13 @@ func (r *Router) getPattern(str string) (paramName, pattern string) {
 
 // 匹配路由
 // 首先直接匹配路由或者在分组内匹配路由
-// 其次， 匹配正则路由
-// 如果匹配到路由， 直接返回处理函数
+// 其次， 匹配正则路由 如果匹配到路由则返回处理函数
 // 否则返回nil, 外部由notFound接管或空响应
 func (r *Router) matchRoute(ctx *Context) *RouteEntry {
-	sub := strings.Replace(strings.Split(ctx.req.Host, ":")[0], r.domain, "", 1)
+	sub := strings.Replace(strings.Split(ctx.req.Host, ":")[0], r.hostname, "", 1)
 	var ok bool
 	if sub != "" {
-		if r, ok = r.subDomains[sub]; !ok {
+		if r, ok = r.registeredSubdomains[sub]; !ok {
 			return nil
 		}
 	}
@@ -420,7 +411,9 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	c := r.pool.Get().(*Context)
 	defer r.pool.Put(c)
 	c.Reset(res, req)
-	res.Header().Set("Server", configuration.serverName)
+	if configuration.serverName != "" {
+		res.Header().Set("Server", configuration.serverName)
+	}
 	defer r.recoverHandler(c)
 	r.handle(c)
 }
@@ -428,8 +421,10 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 func (r *Router) handle(c *Context) {
 	route := r.matchRoute(c)
 	if route != nil {
-		if err := c.req.ParseForm(); err != nil {
-			panic(err)
+		if configuration.autoParseForm {
+			if err := c.req.ParseForm(); err != nil {
+				panic(err)
+			}
 		}
 		c.setRoute(route).Next()
 	} else {

@@ -3,6 +3,7 @@ package router
 import (
 	"crypto/tls"
 	"fmt"
+	"github.com/fatih/color"
 	"github.com/xiusin/router/components/logger"
 	"log"
 	"net/http"
@@ -28,7 +29,7 @@ func (r *Router) newServer(s *http.Server, tls bool) *http.Server {
 	if addrInfo[0] == "" {
 		addrInfo[0] = "0.0.0.0"
 	}
-	r.domain = addrInfo[0]
+	r.hostname = addrInfo[0]
 	if !r.configuration.withoutFrameworkLog {
 		r.printInfo(s.Addr, tls)
 	}
@@ -47,15 +48,15 @@ func Server(s *http.Server) ServerHandler {
 
 func (r *Router) printInfo(addr string, tls bool) {
 	if strings.HasPrefix(addr, ":") {
-		addr = r.domain + addr
+		addr = fmt.Sprintf("%s%s", r.hostname, addr)
 	}
+	protocol := "http"
 	if tls {
-		addr = "https://" + addr
-	} else {
-		addr = "http://" + addr
+		addr = "https"
 	}
+	addr = fmt.Sprintf("%s://%s", protocol, addr)
 	fmt.Println(Logo)
-	fmt.Println("server now listening on: " + addr)
+	fmt.Println(color.New(color.Bold).Sprintf("\nserver now listening on: %s/\n", color.GreenString(addr)))
 }
 
 func Addr(addr string) ServerHandler {

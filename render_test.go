@@ -39,10 +39,6 @@ func TestRender_Text(t *testing.T) {
 		r.GET("/json", func(ctx *Context) {
 			ctx.Render().JSON(H{"name": "xiusin"})
 		})
-
-		r.GET("/xml", func(ctx *Context) {
-			ctx.Render().XML(H{"name": "xiusin"})
-		})
 	})
 	defer srv.Close()
 	Convey("请求Text响应", t, func() {
