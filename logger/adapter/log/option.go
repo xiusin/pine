@@ -12,6 +12,7 @@ import (
 type Options struct {
 	Level              logger.Level //日志级别
 	RotateLogDirFormat string       //日志分割目录格式
+	LogDir             string
 	InfoLogName        string
 	ErrorLogName       string
 	MaxSizeMB          int

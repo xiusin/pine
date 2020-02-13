@@ -16,6 +16,30 @@
 服务注册名称更为`interface{}`,  如果注册服务类型实例, 自动绑定字符串文件路径和`pkgPath`,
 `controller`自动解析参数是对比参数pkgPath,以确定是否为真实参数类型.  
 
+```go
+package main
+import "github.com/xiusin/pine/di"
+
+type Config struct{
+    Name string
+}
+
+func main()  {
+
+ 	di.Set("render", func(builder di.BuilderInf) (i interface{}, e error) {
+ 		return view.New("views", true), nil
+ 	}, true)
+
+    di.Set(&Config{}, func(builder di.BuilderInf) (i interface{}, err error) {
+        return &Config{Name: "pine"}, nil
+    }, true)
+    
+    di.Get(&Config{}) // 可以使用Controller的方法传参进去(类型要一致)
+
+}
+```
+
+
 # subdomain # 
 支持 aa.bb.cc.com 链式注册. 
 
@@ -42,44 +66,5 @@ g.Handle(new(UserCenter))
 
 r.Run(router.Addr(":9528"))
 ```
-
-# 关于压测 #
-
-```go
-package main
-
-import (
-	"github.com/xiusin/router"
-)
-
-func main() {
-	app := router.New()
-	app.GET("/", func(ctx *router.Context) {
-		ctx.Writer().Write([]byte("hello world"))
-	})
-	app.Run(router.Addr(":9528"))
-}
-```
-
-压测环境:  
-```
-MacBook Pro (13-inch, 2019, Four Thunderbolt 3 ports)
-处理器: 2.4 GHz 四核Intel Core i5
-内存: 16 GB 2133 MHz LPDDR3
-```
-
-
-```bash
-$ » wrk -t12 -c100 -d10s http://0.0.0.0:9528/                                                                                                                                                                                                                                                                       130 ↵
-Running 10s test @ http://0.0.0.0:9528/   
-  12 threads and 100 connections
-  Thread Stats   Avg      Stdev     Max   +/- Stdev
-    Latency   847.97us  363.94us   8.44ms   83.23%
-    Req/Sec     9.58k   621.69    10.78k    58.58%
-  1155754 requests in 10.10s, 166.43MB read
-Requests/sec: 114434.34
-Transfer/sec:     16.48MB
-```
-
 
 

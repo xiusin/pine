@@ -5,9 +5,9 @@
 package pine
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/xiusin/pine/di"
-	"github.com/xiusin/pine/json"
 	"reflect"
 	"strings"
 	"unsafe"

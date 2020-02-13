@@ -11,9 +11,9 @@ import (
 	"go.uber.org/zap/zapcore"
 	"io"
 	"os"
+	"path/filepath"
 	"time"
 
-	"github.com/xiusin/pine/path"
 	"go.uber.org/zap"
 )
 
@@ -91,7 +91,7 @@ func (l *Logger) Errorf(msg string, args ...interface{}) {
 
 func writer(filename string, option *Options) io.Writer {
 	return &lumberjack.Logger{
-		Filename:   path.LogPath(option.RotateLogDirFormat, filename),
+		Filename:   filepath.Join(option.LogDir,option.RotateLogDirFormat, filename),
 		MaxSize:    option.MaxSizeMB,
 		MaxBackups: option.MaxBackups,
 		MaxAge:     option.MaxAgeDay,

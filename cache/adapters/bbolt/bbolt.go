@@ -7,7 +7,6 @@ package bbolt
 import (
 	"errors"
 	"github.com/xiusin/pine"
-	"github.com/xiusin/pine/json"
 	bolt "go.etcd.io/bbolt"
 	"runtime"
 	"time"
@@ -78,7 +77,7 @@ func (c *boltdb) Get(key string) (val []byte, err error) {
 		key := []byte(c.option.Prefix + key)
 		valByte := b.Get(key)
 		var e entry
-		if err = json.Unmarshal(valByte, &e); err != nil {
+		if err = pine.Unmarshal(valByte, &e); err != nil {
 			return err
 		}
 		if e.isExpired() {
@@ -95,7 +94,7 @@ func (c *boltdb) Save(key string, val []byte, ttl ...int) bool {
 	if err := c.client.Update(func(tx *bolt.Tx) error {
 		var e = entry{LifeTime: c.getTime(ttl...), Val: val}
 		var err error
-		if val, err = json.Marshal(&e); err != nil {
+		if val, err = pine.Marshal(&e); err != nil {
 			return err
 		}
 		return tx.Bucket([]byte(c.option.BucketName)).Put([]byte(c.option.Prefix+key), val)
@@ -123,7 +122,7 @@ func (c *boltdb) Exists(key string) bool {
 			return keyNotExistsErr
 		} else {
 			var e entry
-			if err := json.Unmarshal(val, &e); err != nil {
+			if err := pine.Unmarshal(val, &e); err != nil {
 				return err
 			}
 			if !e.isExpired() {
@@ -144,7 +143,7 @@ func (c *boltdb) Batch(data map[string][]byte, ttl ...int) bool {
 		for key, val := range data {
 			var e = entry{LifeTime: t, Val: val}
 			var err error
-			if val, err = json.Marshal(&e); err != nil {
+			if val, err = pine.Marshal(&e); err != nil {
 				return err
 			}
 			if err := tx.Bucket([]byte(c.option.BucketName)).Put([]byte(c.prefix+key), val); err != nil {
@@ -200,7 +199,7 @@ func (c *boltdb) cleanup() {
 			return b.ForEach(func(k, v []byte) error {
 				var e entry
 				var err error
-				if err = json.Unmarshal(v, &e); err != nil {
+				if err = pine.Unmarshal(v, &e); err != nil {
 					return err
 				}
 				if e.isExpired() {

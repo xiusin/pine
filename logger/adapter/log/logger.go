@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"github.com/natefinch/lumberjack"
 	"github.com/xiusin/pine/logger"
-	"github.com/xiusin/pine/path"
 	"io"
 	"log"
 	"os"
+	"path"
 	"runtime"
 	"strconv"
 	"strings"
@@ -29,14 +29,14 @@ func New(options *Options) *Logger {
 	}
 	l := &Logger{
 		info: log.New(&lumberjack.Logger{
-			Filename:   path.LogPath(time.Now().Format(options.RotateLogDirFormat), options.InfoLogName),
+			Filename:   path.Join(options.LogDir, time.Now().Format(options.RotateLogDirFormat), options.InfoLogName),
 			MaxSize:    options.MaxSizeMB,
 			MaxBackups: options.MaxBackups,
 			MaxAge:     options.MaxAgeDay,
 			Compress:   options.Compress,
 		}, logger.InfoPrefix, options.LogFlag),
 		error: log.New(&lumberjack.Logger{
-			Filename:   path.LogPath(time.Now().Format(options.RotateLogDirFormat), options.ErrorLogName),
+			Filename:   path.Join(options.LogDir, time.Now().Format(options.RotateLogDirFormat), options.ErrorLogName),
 			MaxSize:    options.MaxSizeMB,
 			MaxBackups: options.MaxBackups,
 			MaxAge:     options.MaxAgeDay,
@@ -95,11 +95,13 @@ func (l *Logger) getCaller() string {
 	if l.config.RecordCaller {
 		_, callerFile, line, ok := runtime.Caller(2)
 		if ok {
-			goPath := os.Getenv("GOPATH") + "/src/"
-			rootPath := path.RootPath() + "/"
-			callerFile = strings.TrimPrefix(callerFile, strings.Replace(goPath, "\\", "/", -1))
-			callerFile = strings.TrimPrefix(callerFile, strings.Replace(rootPath, "\\", "/", -1))
-			return " " + callerFile + ":" + strconv.Itoa(line) + ":"
+			if curPath, err := os.Getwd(); err == nil {
+				callerFile = strings.TrimPrefix(callerFile, strings.Replace(os.Getenv("GOPATH") + "/src/", "\\", "/", -1))
+				callerFile = strings.TrimPrefix(callerFile, strings.Replace(curPath + "/", "\\", "/", -1))
+				return " " + callerFile + ":" + strconv.Itoa(line) + ":"
+			}
+
+
 		}
 	}
 	return ""

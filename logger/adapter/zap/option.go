@@ -10,6 +10,7 @@ type Options struct {
 	TimeFormat         string
 	Level              logger.Level
 	RotateLogDirFormat string
+	LogDir             string
 	InfoLogName        string
 	ErrorLogName       string
 	Console            bool

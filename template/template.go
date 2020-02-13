@@ -6,13 +6,12 @@ package template
 
 import (
 	"bytes"
+	"encoding/json"
 	"encoding/xml"
-	"github.com/xiusin/pine/json"
 	"io"
 )
 
-type Template struct {
-}
+type Template struct{}
 
 func (_ *Template) JSON(writer io.Writer, v map[string]interface{}) error {
 	b, err := json.Marshal(v)

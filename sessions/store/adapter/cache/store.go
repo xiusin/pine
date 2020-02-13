@@ -6,7 +6,7 @@ package cache
 
 import (
 	"errors"
-	"github.com/xiusin/pine/json"
+	"github.com/xiusin/pine"
 	"github.com/xiusin/pine/sessions"
 )
 
@@ -33,11 +33,11 @@ func (store *Store) Read(id string, receiver interface{}) error {
 	} else {
 		sess = []byte("{}")
 	}
-	return json.Unmarshal(sess, receiver)
+	return pine.Unmarshal(sess, receiver)
 }
 
 func (store *Store) Save(id string, val interface{}) error {
-	s, err := json.Marshal(val)
+	s, err := pine.Marshal(val)
 	if err != nil {
 		return err
 	}
