@@ -1,3 +1,7 @@
+// Copyright 2014 Manu Martinez-Almeida.  All rights reserved.
+// Use of this source code is governed by a MIT style
+// license that can be found in the LICENSE file.
+
 package local
 
 import (
@@ -9,8 +13,8 @@ import (
 )
 
 type Option struct {
-	Domain              string // 本地目录,自动追加最后面的/字符
-	LocalBaseDir        string // 本地目录,自动追加最后面的/字符
+	Domain              string
+	LocalBaseDir        string
 	PutReturnWithDomain bool
 }
 
