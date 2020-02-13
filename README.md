@@ -1,15 +1,7 @@
 # pine #
 
-PineFramework  一个轻量级高性能GO语言开发框架. 
-
-## todo ##
- - [x] 多域名支持实现, 支持多级路由链式注册
- - [x] 分组路由嵌套
- - [x] 支持controller的自动注册以及实现方法注册
- - [x] 支持controller的func可以自动注入params 并且函数可以有返回值. 
- - [x] 支持controller级别的前置：`BeforeAction`和后置操作: `AfterAction`
- - [x] 通过反射控制器(仅支持controller)函数注入参数(支持context里可获取的组件和di里注册的, di解析是根据传入serviceName的具体interface和ptr名称)
- - [x] 路由注册any类型
+`PineFramework`  一个轻量级高性能GO语言开发框架.  支持mvc, di, 动态返回值, middleware 加载, 路由分组, 子域名路由注册管理.
+大部分组件基于接口实现, 可以自行实现或定义组件. 
 
  # 动态返回值 #
 > 此功能只能用于mvc模式, 根据方法自动兼容显示内容
@@ -24,7 +16,7 @@ PineFramework  一个轻量级高性能GO语言开发框架.
 服务注册名称更为`interface{}`,  如果注册服务类型实例, 自动绑定字符串文件路径和`pkgPath`,
 `controller`自动解析参数是对比参数pkgPath,以确定是否为真实参数类型.  
 
-# subdomain注册 # 
+# subdomain # 
 支持 aa.bb.cc.com 链式注册. 
 
 ```go
