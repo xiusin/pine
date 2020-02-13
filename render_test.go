@@ -1,11 +1,11 @@
-package router
+package pine
 
 import (
 	"fmt"
 	"github.com/smartystreets/assertions/should"
 	. "github.com/smartystreets/goconvey/convey"
-	"github.com/xiusin/router/di"
-	"github.com/xiusin/router/template/view"
+	"github.com/xiusin/pine/di"
+	"github.com/xiusin/pine/template/view"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"

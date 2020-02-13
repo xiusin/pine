@@ -1,4 +1,4 @@
-package router
+package pine
 
 import (
 	"github.com/smartystreets/assertions/should"

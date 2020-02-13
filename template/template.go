@@ -3,7 +3,7 @@ package template
 import (
 	"bytes"
 	"encoding/xml"
-	"github.com/xiusin/router/json"
+	"github.com/xiusin/pine/json"
 	"io"
 )
 

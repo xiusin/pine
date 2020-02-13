@@ -2,8 +2,8 @@ package bbolt
 
 import (
 	"errors"
-	"github.com/xiusin/router"
-	"github.com/xiusin/router/json"
+	"github.com/xiusin/pine"
+	"github.com/xiusin/pine/json"
 	bolt "go.etcd.io/bbolt"
 	"runtime"
 	"time"
@@ -205,7 +205,7 @@ func (c *boltdb) cleanup() {
 				return nil
 			})
 		}); err != nil {
-			router.Logger().Errorf("boltdb cleanup err: %s", err)
+			pine.Logger().Errorf("boltdb cleanup err: %s", err)
 		}
 	}
 }

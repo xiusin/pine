@@ -3,7 +3,7 @@ package file
 import (
 	"bytes"
 	"encoding/gob"
-	"github.com/xiusin/router/sessions"
+	"github.com/xiusin/pine/sessions"
 	"io/ioutil"
 	"os"
 	"path"

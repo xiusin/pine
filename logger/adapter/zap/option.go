@@ -1,6 +1,6 @@
 package zap
 
-import "github.com/xiusin/router/logger"
+import "github.com/xiusin/pine/logger"
 
 type Options struct {
 	TimeFormat         string

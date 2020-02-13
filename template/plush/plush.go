@@ -2,7 +2,7 @@ package plush
 
 import (
 	"fmt"
-	"github.com/xiusin/router/template"
+	"github.com/xiusin/pine/template"
 	"io"
 	"io/ioutil"
 	"sync"

@@ -1,10 +1,10 @@
-package router
+package pine
 
 import (
 	"crypto/tls"
 	"fmt"
 	"github.com/fatih/color"
-	"github.com/xiusin/router/logger"
+	"github.com/xiusin/pine/logger"
 	"log"
 	"net/http"
 	"os"
@@ -13,6 +13,9 @@ import (
 )
 
 type ServerHandler func(*Router) error
+
+const ZeroIP = "0.0.0.0"
+const DefaultAddressWithPort = ZeroIP + ":9528"
 
 func (r *Router) newServer(s *http.Server, tls bool) *http.Server {
 	if s.Handler == nil {
@@ -23,19 +26,19 @@ func (r *Router) newServer(s *http.Server, tls bool) *http.Server {
 		s.ErrorLog = log.New(Logger().GetOutput(), logger.HttpErroPrefix, log.Lshortfile|log.LstdFlags)
 	}
 	if s.Addr == "" {
-		s.Addr = ":9528"
+		s.Addr = DefaultAddressWithPort
 	}
 	addrInfo := strings.Split(s.Addr, ":")
 	if addrInfo[0] == "" {
-		addrInfo[0] = "0.0.0.0"
+		addrInfo[0] = ZeroIP
 	}
 	r.hostname = addrInfo[0]
 	if !r.configuration.withoutFrameworkLog {
-		r.printInfo(s.Addr, tls)
+		r.printSetupInfo(s.Addr, tls)
 	}
-	quit := make(chan os.Signal)
-	signal.Notify(quit, os.Interrupt, os.Kill)
-	go r.gracefulShutdown(s, quit)
+	quitCh := make(chan os.Signal)
+	signal.Notify(quitCh, os.Interrupt, os.Kill)
+	go r.gracefulShutdown(s, quitCh)
 	return s
 }
 
@@ -46,7 +49,7 @@ func Server(s *http.Server) ServerHandler {
 	}
 }
 
-func (r *Router) printInfo(addr string, tls bool) {
+func (r *Router) printSetupInfo(addr string, tls bool) {
 	if strings.HasPrefix(addr, ":") {
 		addr = fmt.Sprintf("%s%s", r.hostname, addr)
 	}
@@ -54,9 +57,9 @@ func (r *Router) printInfo(addr string, tls bool) {
 	if tls {
 		addr = "https"
 	}
-	addr = fmt.Sprintf("%s://%s", protocol, addr)
+	addr = color.GreenString(fmt.Sprintf("%s://%s", protocol, addr))
 	fmt.Println(Logo)
-	fmt.Println(color.New(color.Bold).Sprintf("\nserver now listening on: %s/\n", color.GreenString(addr)))
+	fmt.Println(color.New(color.Bold).Sprintf("\nServer now listening on: %s/\n", addr))
 }
 
 func Addr(addr string) ServerHandler {
@@ -66,7 +69,6 @@ func Addr(addr string) ServerHandler {
 
 func Func(f func() error) ServerHandler {
 	return func(_ *Router) error {
-		Logger().Print("start server with callback")
 		return f()
 	}
 }

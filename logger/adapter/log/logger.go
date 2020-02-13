@@ -3,8 +3,8 @@ package log
 import (
 	"fmt"
 	"github.com/natefinch/lumberjack"
-	"github.com/xiusin/router/logger"
-	"github.com/xiusin/router/path"
+	"github.com/xiusin/pine/logger"
+	"github.com/xiusin/pine/path"
 	"io"
 	"log"
 	"os"

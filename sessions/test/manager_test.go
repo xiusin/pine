@@ -1,10 +1,10 @@
 package test
 
 import (
-	"github.com/xiusin/router/cache/adapters/memory"
-	"github.com/xiusin/router/sessions"
-	cache2 "github.com/xiusin/router/sessions/store/adapter/cache"
-	file2 "github.com/xiusin/router/sessions/store/adapter/file"
+	"github.com/xiusin/pine/cache/adapters/memory"
+	"github.com/xiusin/pine/sessions"
+	cache2 "github.com/xiusin/pine/sessions/store/adapter/cache"
+	file2 "github.com/xiusin/pine/sessions/store/adapter/file"
 	"io/ioutil"
 	"math/rand"
 	"net/http"

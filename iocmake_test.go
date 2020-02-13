@@ -1,7 +1,7 @@
-package router
+package pine
 
 import (
-	"github.com/xiusin/router/di"
+	"github.com/xiusin/pine/di"
 	"testing"
 )
 

@@ -2,7 +2,7 @@ package pongo
 
 import (
 	"fmt"
-	"github.com/xiusin/router/template"
+	"github.com/xiusin/pine/template"
 	"io"
 	"reflect"
 	"sync"

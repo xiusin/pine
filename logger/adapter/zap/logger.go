@@ -9,7 +9,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/xiusin/router/path"
+	"github.com/xiusin/pine/path"
 	"go.uber.org/zap"
 )
 

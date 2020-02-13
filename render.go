@@ -1,10 +1,10 @@
-package router
+package pine
 
 import (
-	"github.com/xiusin/router/template"
+	"github.com/xiusin/pine/template"
 	"net/http"
 
-	"github.com/xiusin/router/di"
+	"github.com/xiusin/pine/di"
 )
 
 type H map[string]interface{}

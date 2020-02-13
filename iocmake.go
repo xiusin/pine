@@ -1,8 +1,8 @@
-package router
+package pine
 
 import (
-	"github.com/xiusin/router/di"
-	"github.com/xiusin/router/logger"
+	"github.com/xiusin/pine/di"
+	"github.com/xiusin/pine/logger"
 )
 
 func Make(service interface{}, params ...interface{}) interface{} {

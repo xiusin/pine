@@ -2,8 +2,8 @@ package cache
 
 import (
 	"errors"
-	"github.com/xiusin/router/json"
-	"github.com/xiusin/router/sessions"
+	"github.com/xiusin/pine/json"
+	"github.com/xiusin/pine/sessions"
 )
 
 type Store struct {

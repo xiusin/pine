@@ -2,7 +2,7 @@ package view
 
 import (
 	"fmt"
-	base "github.com/xiusin/router/template"
+	base "github.com/xiusin/pine/template"
 	"html/template"
 	"io"
 	"os"

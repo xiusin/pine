@@ -1,7 +1,7 @@
 package log
 
 import (
-	"github.com/xiusin/router/logger"
+	"github.com/xiusin/pine/logger"
 	"log"
 )
 

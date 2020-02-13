@@ -1,8 +1,9 @@
-package router
+package pine
 
 import (
 	"context"
 	"fmt"
+	"github.com/fatih/color"
 	"net/http"
 	"os"
 	"reflect"
@@ -11,44 +12,33 @@ import (
 	"sync"
 	"time"
 
-	"github.com/xiusin/router/di"
-	"github.com/xiusin/router/logger/adapter/log"
+	"github.com/xiusin/pine/di"
+	"github.com/xiusin/pine/logger/adapter/log"
 )
 
 type RouteEntry struct {
-	Method string
-	// 路由自身的中间件
+	Method     string
 	Middleware []Handler
-	// 继承的全局中间件或者分组中间件
+	//group、global mws
 	ExtendsMiddleWare []Handler
-	// 处理函数
-	Handle Handler
-	// 记录解析状态, 如果已解析就直接拿取对象实体
-	resolved bool
-	// 是否为正则数组 (保留参数)
-	IsPattern bool
-	// 地址参数
-	Param []string
-	// 匹配字符串, 根据输入内容转换为可匹配的正则字符串
-	Pattern string
-	// 原始路由字符串
-	originStr string
-	// 绑定的控制器实例
-	controller IController
+	Handle            Handler
+	resolved          bool
+	Param             []string
+	Pattern           string
+	origin            string
 }
 
 type IRouter interface {
 	GetPrefix() string
 
-	AddRoute(method, path string, handle Handler, mws ...Handler) *RouteEntry
-
-	GET(path string, handle Handler, mws ...Handler) *RouteEntry
-	POST(path string, handle Handler, mws ...Handler) *RouteEntry
-	HEAD(path string, handle Handler, mws ...Handler) *RouteEntry
-	OPTIONS(path string, handle Handler, mws ...Handler) *RouteEntry
-	PUT(path string, handle Handler, mws ...Handler) *RouteEntry
-	DELETE(path string, handle Handler, mws ...Handler) *RouteEntry
-
+	AddRoute(method, path string, handle Handler, mws ...Handler)
+	ANY(path string, handle Handler, mws ...Handler)
+	GET(path string, handle Handler, mws ...Handler)
+	POST(path string, handle Handler, mws ...Handler)
+	HEAD(path string, handle Handler, mws ...Handler)
+	OPTIONS(path string, handle Handler, mws ...Handler)
+	PUT(path string, handle Handler, mws ...Handler)
+	DELETE(path string, handle Handler, mws ...Handler)
 	SetNotFound(handler Handler)
 	SetRecoverHandler(Handler)
 
@@ -56,10 +46,11 @@ type IRouter interface {
 	Static(string, string, ...Handler)
 }
 
-type routeMaker func(path string, handle Handler, mws ...Handler) *RouteEntry
+type routeMaker func(path string, handle Handler, mws ...Handler)
 
-// 定义路由处理函数类型
 type Handler func(ctx *Context)
+
+type routerMap map[string]map[string]*RouteEntry
 
 type Router struct {
 	started            bool
@@ -70,37 +61,35 @@ type Router struct {
 	notFound           Handler
 	MaxMultipartMemory int64
 	prefix             string
-	methodRoutes       map[string]map[string]*RouteEntry //分类命令规则
+	methodRoutes       routerMap
 	middleWares        []Handler
 
-	// 分组路由保存
-	// 完整前缀 => 路由
-	groups map[string]*Router
-
-	// 记录注册的subDomain
+	// prefix => router
+	groups               map[string]*Router
 	registeredSubdomains map[string]*Router
 	subdomain            string
 	hostname             string
 }
 
+const Version = "dev 0.0.9"
+
 var (
-
-	// url地址分隔符
 	urlSeparator = "/"
-
 	// 记录匹配路由映射， 不管是分组还是非分组的正则路由均记录到此变量
 	patternRoutes = map[string][]*RouteEntry{}
-
-	// 命名路由保存
-	//namedRoutes                  = map[string]*RouteEntry{}
-
 	// 正则匹配规则
 	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_/]+)(<.+?>)?")
-
 	// 路由规则与字段映射
 	patternMap = map[string]string{":int": "<\\d+>", ":string": "<[\\w0-9\\_\\.\\+\\-]+>"}
 
 	_ IRouter = (*Router)(nil)
+
+	Logo = color.RedString("\b%s", `
+   ___  _         
+  / _ \(_)__  ___ 
+ / ___/ / _ \/ -_)
+/_/  /_/_//_/\__/ 	Version: `+Version)
+
 )
 
 func init() {
@@ -116,8 +105,7 @@ func New() *Router {
 		methodRoutes:         initRouteMap(),
 		groups:               map[string]*Router{},
 		registeredSubdomains: map[string]*Router{},
-
-		configuration: &configuration,
+		configuration:        &configuration,
 		notFound: func(c *Context) {
 			DefaultErrTemplate.Execute(c.Writer(), H{"Message": "Sorry, the page you are looking for could not be found.", "Code": http.StatusNotFound})
 		},
@@ -145,7 +133,7 @@ func (r *Router) registerRoute(router IRouter, controller IController) {
 		for i := 0; i < num; i++ {
 			name := typ.Method(i).Name
 			if _, ok := reflectingNeedIgnoreMethods[name]; !ok && val.MethodByName(name).IsValid() {
-				r.matchMethod(router, name, routeWrapper.warpControllerHandler(name, controller))
+				r.matchMethod(router, name, routeWrapper.warpHandler(name, controller))
 			}
 		}
 		reflectingNeedIgnoreMethods = nil
@@ -218,7 +206,7 @@ func (r *Router) Run(srv ServerHandler, opts ...Configurator) {
 		}
 	}
 	if srv == nil {
-		srv = Addr(":9528")
+		srv = Addr(DefaultAddressWithPort)
 	}
 	if err := srv(r); err != nil && err != http.ErrServerClosed {
 		panic(err)
@@ -237,62 +225,50 @@ func (r *Router) Handle(c IController) {
 // *any 只支持路由段级别的设置
 // *filepath 指定router.Static代理目录下所有文件标志
 // :param 支持路由段内嵌
-func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) *RouteEntry {
+func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 	originName := r.prefix + path
 	var (
-		params    []string
-		pattern   string
-		isPattern bool
+		params  []string
+		pattern string
 	)
-	if strings.HasSuffix(path, "*filepath") {
-		// 应对静态目录资源代理
-		isPattern, pattern = true, fmt.Sprintf("^%s/(.+)", strings.TrimSuffix(originName, "/*filepath"))
-	} else {
-		for cons, str := range patternMap { //替换正则匹配映射
-			path = strings.Replace(path, cons, str, -1)
-		}
-
-		isPattern, _ := regexp.MatchString("[:*]", r.GetPrefix()+path)
-		if isPattern {
-			uriPartials := strings.Split(r.GetPrefix()+path, urlSeparator)[1:]
-			for _, v := range uriPartials {
-				if strings.Contains(v, ":") {
-					pattern = pattern + urlSeparator + patternRouteCompiler.ReplaceAllStringFunc(v, func(s string) string {
-						param, patternStr := r.getPattern(s)
-						params = append(params, param)
-						return patternStr
-					})
-				} else if strings.HasPrefix(v, "*") {
-					param, patternStr := r.getPattern(v)
-					pattern = fmt.Sprintf("%s%s?%s?", pattern, urlSeparator, patternStr)
-					params = append(params, param)
-				} else {
-					pattern = pattern + urlSeparator + v
-				}
-			}
-			pattern = fmt.Sprintf("^%s$", pattern)
-		}
+	for patternType, patternString := range patternMap {
+		path = strings.Replace(path, patternType, patternString, -1)
 	}
-
+	isPattern, _ := regexp.MatchString("[:*]", r.GetPrefix()+path)
+	if isPattern {
+		uriPartials := strings.Split(r.GetPrefix()+path, urlSeparator)[1:]
+		for _, v := range uriPartials {
+			if strings.Contains(v, ":") {
+				pattern = pattern + urlSeparator + patternRouteCompiler.ReplaceAllStringFunc(v, func(s string) string {
+					param, patternStr := r.getPattern(s)
+					params = append(params, param)
+					return patternStr
+				})
+			} else if strings.HasPrefix(v, "*") {
+				param, patternStr := r.getPattern(v)
+				pattern = fmt.Sprintf("%s%s?%s?", pattern, urlSeparator, patternStr)
+				params = append(params, param)
+			} else {
+				pattern = pattern + urlSeparator + v
+			}
+		}
+		pattern = fmt.Sprintf("^%s$", pattern)
+	}
 	route := &RouteEntry{
 		Method:     method,
 		Handle:     handle,
 		Middleware: mws,
-		IsPattern:  isPattern,
 		Param:      params,
 		Pattern:    pattern,
-		originStr:  originName,
+		origin:     originName,
 	}
-
 	if pattern != "" {
 		patternRoutes[pattern] = append(patternRoutes[pattern], route)
 	} else {
 		r.methodRoutes[method][path] = route
 	}
-	return route
 }
 
-// 获取地址匹配符
 func (r *Router) getPattern(str string) (paramName, pattern string) {
 	params := patternRouteCompiler.FindAllStringSubmatch(str, 1)
 	if params[0][2] == "" {
@@ -311,32 +287,34 @@ func (r *Router) getPattern(str string) (paramName, pattern string) {
 // 其次， 匹配正则路由 如果匹配到路由则返回处理函数
 // 否则返回nil, 外部由notFound接管或空响应
 func (r *Router) matchRoute(ctx *Context) *RouteEntry {
-	sub := strings.Replace(strings.Split(ctx.req.Host, ":")[0], r.hostname, "", 1)
+	var host string
+	if r.hostname != ZeroIP {
+		host = strings.Replace(strings.Split(ctx.req.Host, ":")[0], r.hostname, "", 1)
+	}
 	var ok bool
-	if sub != "" {
-		if r, ok = r.registeredSubdomains[sub]; !ok {
+	if host != "" {
+		if r, ok = r.registeredSubdomains[host]; !ok {
 			return nil
 		}
 	}
-	pathInfos := strings.Split(ctx.req.URL.Path, urlSeparator)
-	method, l := ctx.Request().Method, len(pathInfos)
+	pathInfo := strings.Split(ctx.req.URL.Path, urlSeparator)
+	method, l := ctx.Request().Method, len(pathInfo)
 	for i := 1; i <= l; i++ {
-		p := strings.Join(pathInfos[:i], urlSeparator)
+		p := strings.Join(pathInfo[:i], urlSeparator)
 		if route, ok := r.methodRoutes[method][p]; ok {
 			if route.Method != method {
 				continue
 			}
 			if !route.resolved {
+				// todo 有必要加锁吗?
 				route.ExtendsMiddleWare = r.middleWares
 				route.resolved = true
 			}
 			return route
 		}
-
-		// find in groups
-		group, ok := r.groups[p]
+		groupRouter, ok := r.groups[p]
 		if ok {
-			if route := group.lookupGroupRoute(i, method, pathInfos); route != nil {
+			if route := groupRouter.lookupGroupRoute(i, method, pathInfo); route != nil {
 				return route
 			}
 		}
@@ -364,8 +342,8 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 	return nil
 }
 
-func (r *Router) lookupGroupRoute(i int, method string, pathInfos []string) *RouteEntry {
-	path := urlSeparator + strings.Join(pathInfos[i:], urlSeparator)
+func (r *Router) lookupGroupRoute(i int, method string, pathInfo []string) *RouteEntry {
+	path := urlSeparator + strings.Join(pathInfo[i:], urlSeparator)
 	for routePath, route := range r.methodRoutes[method] {
 		if routePath != path || route.Method != method {
 			continue
@@ -378,8 +356,8 @@ func (r *Router) lookupGroupRoute(i int, method string, pathInfos []string) *Rou
 	}
 	if r.groups != nil {
 		for _, v := range r.groups {
-			if i+1 < len(pathInfos) {
-				if route := v.lookupGroupRoute(i+1, method, pathInfos); route != nil {
+			if i+1 < len(pathInfo) {
+				if route := v.lookupGroupRoute(i+1, method, pathInfo); route != nil {
 					return route
 				}
 			}
@@ -402,7 +380,6 @@ func (r *Router) Group(prefix string, middleWares ...Handler) *Router {
 	return g
 }
 
-// register global middleware
 func (r *Router) Use(middleWares ...Handler) {
 	r.middleWares = append(r.middleWares, middleWares...)
 }
@@ -419,8 +396,7 @@ func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 }
 
 func (r *Router) handle(c *Context) {
-	route := r.matchRoute(c)
-	if route != nil {
+	if route := r.matchRoute(c); route != nil {
 		if configuration.autoParseForm {
 			if err := c.req.ParseForm(); err != nil {
 				panic(err)
@@ -436,44 +412,47 @@ func (r *Router) handle(c *Context) {
 }
 
 func initRouteMap() map[string]map[string]*RouteEntry {
-	return map[string]map[string]*RouteEntry{
-		http.MethodGet: {}, http.MethodPost: {}, http.MethodPut: {},
-		http.MethodHead: {}, http.MethodDelete: {}, http.MethodPatch: {},
-	}
+	return routerMap{http.MethodGet: {}, http.MethodPost: {}, http.MethodPut: {}, http.MethodHead: {}, http.MethodDelete: {}, http.MethodPatch: {}}
 }
 
 func (r *Router) Static(path, dir string, mws ...Handler) {
-	fileServer, prefix := http.FileServer(http.Dir(dir)), strings.TrimSuffix(path, "*filepath")
-	r.GET(path, func(i *Context) {
-		http.StripPrefix(prefix, fileServer).ServeHTTP(i.Writer(), i.Request())
-	}, mws...)
+	fileServer := http.FileServer(http.Dir(dir))
+	r.GET(path, func(c *Context) { http.StripPrefix(path, fileServer).ServeHTTP(c.Writer(), c.Request()) }, mws...)
 }
 
-// 处理静态文件
 func (r *Router) StaticFile(path, file string, mws ...Handler) {
 	r.GET(path, func(c *Context) { http.ServeFile(c.Writer(), c.Request(), file) }, mws...)
 }
 
-func (r *Router) GET(path string, handle Handler, mws ...Handler) *RouteEntry {
-	return r.AddRoute(http.MethodGet, path, handle, mws...)
+func (r *Router) GET(path string, handle Handler, mws ...Handler) {
+	r.AddRoute(http.MethodGet, path, handle, mws...)
 }
 
-func (r *Router) POST(path string, handle Handler, mws ...Handler) *RouteEntry {
-	return r.AddRoute(http.MethodPost, path, handle, mws...)
+func (r *Router) PUT(path string, handle Handler, mws ...Handler) {
+	r.AddRoute(http.MethodPut, path, handle, mws...)
 }
 
-func (r *Router) OPTIONS(path string, handle Handler, mws ...Handler) *RouteEntry {
-	return r.AddRoute(http.MethodOptions, path, handle, mws...)
+func (r *Router) ANY(path string, handle Handler, mws ...Handler) {
+	r.GET(path, handle, mws...)
+	r.PUT(path, handle, mws...)
+	r.HEAD(path, handle, mws...)
+	r.POST(path, handle, mws...)
+	r.DELETE(path, handle, mws...)
+	r.OPTIONS(path, handle, mws...)
 }
 
-func (r *Router) PUT(path string, handle Handler, mws ...Handler) *RouteEntry {
-	return r.AddRoute(http.MethodPut, path, handle, mws...)
+func (r *Router) POST(path string, handle Handler, mws ...Handler) {
+	r.AddRoute(http.MethodPost, path, handle, mws...)
 }
 
-func (r *Router) HEAD(path string, handle Handler, mws ...Handler) *RouteEntry {
-	return r.AddRoute(http.MethodHead, path, handle, mws...)
+func (r *Router) HEAD(path string, handle Handler, mws ...Handler) {
+	r.AddRoute(http.MethodHead, path, handle, mws...)
 }
 
-func (r *Router) DELETE(path string, handle Handler, mws ...Handler) *RouteEntry {
-	return r.AddRoute(http.MethodDelete, path, handle, mws...)
+func (r *Router) DELETE(path string, handle Handler, mws ...Handler) {
+	r.AddRoute(http.MethodDelete, path, handle, mws...)
+}
+
+func (r *Router) OPTIONS(path string, handle Handler, mws ...Handler) {
+	r.AddRoute(http.MethodOptions, path, handle, mws...)
 }

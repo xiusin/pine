@@ -1,4 +1,4 @@
-package router
+package pine
 
 import (
 	"fmt"
@@ -60,17 +60,6 @@ var (
 	<div class="footer"><pre class="logo">` + Logo + `</pre></div>
   </body>
 </html>`))
-)
-
-const (
-	Version = "dev 0.0.9"
-	Logo    = `
-____  __.__            .__      __________               __                
-\   \/  |__|__ __ _____|__| ____\______   \ ____  __ ___/  |_  ___________ 
- \     /|  |  |  /  ___|  |/    \|       _//  _ \|  |  \   ___/ __ \_  __ \
- /     \|  |  |  \___ \|  |   |  |    |   (  <_> |  |  /|  | \  ___/|  | \/
-/___/\  |__|____/____  |__|___|  |____|_  /\____/|____/ |__|  \___  |__|   
-      \_/            \/        \/       \/                        \/   	  Version: ` + Version
 )
 
 // register server shutdown func

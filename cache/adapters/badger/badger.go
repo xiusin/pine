@@ -1,7 +1,7 @@
 package badger
 
 import (
-	"github.com/xiusin/router/path"
+	"github.com/xiusin/pine/path"
 	"runtime"
 	"time"
 

@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"github.com/xiusin/router/cache"
+	"github.com/xiusin/pine/cache"
 )
 
 type Config struct {

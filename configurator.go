@@ -1,4 +1,4 @@
-package router
+package pine
 
 type Configuration struct {
 	maxMultipartMemory        int64

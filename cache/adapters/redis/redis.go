@@ -3,7 +3,7 @@ package redis
 import (
 	"fmt"
 	redisgo "github.com/gomodule/redigo/redis"
-	"github.com/xiusin/router"
+	"github.com/xiusin/pine"
 	"runtime"
 	"time"
 )
@@ -65,7 +65,7 @@ func New(opt Option) *redis {
 					redisgo.DialReadTimeout(time.Duration(opt.ReadTimeout)*time.Second),
 					redisgo.DialWriteTimeout(time.Duration(opt.WriteTimeout)*time.Second))
 				if err != nil {
-					router.Logger().Errorf("Dial error: %s", err.Error())
+					pine.Logger().Errorf("Dial error: %s", err.Error())
 					return nil, err
 				}
 				return con, nil

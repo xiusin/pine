@@ -1,7 +1,7 @@
 package file
 
 import (
-	"github.com/xiusin/router/path"
+	"github.com/xiusin/pine/path"
 	"os"
 )
 

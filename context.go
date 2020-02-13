@@ -1,9 +1,9 @@
-package router
+package pine
 
 import (
 	"fmt"
-	"github.com/xiusin/router/logger"
-	"github.com/xiusin/router/sessions"
+	"github.com/xiusin/pine/logger"
+	"github.com/xiusin/pine/sessions"
 	"mime/multipart"
 	"net"
 	"net/http"
