@@ -4,10 +4,18 @@
 
 package logger
 
-import "io"
+type Level int8
+
+const (
+	DebugLevel Level = iota - 1
+	InfoLevel
+	WarnLevel
+	ErrorLevel
+	PanicLevel
+	FatalLevel
+)
 
 type ILogger interface {
-	GetOutput() io.Writer
 	Error(msg string, args ...interface{})
 	Errorf(msg string, args ...interface{})
 	Print(msg string, args ...interface{})

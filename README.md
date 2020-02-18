@@ -67,4 +67,8 @@ g.Handle(new(UserCenter))
 r.Run(router.Addr(":9528"))
 ```
 
-
+# todo #
+- [ ] 默认日志实现DEBUG不生成文件IO
+- [ ] group递归注册
+- [ ] 测试同sessid并发问题(包括iris) 
+- [ ] 关于其他框架RecordWriter的作用

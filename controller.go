@@ -25,7 +25,7 @@ type IController interface {
 
 	Logger() logger.ILogger
 	Session() sessions.ISession
-	Cookie() ICookie
+	Cookie() sessions.ICookie
 }
 
 // 自动映射controller需要忽略的方法, 阻止自动注册路由时注册对应的函数
@@ -42,7 +42,7 @@ func (c *Controller) Ctx() *Context {
 	return c.context
 }
 
-func (c *Controller) Cookie() ICookie {
+func (c *Controller) Cookie() sessions.ICookie {
 	return c.context.cookie
 }
 

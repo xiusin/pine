@@ -6,6 +6,7 @@ package sessions
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"sync"
 )
@@ -21,16 +22,17 @@ type Session struct {
 	l       sync.RWMutex
 	store   ISessionStore
 	request *http.Request
+	written bool
 	writer  http.ResponseWriter
 }
 
 func newSession(id string, r *http.Request, w http.ResponseWriter, store ISessionStore) (*Session, error) {
 	sess := &Session{
 		request: r,
-		writer: w,
-		data: map[string]Entry{},
-		store: store,
-		id: id,
+		writer:  w,
+		data:    map[string]Entry{},
+		store:   store,
+		id:      id,
 	}
 	if err := store.Read(id, &sess.data); err != nil {
 		return nil, err
@@ -38,42 +40,52 @@ func newSession(id string, r *http.Request, w http.ResponseWriter, store ISessio
 	return sess, nil
 }
 
-func (sess *Session) Set(key string, val string) error {
+//func (sess *Session) Reset(r *http.Request, w http.ResponseWriter) {
+//	sess.request = r
+//	sess.writer = w
+//	sess.written = false
+//}
+func (sess *Session) Set(key string, val string) {
 	sess.l.Lock()
 	sess.data[key] = Entry{Val: val, Flash: false}
+	sess.written = true
 	sess.l.Unlock()
-	return nil
 }
 
 func (sess *Session) Get(key string) (string, error) {
 	sess.l.RLock()
 	defer sess.l.RUnlock()
 	if val, ok := sess.data[key]; ok {
-		if val.Val == "" {
-			return "", errors.New("sess val is empty")
+		if val.Flash {
+			sess.remove(key)
 		}
 		return val.Val.(string), nil
 	}
-	return "", errors.New("sess key " + key + " not exists")
+	return "", errors.New(fmt.Sprintf("sess key %s not exists", key))
 }
 
-func (sess *Session) AddFlush(key string, val string) error {
+func (sess *Session) AddFlush(key string, val string) {
 	sess.l.Lock()
 	sess.data[key] = Entry{Val: val, Flash: true}
+	sess.written = true
 	sess.l.Unlock()
-	return nil
 }
 
-func (sess *Session) Remove(key string) error {
+func (sess *Session) Remove(key string) {
 	sess.l.Lock()
-	delete(sess.data, key)
+	sess.remove(key)
 	sess.l.Unlock()
-	return nil
+}
+
+func (sess *Session) remove(key string)  {
+	delete(sess.data, key)
+	sess.written = true
 }
 
 func (sess *Session) Clear() error {
 	sess.l.Lock()
 	err := sess.store.Clear(sess.id)
+	sess.written = true
 	if err == nil {
 		sess.data = map[string]Entry{}
 	}
@@ -81,8 +93,18 @@ func (sess *Session) Clear() error {
 	return err
 }
 
+func (sess *Session) saveToStore() error {
+	if sess.written {
+		if err := sess.store.Save(sess.id, &sess.data); err != nil {
+			return err
+		}
+		sess.written = false
+	}
+	return nil
+}
+
 func (sess *Session) Save() error {
 	sess.l.Lock()
 	defer sess.l.Unlock()
-	return sess.store.Save(sess.id, &sess.data)
+	return sess.saveToStore()
 }

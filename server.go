@@ -8,7 +8,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/fatih/color"
-	"github.com/xiusin/pine/logger"
 	"log"
 	"net/http"
 	"os"
@@ -18,8 +17,8 @@ import (
 
 type ServerHandler func(*Router) error
 
-const ZeroIP = "0.0.0.0"
-const DefaultAddressWithPort = ZeroIP + ":9528"
+const zeroIP = "0.0.0.0"
+const defaultAddressWithPort = zeroIP + ":9528"
 
 func (r *Router) newServer(s *http.Server, tls bool) *http.Server {
 	if s.Handler == nil {
@@ -27,14 +26,14 @@ func (r *Router) newServer(s *http.Server, tls bool) *http.Server {
 	}
 	r.handler = s.Handler
 	if s.ErrorLog == nil {
-		s.ErrorLog = log.New(Logger().GetOutput(), logger.HttpErroPrefix, log.Lshortfile|log.LstdFlags)
+		s.ErrorLog = log.New(os.Stdout, color.RedString("%s", "[ERRO] "), log.Lshortfile|log.LstdFlags)
 	}
 	if s.Addr == "" {
-		s.Addr = DefaultAddressWithPort
+		s.Addr = defaultAddressWithPort
 	}
 	addrInfo := strings.Split(s.Addr, ":")
 	if addrInfo[0] == "" {
-		addrInfo[0] = ZeroIP
+		addrInfo[0] = zeroIP
 	}
 	r.hostname = addrInfo[0]
 	if !r.configuration.withoutFrameworkLog {
@@ -62,7 +61,7 @@ func (r *Router) printSetupInfo(addr string, tls bool) {
 		addr = "https"
 	}
 	addr = color.GreenString(fmt.Sprintf("%s://%s", protocol, addr))
-	fmt.Println(Logo)
+	fmt.Println(color.GreenString("%s", logo))
 	fmt.Println(color.New(color.Bold).Sprintf("\nServer now listening on: %s/\n", addr))
 }
 

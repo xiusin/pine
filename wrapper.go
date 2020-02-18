@@ -93,20 +93,20 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 					ins = append(ins, reflect.ValueOf(ctx.req))
 				case "http.ResponseWriter":
 					ins = append(ins, reflect.ValueOf(ctx.res))
-				case "interfaces.ISession":
+				case "sessions.ISession":
 					ins = append(ins, reflect.ValueOf(ctx.Session()))
-				case "*router.Params":
+				case "*pine.Params":
 					ins = append(ins, reflect.ValueOf(ctx.Params()))
-				case "router.ICookie":
-					ins = append(ins, reflect.ValueOf(ctx.getCookiesHandler()))
-				case "*router.Render":
+				case "sessions.ICookie":
+					ins = append(ins, reflect.ValueOf(ctx.cookies()))
+				case "*pine.Render":
 					ins = append(ins, reflect.ValueOf(ctx.Render()))
 				default:
 					// 在di容器内查找服务, 如果可以得到则加入参数列表, 否则终止程序
 					if di.Exists(inType) {
 						ins = append(ins, reflect.ValueOf(di.MustGet(inType)))
 					} else {
-						panic(fmt.Sprintf("con't resolve service `%s@%s` in di", inType, in.PkgPath()))
+						panic(fmt.Sprintf("con't resolve service `%s` in di", inType))
 					}
 				}
 			} else {
@@ -131,9 +131,9 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 				body, err = cmr.parseValue(val)
 			}
 			if err == nil && len(body) > 0 {
-				err = ctx.Render().Text(body)
+				err = ctx.Render().Bytes(body)
 			}
-		} else if !ctx.Render().Rendered() {
+		} else if !ctx.Render().applied {
 			// 如果是异步请求渲染json
 			if ctx.IsAjax() {
 				err = ctx.Render().JSON(ctx.Render().tplData)

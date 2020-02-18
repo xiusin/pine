@@ -9,7 +9,7 @@ import (
 	"github.com/smartystreets/assertions/should"
 	. "github.com/smartystreets/goconvey/convey"
 	"github.com/xiusin/pine/di"
-	"github.com/xiusin/pine/template/view"
+	"github.com/xiusin/pine/render/engine/template"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -19,7 +19,7 @@ import (
 func newServer(register func(r *Router)) *httptest.Server {
 	app := New()
 	di.Set("render", func(builder di.BuilderInf) (i interface{}, e error) {
-		return view.New("views", ".html",true), nil
+		return template.New("views", ".html",true), nil
 	}, true)
 	register(app)
 	return httptest.NewServer(app)

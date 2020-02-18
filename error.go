@@ -5,7 +5,6 @@
 package pine
 
 import (
-	"fmt"
 	"net/http"
 	"runtime/debug"
 	"text/template"
@@ -61,21 +60,24 @@ var (
         <div class="title">{{ .Code }} {{ .Message }} </div>
       </div>
     </div>
-	<div class="footer"><pre class="logo">` + Logo + `</pre></div>
+	<div class="footer"><pre class="logo">` + logo + `</pre></div>
   </body>
 </html>`))
 )
+
+const defaultNotFoundMsg = "Sorry, the page you are looking for could not be found."
 
 // register server shutdown func
 func RegisterOnInterrupt(handler func()) {
 	shutdownBeforeHandler = append(shutdownBeforeHandler, handler)
 }
 
-func DefaultRecoverHandler(c *Context) {
-	if err := recover(); err != nil {
-		c.SetStatus(http.StatusInternalServerError)
-		stackInfo, strErr, strFmt := debug.Stack(), fmt.Sprintf("%s", err), "msg: %s  Method: %s  Path: %s\n Stack: %s"
-		c.Logger().Errorf(strFmt, strErr, c.Request().Method, c.Request().URL.RequestURI(), stackInfo)
-		_ = DefaultErrTemplate.Execute(c.Writer(), H{"Message": strErr, "Code": http.StatusInternalServerError})
+func defaultRecoverHandler(c *Context) {
+	c.SetStatus(http.StatusInternalServerError)
+	stackInfo, strFmt := debug.Stack(), "msg: %s  Method: %s  Path: %s\n Stack: %s"
+	c.Logger().Errorf(strFmt, c.Msg, c.Request().Method, c.Request().URL.RequestURI(), stackInfo)
+	err := DefaultErrTemplate.Execute(c.Writer(), H{"Message": c.Msg, "Code": http.StatusInternalServerError})
+	if err != nil {
+		panic(err)
 	}
 }

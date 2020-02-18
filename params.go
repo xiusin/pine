@@ -14,7 +14,7 @@ func NewParams(data map[string]string) *Params {
 	return &Params{data}
 }
 
-func (c *Params) Reset() {
+func (c *Params) reset() {
 	c.data = make(map[string]string)
 }
 

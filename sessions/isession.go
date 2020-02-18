@@ -9,13 +9,11 @@ import (
 )
 
 type ISessionManager interface {
-	Session(*http.Request, http.ResponseWriter) (ISession, error)
+	Session(*http.Request, http.ResponseWriter, ICookie) (ISession, error)
 }
 
 type ISessionConfig interface {
 	GetCookieName() string
-	GetCookiePath() string
-	GetMaxAge() int
 	GetHttpOnly() bool
 	GetSecure() bool
 }
@@ -28,10 +26,11 @@ type ISessionStore interface {
 }
 
 type ISession interface {
-	Set(string, string) error
+	//Reset(*http.Request, http.ResponseWriter)
+	Set(string, string)
 	Get(string) (string, error)
-	AddFlush(string, string) error
-	Remove(string) error
+	AddFlush(string, string)
+	Remove(string)
 	Save() error
 	Clear() error
 }

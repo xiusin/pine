@@ -5,10 +5,10 @@
 package test
 
 import (
-	"github.com/xiusin/pine/cache/adapters/memory"
+	"github.com/xiusin/pine/cache/providers/memory"
 	"github.com/xiusin/pine/sessions"
-	cache2 "github.com/xiusin/pine/sessions/store/adapter/cache"
-	file2 "github.com/xiusin/pine/sessions/store/adapter/file"
+	cache2 "github.com/xiusin/pine/sessions/providers/cache"
+	file2 "github.com/xiusin/pine/sessions/providers/file"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -25,9 +25,7 @@ func TestNew(t *testing.T) {
 		t.Log("file adapter store")
 		mgr = sessions.New(file2.NewStore(&file2.Config{
 			SessionPath:    "/tmp/sessions/",
-			CookiePath:     "",
 			CookieName:     "",
-			CookieMaxAge:   0,
 			CookieSecure:   false,
 			CookieHttpOnly: false,
 			GcMaxLiftTime:  0,
@@ -38,7 +36,7 @@ func TestNew(t *testing.T) {
 		mgr = sessions.New(cache2.NewStore(&cache2.Config{Cache: memory.New(memory.Option{})}))
 	}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		sess, err := mgr.Session(r, w)
+		sess, err := mgr.Session(r, w, nil)
 		if err != nil {
 			panic(err)
 		}
@@ -49,14 +47,7 @@ func TestNew(t *testing.T) {
 			w.Write([]byte(val))
 			return
 		}
-		defer func() {
-			if err := sess.Save(); err != nil {
-				panic(err)
-			}
-		}()
-		if err := sess.Set("name", "xiusin"); err != nil {
-			panic(err)
-		}
+		sess.Set("name", "xiusin")
 		w.Write([]byte("save session success"))
 	}))
 

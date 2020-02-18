@@ -58,10 +58,11 @@ func ResolveServiceName(service interface{}) string {
 		return service.(string)
 	default:
 		ty := reflect.ValueOf(service)
+		//fmt.Printf("%#v", ty.Elem().Type().PkgPath())
 		if ty.IsValid() && ty.Type().Kind() == reflect.Ptr {
-			return fmt.Sprintf("%s@%s", ty.Type().String(), ty.Type().PkgPath())
+			return ty.Type().String()
 		}
-		panic("serviceName type is not support" + ty.Type().String())
+		panic("serviceName type is not support" + ty.Elem().Type().String())
 	}
 }
 

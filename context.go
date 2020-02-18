@@ -5,6 +5,7 @@
 package pine
 
 import (
+	"errors"
 	"fmt"
 	"github.com/xiusin/pine/logger"
 	"github.com/xiusin/pine/sessions"
@@ -25,7 +26,7 @@ type Context struct {
 	//  reader service
 	render *Render
 	// cookie cookie manager
-	cookie ICookie
+	cookie sessions.ICookie
 	// SessionManager
 	sess sessions.ISession
 	// Request params
@@ -46,46 +47,47 @@ type Context struct {
 func NewContext(auto bool) *Context {
 	return &Context{
 		params:          NewParams(map[string]string{}),
-		middlewareIndex: -1, // 初始化中间件索引.
+		middlewareIndex: -1,
 		autoParseValue:  auto,
 		keys:            map[string]interface{}{},
 	}
 }
 
-// 重置Context对象
-func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
+func (c *Context) beginRequest(res http.ResponseWriter, req *http.Request) {
 	c.req, c.res, c.route = req, res, nil
 	c.middlewareIndex, c.status = -1, http.StatusOK
 	c.stopped, c.Msg = false, ""
 	c.keys = map[string]interface{}{}
-	c.initCtxComponent(res)
+	if c.params != nil {
+		c.params.reset()
+	}
+	if c.render != nil {
+		c.render.reset(c.res)
+	}
+	if configuration.serverName != "" {
+		res.Header().Set("Server", configuration.serverName)
+	}
 }
 
-func (c *Context) SetCookiesHandler(cookie ICookie) {
+func (c *Context) endRequest(recoverHandler Handler) {
+	if err := recover(); err != nil {
+		c.Msg = fmt.Sprintf("%s", err)
+		recoverHandler(c)
+	} else if c.sess != nil {
+		if err := c.sess.Save(); err != nil {
+			panic(err)
+		}
+	}
+}
+
+func (c *Context) SetCookiesHandler(cookie sessions.ICookie) {
 	c.cookie = cookie
 }
 
-func (c *Context) initCtxComponent(res http.ResponseWriter) {
-	if c.params == nil {
-		c.params = NewParams(make(map[string]string))
-	} else {
-		c.params.Reset()
-	}
-	if c.render == nil {
-		c.render = NewRender(res)
-	} else {
-		c.render.Reset(res)
-	}
-	c.cookie = nil
-	c.sess = nil
-}
-
-// @see: https://www.jianshu.com/p/4417af75a9f4
-// todo  automatically turn off `flush` when the client is disconnected
 func (c *Context) Flush(data []byte) {
 	if c.Writer().Header().Get("Transfer-Encoding") == "" {
 		c.Writer().Header().Add("Transfer-Encoding", "chunked")
-		c.Writer().Header().Add("Content-Type", "text/html")
+		c.Writer().Header().Add("Content-Type", contentTypeHTML)
 		c.Writer().WriteHeader(http.StatusOK)
 	}
 
@@ -98,10 +100,16 @@ func (c *Context) Flush(data []byte) {
 }
 
 func (c *Context) Render() *Render {
+	if c.render == nil {
+		c.render = NewRender(c.res)
+	}
 	return c.render
 }
 
 func (c *Context) Params() *Params {
+	if c.params == nil {
+		c.params = NewParams(make(map[string]string))
+	}
 	return c.params
 }
 
@@ -117,7 +125,10 @@ func (c *Context) Logger() logger.ILogger {
 	return Logger()
 }
 
-func (c *Context) Writer() http.ResponseWriter {
+func (c *Context) Writer(writers ...http.ResponseWriter) http.ResponseWriter {
+	if writers != nil {
+		c.res = writers[0]
+	}
 	return c.res
 }
 
@@ -129,16 +140,16 @@ func (c *Context) Redirect(url string, statusHeader ...int) {
 }
 
 func (c *Context) sessionManger() sessions.ISessionManager {
-	sessionInf, ok := Make("sessionManager").(sessions.ISessionManager)
+	sessionInf, ok := Make("pine.sessionManager").(sessions.ISessionManager)
 	if !ok {
-		panic("Type of `sessionManager` component error")
+		panic("Type of `pine.sessionManager` component error")
 	}
 	return sessionInf
 }
 
 func (c *Context) Session() sessions.ISession {
 	if c.sess == nil {
-		sess, err := c.sessionManger().Session(c.req, c.res)
+		sess, err := c.sessionManger().Session(c.req, c.res, c.cookie)
 		if err != nil {
 			panic(fmt.Sprintf("Get sessionInstance failed: %s", err.Error()))
 		}
@@ -147,9 +158,8 @@ func (c *Context) Session() sessions.ISession {
 	return c.sess
 }
 
-// Next execute next middleware or handler
 func (c *Context) Next() {
-	if c.IsStopped() == true {
+	if c.stopped == true {
 		return
 	}
 	c.middlewareIndex++
@@ -161,6 +171,10 @@ func (c *Context) Next() {
 	} else {
 		mws[c.middlewareIndex](c)
 	}
+}
+
+func (c *Context) Stop() {
+	c.stopped = true
 }
 
 func (c *Context) IsStopped() bool {
@@ -176,16 +190,16 @@ func (c *Context) setRoute(route *RouteEntry) *Context {
 	return c
 }
 
-func (c *Context) Abort(statusCode int, msg string) {
+func (c *Context) Abort(statusCode int, msg ...string) {
 	c.SetStatus(statusCode)
-	c.Msg = msg
-	handler, ok := errCodeCallHandler[statusCode]
-	if ok {
+	c.Stop()
+	if len(msg) > 0 {
+		c.Msg = msg[0]
+	}
+	if handler, ok := errCodeCallHandler[statusCode]; ok {
 		handler(c)
 	} else {
-		if err := DefaultErrTemplate.Execute(c.Writer(), H{"Message": c.Msg, "Code": statusCode}); err != nil {
-			panic(err)
-		}
+		panic(errors.New(c.Msg))
 	}
 }
 
@@ -211,11 +225,11 @@ func (c *Context) IsAjax() bool {
 }
 
 func (c *Context) IsGet() bool {
-	return c.req.Method == http.MethodGet
+	return strings.EqualFold(c.req.Method, http.MethodGet)
 }
 
 func (c *Context) IsPost() bool {
-	return c.req.Method == http.MethodPost
+	return strings.EqualFold(c.req.Method, http.MethodPost)
 }
 
 func (c *Context) ClientIP() string {
@@ -237,29 +251,26 @@ func (c *Context) GetData() map[string][]string {
 	return c.req.URL.Query()
 }
 
-func (c *Context) GetInt(key string, defaultVal ...int) (val int, res bool) {
-	var err error
+func (c *Context) GetInt(key string, defaultVal ...int) (val int, err error) {
 	val, err = strconv.Atoi(c.req.URL.Query().Get(key))
 	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+		val, err = defaultVal[0], nil
 	}
 	return
 }
 
-func (c *Context) GetInt64(key string, defaultVal ...int64) (val int64, res bool) {
-	var err error
+func (c *Context) GetInt64(key string, defaultVal ...int64) (val int64, err error) {
 	val, err = strconv.ParseInt(c.req.URL.Query().Get(key), 10, 64)
 	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+		val, err = defaultVal[0], nil
 	}
-	return
+	return val, err
 }
 
-func (c *Context) GetFloat64(key string, defaultVal ...float64) (val float64, res bool) {
-	var err error
+func (c *Context) GetFloat64(key string, defaultVal ...float64) (val float64, err error) {
 	val, err = strconv.ParseFloat(c.req.URL.Query().Get(key), 64)
 	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+		val, err = defaultVal[0], nil
 	}
 	return
 }
@@ -277,39 +288,34 @@ func (c *Context) GetStrings(key string) (val []string, ok bool) {
 	return
 }
 
-func (c *Context) PostInt(key string, defaultVal ...int) (val int, res bool) {
-	var err error
+func (c *Context) PostInt(key string, defaultVal ...int) (val int, err error) {
 	val, err = strconv.Atoi(c.req.PostFormValue(key))
 	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+		val, err = defaultVal[0], nil
 	}
 	return
 }
 
-func (c *Context) PostString(key string, defaultVal ...string) (val string, res bool) {
-	val, res = c.req.PostFormValue(key), false
-	if val != "" {
-		res = true
-	} else if len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+func (c *Context) PostString(key string, defaultVal ...string) string {
+	val := c.req.PostFormValue(key)
+	if val == "" && len(defaultVal) > 0 {
+		val = defaultVal[0]
 	}
-	return
+	return val
 }
 
-func (c *Context) PostInt64(key string, defaultVal ...int64) (val int64, res bool) {
-	var err error
+func (c *Context) PostInt64(key string, defaultVal ...int64) (val int64, err error) {
 	val, err = strconv.ParseInt(c.req.PostFormValue(key), 10, 64)
 	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+		val, err = defaultVal[0], nil
 	}
 	return
 }
 
-func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, res bool) {
-	var err error
+func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, err error) {
 	val, err = strconv.ParseFloat(c.req.PostFormValue(key), 64)
 	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+		val, err = defaultVal[0], nil
 	}
 	return
 }
@@ -328,25 +334,22 @@ func (c *Context) Files(key string) (val []*multipart.FileHeader) {
 	return
 }
 
-func (c *Context) Value(key interface{}) interface{} {
-	if keyAsString, ok := key.(string); ok {
-		if val, ok := c.keys[keyAsString]; ok {
-			return val
-		}
+func (c *Context) Value(key string) interface{} {
+	if val, ok := c.keys[key]; ok {
+		return val
 	}
 	return nil
 }
 
-func (c *Context) getCookiesHandler() ICookie {
+func (c *Context) cookies() sessions.ICookie {
 	if c.cookie == nil {
-		c.cookie = NewCookie(c.Writer(), c.Request())
+		panic("Please use `cookies` middleware")
 	}
-	c.cookie.Reset(c.res, c.req)
 	return c.cookie
 }
 
 func (c *Context) SetCookie(name string, value string, maxAge int) {
-	c.getCookiesHandler().Set(name, value, maxAge)
+	c.cookies().Set(name, value, maxAge)
 }
 
 func (c *Context) ExistsCookie(name string) bool {
@@ -358,10 +361,9 @@ func (c *Context) ExistsCookie(name string) bool {
 }
 
 func (c *Context) GetCookie(name string) string {
-	return c.getCookiesHandler().Get(name)
+	return c.cookies().Get(name)
 }
 
 func (c *Context) RemoveCookie(name string) {
-	c.getCookiesHandler().Delete(name)
+	c.cookies().Delete(name)
 }
-

@@ -11,10 +11,9 @@ import (
 )
 
 type Manager struct {
-	l       sync.Mutex
-	counter int
-	store   ISessionStore
-	name    string
+	l     sync.Mutex
+	store ISessionStore
+	name  string
 }
 
 func New(store ISessionStore) *Manager {
@@ -26,24 +25,26 @@ func GetSessionId() string {
 	return u.String()
 }
 
-func (m *Manager) Session(r *http.Request, w http.ResponseWriter) (ISession, error) {
-	var cookie *http.Cookie
-	var err error
+func (m *Manager) Session(r *http.Request, w http.ResponseWriter, cookies ICookie) (ISession, error) {
 	config := m.store.GetConfig()
+	//var err error
+	//var sess ISession
 	m.l.Lock()
 	defer m.l.Unlock()
 	cookieName := config.GetCookieName()
-	cookie, err = r.Cookie(cookieName)
-	if err != nil {
-		cookie = &http.Cookie{
-			Name:     cookieName,
-			Value:    GetSessionId(),
-			HttpOnly: config.GetHttpOnly(),
-			Secure:   config.GetSecure(),
-			MaxAge:   config.GetMaxAge(),
-			Path:     config.GetCookiePath(),
-		}
-		http.SetCookie(w, cookie)
+	sessID := cookies.Get(cookieName)
+	if sessID == "" {
+		sessID = GetSessionId()
+		cookies.Set(cookieName, sessID, 0)
 	}
-	return newSession(cookie.Value, r, w, m.store)
+	//if sess, ok := m.values[sessID]; !ok {
+	//	sess, err = newSession(sessID, r, w, m.store)
+	//	if err != nil {
+	//		return nil, err
+	//	}
+	//	m.values[sessID] = sess
+	//} else {
+	//	sess.Reset(r, w)
+	//}
+	return newSession(sessID, r, w, m.store)
 }
