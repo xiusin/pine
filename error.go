@@ -72,6 +72,10 @@ func RegisterOnInterrupt(handler func()) {
 	shutdownBeforeHandler = append(shutdownBeforeHandler, handler)
 }
 
+func RegisterErrorCodeHandler(status int, handler Handler)  {
+	errCodeCallHandler[status] = handler
+}
+
 func defaultRecoverHandler(c *Context) {
 	c.SetStatus(http.StatusInternalServerError)
 	stackInfo, strFmt := debug.Stack(), "msg: %s  Method: %s  Path: %s\n Stack: %s"

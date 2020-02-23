@@ -69,17 +69,17 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 	// 转换为context实体实例
 	ctx := c.MethodByName("Ctx").Call(nil)[0].Interface().(*Context)
 
-	// 请求前置操作, 可以用于初始化等功能
-	beforeAction := c.MethodByName("BeforeAction")
-	if beforeAction.IsValid() {
-		beforeAction.Call(ins)
-	}
-
-	// 请求后置操作, 可以用于关闭一些资源, 保存一些内容
-	afterAction := c.MethodByName("AfterAction")
-	if afterAction.IsValid() {
-		defer func() { afterAction.Call(ins) }()
-	}
+	//// 请求前置操作, 可以用于初始化等功能
+	//beforeAction := c.MethodByName("BeforeAction")
+	//if beforeAction.IsValid() {
+	//	beforeAction.Call(ins)
+	//}
+	//
+	//// 请求后置操作, 可以用于关闭一些资源, 保存一些内容
+	//afterAction := c.MethodByName("AfterAction")
+	//if afterAction.IsValid() {
+	//	defer func() { afterAction.Call(ins) }()
+	//}
 
 	// 反射执行函数参数, 解析并设置可获取的参数类型
 	mt := c.MethodByName(method).Type()
@@ -139,15 +139,12 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 				err = ctx.Render().JSON(ctx.Render().tplData)
 			} else {
 				// 没有返回值视为需要渲染指定的模板内容
-				err = ctx.Render().HTML(
+				ctx.Render().HTML(
 					strings.ToLower(
 						fmt.Sprintf(
 							"%s/%s",
 							strings.Replace(ctrlName, ControllerSuffix, "", 1), method)))
 			}
-		}
-		if err != nil {
-			panic(err)
 		}
 	}
 }

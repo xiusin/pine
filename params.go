@@ -10,8 +10,10 @@ type Params struct {
 	data map[string]string
 }
 
-func NewParams(data map[string]string) *Params {
-	return &Params{data}
+func newParams() *Params {
+	return &Params{
+		data: map[string]string{},
+	}
 }
 
 func (c *Params) reset() {
@@ -34,7 +36,6 @@ func (c *Params) GetDefault(key, defaultVal string) string {
 	}
 	return defaultVal
 }
-
 
 func (c *Params) GetInt(key string, defaultVal ...int) (val int, res bool) {
 	var err error

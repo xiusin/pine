@@ -6,8 +6,8 @@ package cache
 
 type ICache interface {
 	Get(string) ([]byte, error)
-	Save(string, []byte, ...int) bool
-	Delete(string) bool
+	Set(string, []byte, ...int) error
+	Delete(string) error
 	Exists(string) bool
-	Batch(map[string][]byte, ...int) bool
+	Clear(string)
 }

@@ -43,8 +43,10 @@ func (d *Definition) IsResolved() bool {
 func (d *Definition) resolve(builder BuilderInf) (service interface{}, err error) {
 	d.Lock()
 	defer d.Unlock()
+
 	if !d.IsResolved() || !d.IsSingleton() {
 		service, err = d.factory(builder)
+
 		if d.IsSingleton() && !d.IsResolved() {
 			d.instance = service
 		}

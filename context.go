@@ -5,10 +5,14 @@
 package pine
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/gorilla/schema"
+	"github.com/xiusin/pine/di"
 	"github.com/xiusin/pine/logger"
 	"github.com/xiusin/pine/sessions"
+	"io/ioutil"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -16,7 +20,10 @@ import (
 	"strings"
 )
 
+var schemaDecoder = schema.NewDecoder()
+
 type Context struct {
+	app *Application
 	// response object
 	res http.ResponseWriter
 	// request object
@@ -26,7 +33,7 @@ type Context struct {
 	//  reader service
 	render *Render
 	// cookie cookie manager
-	cookie sessions.ICookie
+	cookie *sessions.Cookie
 	// SessionManager
 	sess sessions.ISession
 	// Request params
@@ -44,12 +51,13 @@ type Context struct {
 	autoParseValue bool
 }
 
-func NewContext(auto bool) *Context {
+func NewContext(app *Application) *Context {
 	return &Context{
-		params:          NewParams(map[string]string{}),
 		middlewareIndex: -1,
-		autoParseValue:  auto,
+		app:             app,
 		keys:            map[string]interface{}{},
+		params:          newParams(),
+		autoParseValue:  app.ReadonlyConfiguration.GetAutoParseControllerResult(),
 	}
 }
 
@@ -58,14 +66,23 @@ func (c *Context) beginRequest(res http.ResponseWriter, req *http.Request) {
 	c.middlewareIndex, c.status = -1, http.StatusOK
 	c.stopped, c.Msg = false, ""
 	c.keys = map[string]interface{}{}
+
 	if c.params != nil {
 		c.params.reset()
 	}
+
 	if c.render != nil {
 		c.render.reset(c.res)
 	}
-	if configuration.serverName != "" {
-		res.Header().Set("Server", configuration.serverName)
+	c.sess = nil
+	if c.cookie == nil {
+		c.cookie = sessions.NewCookie(req, res, c.app.configuration.CookieTranscoder)
+	} else {
+		c.cookie.Reset(req, res)
+	}
+
+	if len(c.app.configuration.serverName) > 0 {
+		res.Header().Set("Server", c.app.configuration.serverName)
 	}
 }
 
@@ -73,42 +90,41 @@ func (c *Context) endRequest(recoverHandler Handler) {
 	if err := recover(); err != nil {
 		c.Msg = fmt.Sprintf("%s", err)
 		recoverHandler(c)
-	} else if c.sess != nil {
-		if err := c.sess.Save(); err != nil {
-			panic(err)
-		}
 	}
 }
 
-func (c *Context) SetCookiesHandler(cookie sessions.ICookie) {
-	c.cookie = cookie
+func (c *Context) WriteString(str string) error {
+	return c.Render().Text(str)
 }
 
-func (c *Context) Flush(data []byte) {
-	if c.Writer().Header().Get("Transfer-Encoding") == "" {
-		c.Writer().Header().Add("Transfer-Encoding", "chunked")
-		c.Writer().Header().Add("Content-Type", contentTypeHTML)
-		c.Writer().WriteHeader(http.StatusOK)
-	}
-
-	data = append(data, '\n')
-	_, err := c.Writer().Write(data)
-	if err != nil {
-		panic(err)
-	}
-	(c.Writer().(http.Flusher)).Flush()
-}
+//func (c *Context) Flush(data []byte) {
+//	if c.Writer().Header().Get("Transfer-Encoding") == "" {
+//
+//		c.Writer().Header().Add("Transfer-Encoding", "chunked")
+//		c.Writer().Header().Add("Content-Type",
+//			fmt.Sprintf("%s; Charset=%s", contentTypeHTML, c.app.configuration.charset))
+//
+//		c.Writer().WriteHeader(http.StatusOK)
+//	}
+//
+//	data = append(data, '\n')
+//	_, err := c.Writer().Write(data)
+//	if err != nil {
+//		panic(err)
+//	}
+//	(c.Writer().(http.Flusher)).Flush()
+//}
 
 func (c *Context) Render() *Render {
 	if c.render == nil {
-		c.render = NewRender(c.res)
+		c.render = newRender(c.res, c.app.configuration.charset)
 	}
 	return c.render
 }
 
 func (c *Context) Params() *Params {
 	if c.params == nil {
-		c.params = NewParams(make(map[string]string))
+		c.params = newParams()
 	}
 	return c.params
 }
@@ -139,17 +155,13 @@ func (c *Context) Redirect(url string, statusHeader ...int) {
 	http.Redirect(c.res, c.req, url, statusHeader[0])
 }
 
-func (c *Context) sessionManger() sessions.ISessionManager {
-	sessionInf, ok := Make("pine.sessionManager").(sessions.ISessionManager)
-	if !ok {
-		panic("Type of `pine.sessionManager` component error")
-	}
-	return sessionInf
+func (c *Context) sessions() *sessions.Sessions {
+	return Make(di.ServicePineSessions).(*sessions.Sessions)
 }
 
 func (c *Context) Session() sessions.ISession {
 	if c.sess == nil {
-		sess, err := c.sessionManger().Session(c.req, c.res, c.cookie)
+		sess, err := c.sessions().Session(c.cookie)
 		if err != nil {
 			panic(fmt.Sprintf("Get sessionInstance failed: %s", err.Error()))
 		}
@@ -247,6 +259,27 @@ func (c *Context) ClientIP() string {
 	return ""
 }
 
+func (c *Context) BindJSON(rev interface{}) error {
+	data, err := c.GetBody()
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, rev)
+}
+
+func (c *Context) BindForm(rev interface{}) error {
+	values := c.PostData()
+	if len(values) == 0 {
+		return nil
+	}
+
+	return schemaDecoder.Decode(rev, values)
+}
+
+func (c *Context) GetBody() ([]byte, error) {
+	return ioutil.ReadAll(c.req.Body)
+}
+
 func (c *Context) GetData() map[string][]string {
 	return c.req.URL.Query()
 }
@@ -267,12 +300,32 @@ func (c *Context) GetInt64(key string, defaultVal ...int64) (val int64, err erro
 	return val, err
 }
 
+func (c *Context) GetBool(key string, defaultVal ...bool) (val bool, err error) {
+	val, err = strconv.ParseBool(c.req.URL.Query().Get(key))
+	if err != nil && len(defaultVal) > 0 {
+		val, err = defaultVal[0], nil
+	}
+	return val, err
+}
+
 func (c *Context) GetFloat64(key string, defaultVal ...float64) (val float64, err error) {
 	val, err = strconv.ParseFloat(c.req.URL.Query().Get(key), 64)
 	if err != nil && len(defaultVal) > 0 {
 		val, err = defaultVal[0], nil
 	}
 	return
+}
+
+func (c *Context) URLParam(key string) string {
+	return c.GetString(key)
+}
+
+func (c *Context) URLParamInt64(key string) (int64, error) {
+	return c.GetInt64(key)
+}
+
+func (c *Context) URLParamInt(key string) (int, error) {
+	return c.GetInt(key)
 }
 
 func (c *Context) GetString(key string, defaultVal ...string) string {
@@ -284,7 +337,7 @@ func (c *Context) GetString(key string, defaultVal ...string) string {
 }
 
 func (c *Context) GetStrings(key string) (val []string, ok bool) {
-	val, ok = c.req.URL.Query()[key+"[]"]
+	val, ok = c.req.URL.Query()[key]
 	return
 }
 
@@ -294,6 +347,14 @@ func (c *Context) PostInt(key string, defaultVal ...int) (val int, err error) {
 		val, err = defaultVal[0], nil
 	}
 	return
+}
+
+func (c *Context) PostValue(key string) string {
+	return c.PostString(key)
+}
+
+func (c *Context) FormValue(key string) string {
+	return c.PostString(key)
 }
 
 func (c *Context) PostString(key string, defaultVal ...string) string {
@@ -325,13 +386,12 @@ func (c *Context) PostData() map[string][]string {
 }
 
 func (c *Context) PostStrings(key string) (val []string, ok bool) {
-	val, ok = c.req.PostForm[key+"[]"]
+	val, ok = c.req.PostForm[key]
 	return
 }
 
-func (c *Context) Files(key string) (val []*multipart.FileHeader) {
-	val = c.req.MultipartForm.File[key]
-	return
+func (c *Context) Files(key string) (multipart.File, *multipart.FileHeader, error) {
+	return c.req.FormFile(key)
 }
 
 func (c *Context) Value(key string) interface{} {
@@ -341,7 +401,7 @@ func (c *Context) Value(key string) interface{} {
 	return nil
 }
 
-func (c *Context) cookies() sessions.ICookie {
+func (c *Context) cookies() *sessions.Cookie {
 	if c.cookie == nil {
 		panic("Please use `cookies` middleware")
 	}

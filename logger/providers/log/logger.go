@@ -10,6 +10,7 @@ import (
 	"github.com/xiusin/pine/logger"
 	"log"
 	"os"
+	"path"
 	"runtime"
 	"strings"
 )
@@ -57,7 +58,9 @@ func (l *Logger) getCaller() string {
 	if l.config.RecordCaller {
 		_, callerFile, line, ok := runtime.Caller(2)
 		if ok {
-			if curPath, err := os.Getwd(); err == nil {
+			if l.config.ShortName {
+				return fmt.Sprintf(" %s:%d:", path.Base(callerFile), line)
+			} else if curPath, err := os.Getwd(); err == nil {
 				callerFile = strings.TrimPrefix(callerFile, strings.Replace(os.Getenv("GOPATH")+"/src/", "\\", "/", -1))
 				callerFile = strings.TrimPrefix(callerFile, strings.Replace(curPath+"/", "\\", "/", -1))
 				return fmt.Sprintf(" %s:%d:", callerFile, line)

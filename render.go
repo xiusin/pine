@@ -8,6 +8,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"github.com/xiusin/pine/render"
 	"io"
 	"net/http"
@@ -21,26 +22,36 @@ type Render struct {
 	engine  render.IRenderer
 	writer  http.ResponseWriter
 	tplData H
+	charset string
 
 	applied bool
 }
 
 const (
-	contentTypeJSON = "application/json; charset=UTF-8"
-	contentTypeHTML = "text/html; charset=UTF-8"
-	contentTypeText = "text/plain; charset=UTF-8"
+	contentTypeJSON = "application/json"
+	contentTypeHTML = "text/html"
+	contentTypeText = "text/plain"
+	contentTypeXML  = "text/xml"
 )
 
-func NewRender(writer http.ResponseWriter) *Render {
+func newRender(writer http.ResponseWriter, charset string) *Render {
 	var rendererInf render.IRenderer
-	if di.Exists("render") {
-		rendererInf = di.MustGet("render").(render.IRenderer)
+
+	if di.Exists(di.ServicePineRender) {
+		rendererInf = di.MustGet(di.ServicePineRender).(render.IRenderer)
 	}
-	return &Render{rendererInf, writer, H{}, false}
+
+	return &Render{
+		rendererInf,
+		writer,
+		H{},
+		charset,
+		false,
+	}
 }
 
 func (c *Render) ContentType(typ string) {
-	c.writer.Header().Set("Content-Type", typ)
+	c.writer.Header().Set("Content-Type", fmt.Sprintf("%s; Charset=%s", typ, c.charset))
 }
 
 func (c *Render) reset(writer http.ResponseWriter) {
@@ -48,37 +59,41 @@ func (c *Render) reset(writer http.ResponseWriter) {
 	c.tplData = H{}
 	c.applied = false
 }
-
-func (c *Render) JSON(v H) error {
+func (c *Render) JSON(v interface{}) error {
 	c.ContentType(contentTypeJSON)
+
 	return responseJson(c.writer, v, "")
 }
 
 func (c *Render) Text(v string) error {
 	c.ContentType(contentTypeText)
+
 	return c.Bytes([]byte(v))
 }
 
 func (c *Render) Bytes(v []byte) error {
 	c.ContentType(contentTypeText)
+
 	_, err := c.writer.Write(v)
 	return err
 }
 
-func (c *Render) HTML(nameWithoutExt string) error {
+func (c *Render) HTML(viewPath string) {
 	c.ContentType(contentTypeHTML)
+
 	if c.engine == nil {
 		panic("please inject `render` service")
 	}
-	if err := c.engine.HTML(c.writer, nameWithoutExt, c.tplData); err != nil {
-		return err
+	if err := c.engine.HTML(c.writer, viewPath, c.tplData); err != nil {
+		panic(err)
 	}
+
 	c.applied = true
-	return nil
 }
 
-func (c *Render) JSONP(callback string, v H) error {
+func (c *Render) JSONP(callback string, v interface{}) error {
 	c.ContentType(contentTypeJSON)
+
 	return responseJson(c.writer, v, callback)
 }
 
@@ -87,14 +102,17 @@ func (c *Render) ViewData(key string, val interface{}) {
 }
 
 func (c *Render) XML(v interface{}) error {
+	c.ContentType(contentTypeXML)
+
 	b, err := xml.MarshalIndent(v, "", " ")
 	if err == nil {
 		_, err = c.writer.Write(b)
 	}
+
 	return err
 }
 
-func responseJson(writer io.Writer, v map[string]interface{}, callback string) error {
+func responseJson(writer io.Writer, v interface{}, callback string) error {
 	b, err := json.Marshal(v)
 	if err == nil {
 		if callback == "" {

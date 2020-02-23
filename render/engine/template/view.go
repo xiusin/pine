@@ -5,78 +5,75 @@
 package template
 
 import (
-	"fmt"
 	"html/template"
 	"io"
+	"io/ioutil"
 	"os"
-	"path"
 	"path/filepath"
 	"reflect"
 	"sync"
 )
 
-type view struct {
+type htmlEngine struct {
 	funcMap  template.FuncMap
 	template *template.Template
 
-	debug   bool
-	dir     string
-	tplList []string
-
-	once sync.Once
+	once    sync.Once
+	reload  bool
+	viewDir string
 }
 
-func New(viewDir string, reload bool) *view {
-	return initTemplate(viewDir, reload)
-}
-
-func initTemplate(viewDir string, reload bool) *view {
-	tpl := &view{dir: viewDir, debug: reload, funcMap: map[string]interface{}{}}
-	if !reload {
-		tpl.walk()
+func New(viewDir string, reload bool) *htmlEngine {
+	html := &htmlEngine{
+		reload:  reload,
+		funcMap: template.FuncMap{},
 	}
-	return tpl
-}
-
-func (t *view) walk() {
-	if err := filepath.Walk(t.dir, func(targetPath string, info os.FileInfo, err error) error {
-		if info != nil && !info.IsDir() {
-			relPath, err := filepath.Rel(t.dir, targetPath)
-			if err != nil {
-				return err
-			}
-			t.tplList = append(t.tplList, path.Join(t.dir, relPath))
-		}
-		return nil
-	}); err != nil {
+	var err error
+	html.viewDir, err = filepath.Abs(viewDir)
+	if err != nil {
 		panic(err)
 	}
+	html.template = template.New(html.viewDir)
+	return html
 }
 
-func (t *view) AddFunc(funcName string, funcEntry interface{}) {
+func (t *htmlEngine) walk() {
+	t.once.Do(func() {
+		if err := filepath.Walk(t.viewDir, func(targetPath string, info os.FileInfo, err error) error {
+			if info != nil && !info.IsDir() {
+				relPath, err := filepath.Rel(t.viewDir, targetPath)
+				if err != nil {
+					return err
+				}
+				buf, err := ioutil.ReadFile(targetPath)
+				if err != nil {
+					panic(err)
+				}
+				_, err = t.template.New(relPath).Funcs(t.funcMap).Parse(string(buf))
+				if err != nil {
+					panic(err)
+				}
+			}
+			return nil
+		}); err != nil {
+			panic(err)
+		}
+	})
+}
+
+func (t *htmlEngine) AddFunc(funcName string, funcEntry interface{}) {
 	if reflect.ValueOf(funcEntry).Kind() == reflect.Func {
 		t.funcMap[funcName] = funcEntry
 	}
 }
 
-func (t *view) getViewName(viewName string, fullName bool) string {
-	if fullName {
-		return fmt.Sprintf("%s/%s", t.dir, viewName)
-	} else {
-		return viewName
+func (t *htmlEngine) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
+	if t.reload {
+		tmpl := New(t.viewDir, t.reload)
+		tmpl.funcMap = t.funcMap
+		tmpl.walk()
+		return tmpl.template.ExecuteTemplate(writer, filepath.ToSlash(name), binding)
 	}
-}
-
-func (t *view) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
-	if t.debug {
-		funcMap := t.funcMap
-		t = initTemplate(t.dir, t.debug)
-		t.tplList = []string{t.getViewName(name, true)}
-		t.funcMap = funcMap
-	}
-	t.once.Do(func() {
-		tmp := template.New(t.dir).Funcs(t.funcMap)
-		t.template = template.Must(tmp.ParseFiles(t.tplList...))
-	})
-	return t.template.ExecuteTemplate(writer, t.getViewName(name, false), binding)
+	t.walk()
+	return t.template.ExecuteTemplate(writer, filepath.ToSlash(name), binding)
 }

@@ -11,33 +11,33 @@ import (
 	"sync"
 )
 
-type (
-	/**
-	  1. 带参数解析的服务必须是不共享的,否则会出现异常.
-	  2. 参数必须按顺序传入
-	*/
-	BuilderInf interface {
-		Set(interface{}, BuildHandler, bool) *Definition
-		SetWithParams(interface{}, BuildWithHandler) *Definition
-		Add(*Definition)
-		Get(interface{}) (interface{}, error)
-		GetWithParams(interface{}, ...interface{}) (interface{}, error)
-		MustGet(interface{}, ...interface{}) interface{}
-		GetDefinition(interface{}) (*Definition, error)
-		Exists(interface{}) bool
-	}
-	builder struct {
-		services sync.Map
-	}
-	BuildHandler     func(builder BuilderInf) (interface{}, error)
-	BuildWithHandler func(builder BuilderInf, params ...interface{}) (interface{}, error)
-)
+type BuilderInf interface {
+	Set(interface{}, BuildHandler, bool) *Definition
+	SetWithParams(interface{}, BuildWithHandler) *Definition
+	Add(*Definition)
+	Get(interface{}) (interface{}, error)
+	GetWithParams(interface{}, ...interface{}) (interface{}, error)
+	MustGet(interface{}, ...interface{}) interface{}
+	GetDefinition(interface{}) (*Definition, error)
+	Exists(interface{}) bool
+}
+type builder struct {
+	services sync.Map
+}
+type BuildHandler func(builder BuilderInf) (interface{}, error)
+type BuildWithHandler func(builder BuilderInf, params ...interface{}) (interface{}, error)
+
+const ServicePineSessions = "pine.sessions"
+const ServicePineLogger = "pine.logger"
+const ServicePineRender = "pine.render"
+
+const formatErrServiceNotExists = "service %s not exists"
 
 func (b *builder) GetDefinition(serviceAny interface{}) (*Definition, error) {
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
-		return nil, errors.New("service " + serviceName + " not exists")
+		return nil, errors.New(fmt.Sprintf(formatErrServiceNotExists, serviceName))
 	}
 	return service.(*Definition), nil
 }
@@ -51,18 +51,17 @@ func (b *builder) Set(serviceAny interface{}, handler BuildHandler, singleton bo
 }
 
 func ResolveServiceName(service interface{}) string {
-	// 接口类型先直接传递字面量值吧, 目前不知道如何实现
-	//ty.Type().Kind() == reflect.Interface ||
 	switch service.(type) {
 	case string:
 		return service.(string)
 	default:
-		ty := reflect.ValueOf(service)
-		//fmt.Printf("%#v", ty.Elem().Type().PkgPath())
-		if ty.IsValid() && ty.Type().Kind() == reflect.Ptr {
-			return ty.Type().String()
+		ty := reflect.TypeOf(service)
+		if ty.Kind() == reflect.Ptr {
+			// todo 解决统一接口类型反射, 暂时使用输入字符串的方式解决
+			//fmt.Println(ty.String())
+			return ty.String()
 		}
-		panic("serviceName type is not support" + ty.Elem().Type().String())
+		panic("serviceName type is not support" + ty.String())
 	}
 }
 
@@ -81,7 +80,7 @@ func (b *builder) Get(serviceAny interface{}) (interface{}, error) {
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf("service '%s' not exists", serviceName))
+		return nil, errors.New(fmt.Sprintf(formatErrServiceNotExists, serviceName))
 	}
 	s, err := service.(*Definition).resolve(b)
 	if err != nil {
@@ -94,7 +93,7 @@ func (b *builder) GetWithParams(serviceAny interface{}, params ...interface{}) (
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
-		return nil, errors.New("service " + serviceName + " not exists")
+		return nil, errors.New(fmt.Sprintf(formatErrServiceNotExists, serviceName))
 	}
 	if !service.(*Definition).IsSingleton() {
 		return nil, errors.New("service is not singleton, cannot use it with GetWithParams")

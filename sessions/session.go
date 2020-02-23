@@ -5,106 +5,59 @@
 package sessions
 
 import (
-	"errors"
 	"fmt"
-	"net/http"
-	"sync"
 )
 
-type Entry struct {
-	Val   interface{}
-	Flash bool
-}
+const defaultSessionName = "pine_sessionid"
 
 type Session struct {
-	id      string
-	data    map[string]Entry
-	l       sync.RWMutex
-	store   ISessionStore
-	request *http.Request
-	written bool
-	writer  http.ResponseWriter
+	id    string
+	store ISessionStore
 }
 
-func newSession(id string, r *http.Request, w http.ResponseWriter, store ISessionStore) (*Session, error) {
+type entry struct {
+	V string
+	F bool
+}
+
+func newSession(id string, store ISessionStore) (*Session, error) {
 	sess := &Session{
-		request: r,
-		writer:  w,
-		data:    map[string]Entry{},
-		store:   store,
-		id:      id,
-	}
-	if err := store.Read(id, &sess.data); err != nil {
-		return nil, err
+		store: store,
+		id:    id,
 	}
 	return sess, nil
 }
 
-//func (sess *Session) Reset(r *http.Request, w http.ResponseWriter) {
-//	sess.request = r
-//	sess.writer = w
-//	sess.written = false
-//}
 func (sess *Session) Set(key string, val string) {
-	sess.l.Lock()
-	sess.data[key] = Entry{Val: val, Flash: false}
-	sess.written = true
-	sess.l.Unlock()
+	sess.store.Save(sess.makeKey(key), &entry{V: val})
 }
 
-func (sess *Session) Get(key string) (string, error) {
-	sess.l.RLock()
-	defer sess.l.RUnlock()
-	if val, ok := sess.data[key]; ok {
-		if val.Flash {
-			sess.remove(key)
+func (sess *Session) Get(key string) string {
+	var val entry
+	if err := sess.store.Get(sess.makeKey(key), &val); err != nil {
+		if val.F {
+			sess.Remove(sess.makeKey(key))
 		}
-		return val.Val.(string), nil
 	}
-	return "", errors.New(fmt.Sprintf("sess key %s not exists", key))
+	return val.V
 }
 
 func (sess *Session) AddFlush(key string, val string) {
-	sess.l.Lock()
-	sess.data[key] = Entry{Val: val, Flash: true}
-	sess.written = true
-	sess.l.Unlock()
+	if err := sess.store.Save(sess.makeKey(key), &entry{V: val, F: true}); err != nil {
+		fmt.Println("占位以后替换为组件:", err)
+	}
 }
 
 func (sess *Session) Remove(key string) {
-	sess.l.Lock()
-	sess.remove(key)
-	sess.l.Unlock()
-}
-
-func (sess *Session) remove(key string)  {
-	delete(sess.data, key)
-	sess.written = true
-}
-
-func (sess *Session) Clear() error {
-	sess.l.Lock()
-	err := sess.store.Clear(sess.id)
-	sess.written = true
-	if err == nil {
-		sess.data = map[string]Entry{}
+	if err := sess.store.Delete(sess.makeKey(key)); err != nil {
+		fmt.Println("占位以后替换为组件:", err)
 	}
-	sess.l.Unlock()
-	return err
 }
 
-func (sess *Session) saveToStore() error {
-	if sess.written {
-		if err := sess.store.Save(sess.id, &sess.data); err != nil {
-			return err
-		}
-		sess.written = false
-	}
-	return nil
+func (sess *Session) Clear() {
+	sess.store.Clear(sess.makeKey(""))
 }
 
-func (sess *Session) Save() error {
-	sess.l.Lock()
-	defer sess.l.Unlock()
-	return sess.saveToStore()
+func (sess *Session) makeKey(key string) string {
+	return fmt.Sprintf("%s_%s", sess.id, key)
 }

@@ -5,6 +5,7 @@
 package badger
 
 import (
+	"fmt"
 	"runtime"
 	"time"
 
@@ -60,32 +61,26 @@ func (c *badger) Get(key string) (val []byte, err error) {
 	return
 }
 
-func (c *badger) Save(key string, val []byte, ttl ...int) bool {
-	if len(ttl) == 0 {
-		ttl = []int{c.option.TTL}
-	}
-	if err := c.client.Update(func(tx *badgerDB.Txn) error {
-		e := badgerDB.NewEntry([]byte(c.prefix+key), val).WithTTL(time.Duration(ttl[0]) * time.Second)
-		if err := tx.SetEntry(e); err != nil {
-			return err
+func (c *badger) Set(key string, val []byte, ttl ...int) error {
+	return c.client.Update(func(tx *badgerDB.Txn) error {
+		if len(ttl) == 0 {
+			ttl = []int{c.option.TTL}
 		}
-		return nil
-	}); err != nil {
-		return false
-	}
-	return true
+		e := badgerDB.NewEntry([]byte(c.prefix+key), val)
+		if ttl[0] > 0 {
+			e.WithTTL(time.Duration(ttl[0]) * time.Second)
+		}
+		return tx.SetEntry(e)
+	})
 }
 
-func (c *badger) Delete(key string) bool {
-	if err := c.client.Update(func(tx *badgerDB.Txn) error {
+func (c *badger) Delete(key string) error {
+	return c.client.Update(func(tx *badgerDB.Txn) error {
 		if err := tx.Delete([]byte(c.prefix + key)); err != nil {
 			return err
 		}
 		return nil
-	}); err != nil {
-		return false
-	}
-	return true
+	})
 }
 
 func (c *badger) Exists(key string) bool {
@@ -100,32 +95,17 @@ func (c *badger) Exists(key string) bool {
 	return true
 }
 
-func (c *badger) Batch(data map[string][]byte, ttl ...int) bool {
-	if len(ttl) == 0 {
-		ttl =[]int{c.option.TTL}
-	}
-	tx := c.client.NewTransaction(true)
-	for key, val := range data {
-		e := badgerDB.NewEntry([]byte(c.prefix+key), val).WithTTL(time.Duration(ttl[0]) * time.Second)
-		if err := tx.SetEntry(e); err == nil {
-			if err = tx.Commit(); err == nil {
-				return true
-			}
+func (c *badger) Clear(prefix string) {
+	txn := c.client.NewTransaction(true)
+	defer txn.Commit()
+
+	iter := txn.NewIterator(badgerDB.IteratorOptions{PrefetchSize: 100})
+	defer iter.Close()
+	for iter.Rewind(); iter.ValidForPrefix([]byte(c.prefix+prefix)); iter.Next() {
+		key := iter.Item().Key()
+		if err := txn.Delete(key); err != nil {
+			fmt.Println(err)
+			continue
 		}
 	}
-	return false
 }
-
-func (c *badger) Do(callback func(*badgerDB.DB)) {
-	callback(c.client)
-}
-
-func (c *badger) Client() *badgerDB.DB {
-	return c.client
-}
-
-//func (c *badger) Clear() {
-//	if err := c.client.DropAll(); err != nil {
-//		panic(err)
-//	}
-//}

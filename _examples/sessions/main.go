@@ -25,7 +25,7 @@ func main() {
 	}, true)
 
 	app.GET("/", func(ctx *pine.Context) {
-		if val, err := ctx.Session().Get("name"); err != nil {
+		if val := ctx.Session().Get("name"); val == "" {
 			pine.Logger().Error("get session failed")
 			ctx.Session().Set("name", "xiusin")
 			if err := ctx.Session().Save(); err != nil {
@@ -44,9 +44,9 @@ func main() {
 	app.GET("/flash/:name/*value", func(ctx *pine.Context) {
 		flashKey := ctx.Params().Get("name")
 		if val := ctx.Params().Get("value"); val == "" {
-			val, err := ctx.Session().Get(flashKey)
-			if err != nil {
-				ctx.Writer().Write([]byte(err.Error()))
+			val := ctx.Session().Get(flashKey)
+			if val == "" {
+				ctx.Writer().Write([]byte("can't find"))
 			} else {
 				ctx.Writer().Write([]byte(val))
 			}

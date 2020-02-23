@@ -14,9 +14,5 @@ func Make(service interface{}, params ...interface{}) interface{} {
 }
 
 func Logger() logger.ILogger {
-	iLogger, ok := Make("logger").(logger.ILogger)
-	if !ok {
-		panic("Type of `logger` component error")
-	}
-	return iLogger
+	return Make(di.ServicePineLogger).(logger.ILogger)
 }

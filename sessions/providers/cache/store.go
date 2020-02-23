@@ -6,32 +6,21 @@ package cache
 
 import (
 	"encoding/json"
-	"errors"
-	"github.com/xiusin/pine/sessions"
+	"github.com/xiusin/pine/cache"
 )
 
 type Store struct {
-	*Config
+	Cache cache.ICache
 }
 
-func NewStore(config *Config) *Store {
-	return &Store{config}
+func NewStore(cache cache.ICache) *Store {
+	return &Store{cache}
 }
 
-func (store *Store) GetConfig() sessions.ISessionConfig {
-	return store.Config
-}
-
-func (store *Store) Read(id string, receiver interface{}) error {
-	var sess []byte
-	var err error
-	if store.Cache.Exists(getId(id)) {
-		sess, err = store.Cache.Get(getId(id))
-		if err != nil {
-			return err
-		}
-	} else {
-		sess = []byte("{}")
+func (store *Store) Get(key string, receiver interface{}) error {
+	sess, err := store.Cache.Get(getId(key))
+	if err != nil {
+		return err
 	}
 	return json.Unmarshal(sess, receiver)
 }
@@ -42,18 +31,15 @@ func (store *Store) Save(id string, val interface{}) error {
 		return err
 	}
 	id = getId(id)
-	if string(s) == "{}" {
-		store.Cache.Delete(id)
-		return nil
-	} else if store.Cache.Save(id, s) {
-		return nil
-	}
-	return errors.New("save error")
+	return store.Cache.Set(id, s)
 }
 
-func (store *Store) Clear(id string) error {
-	store.Cache.Delete(getId(id))
-	return nil
+func (store *Store) Delete(id string) error {
+	return store.Cache.Delete(getId(id))
+}
+
+func (store *Store) Clear(sessID string)  {
+	store.Cache.Clear(getId(sessID))
 }
 
 func getId(id string) string {

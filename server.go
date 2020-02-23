@@ -15,18 +15,22 @@ import (
 	"strings"
 )
 
-type ServerHandler func(*Router) error
+type ServerHandler func(*Application) error
 
 const zeroIP = "0.0.0.0"
 const defaultAddressWithPort = zeroIP + ":9528"
 
-func (r *Router) newServer(s *http.Server, tls bool) *http.Server {
+func (a *Application) newServer(s *http.Server, tls bool) *http.Server {
 	if s.Handler == nil {
-		s.Handler = r.handler
+		s.Handler = a.handler
 	}
-	r.handler = s.Handler
+	a.handler = s.Handler
 	if s.ErrorLog == nil {
-		s.ErrorLog = log.New(os.Stdout, color.RedString("%s", "[ERRO] "), log.Lshortfile|log.LstdFlags)
+		s.ErrorLog = log.New(
+			os.Stdout,
+			color.RedString("%s", "[ERRO] "),
+			log.Lshortfile|log.LstdFlags,
+		)
 	}
 	if s.Addr == "" {
 		s.Addr = defaultAddressWithPort
@@ -35,26 +39,26 @@ func (r *Router) newServer(s *http.Server, tls bool) *http.Server {
 	if addrInfo[0] == "" {
 		addrInfo[0] = zeroIP
 	}
-	r.hostname = addrInfo[0]
-	if !r.configuration.withoutFrameworkLog {
-		r.printSetupInfo(s.Addr, tls)
+	a.hostname = addrInfo[0]
+	if !a.configuration.withoutStartupLog {
+		a.printSetupInfo(s.Addr, tls)
 	}
 	quitCh := make(chan os.Signal)
 	signal.Notify(quitCh, os.Interrupt, os.Kill)
-	go r.gracefulShutdown(s, quitCh)
+	go a.gracefulShutdown(s, quitCh)
 	return s
 }
 
 func Server(s *http.Server) ServerHandler {
-	return func(r *Router) error {
-		s := r.newServer(s, false)
+	return func(a *Application) error {
+		s := a.newServer(s, false)
 		return s.ListenAndServe()
 	}
 }
 
-func (r *Router) printSetupInfo(addr string, tls bool) {
+func (a *Application) printSetupInfo(addr string, tls bool) {
 	if strings.HasPrefix(addr, ":") {
-		addr = fmt.Sprintf("%s%s", r.hostname, addr)
+		addr = fmt.Sprintf("%s%s", a.hostname, addr)
 	}
 	protocol := "http"
 	if tls {
@@ -71,14 +75,14 @@ func Addr(addr string) ServerHandler {
 }
 
 func Func(f func() error) ServerHandler {
-	return func(_ *Router) error {
+	return func(_ *Application) error {
 		return f()
 	}
 }
 
 func TLS(addr, certFile, keyFile string) ServerHandler {
 	s := &http.Server{Addr: addr}
-	return func(b *Router) error {
+	return func(b *Application) error {
 		s = b.newServer(s, true)
 		config := new(tls.Config)
 		var err error

@@ -6,7 +6,6 @@ require (
 	github.com/aliyun/aliyun-oss-go-sdk v2.0.3+incompatible
 	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
 	github.com/betacraft/yaag v1.0.0
-	github.com/bxcodec/faker/v3 v3.2.0
 	github.com/casbin/casbin v1.9.1
 	github.com/dgraph-io/badger v1.6.0
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
@@ -17,8 +16,9 @@ require (
 	github.com/gobuffalo/plush v3.8.3+incompatible
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/gookit/color v1.2.2
+	github.com/gorilla/schema v1.1.0
 	github.com/gorilla/securecookie v1.1.1
-	github.com/jinzhu/gorm v1.9.12
+	github.com/gorilla/sessions v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.11 // indirect
 	github.com/natefinch/lumberjack v2.0.0+incompatible

@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/xiusin/pine/di"
+	"github.com/xiusin/pine/logger"
 	"github.com/xiusin/pine/logger/providers/log"
 	"net/http"
 	"os"
@@ -24,6 +25,21 @@ const logo = `
   / _ \(_)__  ___ 
  / ___/ / _ \/ -_)
 /_/  /_/_//_/\__/ `
+
+var (
+	urlSeparator = "/"
+
+	// 记录匹配路由映射， 不管是分组还是非分组的正则路由均记录到此变量
+	patternRoutes = map[string][]*RouteEntry{}
+
+	// 正则匹配规则
+	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_/]+)(<.+?>)?")
+
+	// 路由规则与字段映射
+	patternMap = map[string]string{":int": "<\\d+>", ":string": "<[\\w0-9\\_\\.\\+\\-]+>"}
+
+	_ IRouter = (*Application)(nil)
+)
 
 type RouteEntry struct {
 	Method            string
@@ -45,11 +61,13 @@ type IRouter interface {
 	OPTIONS(path string, handle Handler, mws ...Handler)
 	PUT(path string, handle Handler, mws ...Handler)
 	DELETE(path string, handle Handler, mws ...Handler)
-	SetNotFound(handler Handler)
-	SetRecoverHandler(Handler)
 
 	StaticFile(string, string, ...Handler)
 	Static(string, string, ...Handler)
+}
+
+type IRegisterHandler interface {
+	RegisterRoute(IRouterWrapper)
 }
 
 type routeMaker func(path string, handle Handler, mws ...Handler)
@@ -59,106 +77,120 @@ type Handler func(ctx *Context)
 type routerMap map[string]map[string]*RouteEntry
 
 type Router struct {
-	started            bool
-	handler            http.Handler
-	recoverHandler     Handler
-	pool               *Pool
-	configuration      *Configuration
-	MaxMultipartMemory int64
-	prefix             string
-	methodRoutes       routerMap
-	middleWares        []Handler
+	handler http.Handler
 
-	// prefix => router
+	prefix       string
+	methodRoutes routerMap
+	middleWares  []Handler
+
 	groups               map[string]*Router
 	registeredSubdomains map[string]*Router
 	subdomain            string
 	hostname             string
 }
 
-var (
-	urlSeparator = "/"
-	// 记录匹配路由映射， 不管是分组还是非分组的正则路由均记录到此变量
-	patternRoutes = map[string][]*RouteEntry{}
-	// 正则匹配规则
-	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_/]+)(<.+?>)?")
-	// 路由规则与字段映射
-	patternMap = map[string]string{":int": "<\\d+>", ":string": "<[\\w0-9\\_\\.\\+\\-]+>"}
+type Application struct {
+	*Router
 
-	_ IRouter = (*Router)(nil)
-)
+	Logger    logger.ILogger
+	Container di.BuildHandler
+
+	recoverHandler        Handler
+	pool                  *Pool
+	configuration         *Configuration
+	ReadonlyConfiguration ReadonlyConfiguration
+	started               bool
+}
 
 func init() {
-	di.Set("logger", func(builder di.BuilderInf) (i interface{}, e error) {
+	di.Set(di.ServicePineLogger, func(builder di.BuilderInf) (i interface{}, e error) {
 		return log.New(nil), nil
 	}, true)
 }
 
-// 实例化路由
-// 如果传入nil 则使用默认配置
-func New() *Router {
-	r := &Router{
-		methodRoutes:         initRouteMap(),
-		groups:               map[string]*Router{},
-		registeredSubdomains: map[string]*Router{},
-		configuration:        &configuration,
-		pool:                 NewPool(func() interface{} { return NewContext(configuration.autoParseControllerResult) }),
-		recoverHandler:       defaultRecoverHandler,
+func New() *Application {
+
+	app := &Application{
+		Router: &Router{
+			methodRoutes:         initRouteMap(),
+			groups:               map[string]*Router{},
+			registeredSubdomains: map[string]*Router{},
+		},
+		configuration:  &Configuration{},
+		recoverHandler: defaultRecoverHandler,
 	}
 
-	r.handler = r
-	r.SetNotFound(func(c *Context) {
-		if c.Msg == "" {
+	app.pool = NewPool(func() interface{} {
+		return NewContext(app)
+	})
+
+	app.handler = app
+	app.SetNotFound(func(c *Context) {
+		if len(c.Msg) == 0 {
 			c.Msg = defaultNotFoundMsg
 		}
-		err := DefaultErrTemplate.Execute(c.Writer(), H{"Message": c.Msg, "Code": http.StatusNotFound})
+		err := DefaultErrTemplate.Execute(
+			c.Writer(), H{
+				"Message": c.Msg,
+				"Code":    http.StatusNotFound,
+			})
 		if err != nil {
 			Logger().Print("%s", err)
 		}
 	})
-	return r
+	return app
 }
 
-func (r *Router) registerRoute(router IRouter, controller IController) {
-	val, typ := reflect.ValueOf(controller), reflect.TypeOf(controller)
-	method := val.MethodByName("RegisterRoute")
+func (a *Application) ServeHTTP(res http.ResponseWriter, req *http.Request) {
+	c := a.pool.Acquire().(*Context)
+	c.beginRequest(res, req)
+	defer a.pool.Release(c)
+	defer c.endRequest(a.recoverHandler)
+	a.handle(c)
+}
+
+func (r *Router) register(router IRouter, controller IController) {
 	wrapper := newRouterWrapper(router, controller)
-	if method.IsValid() {
-		// todo 使用自动解析类型的方式, 如果实现了RegisterRoute接口, 则调用函数
-		method.Call([]reflect.Value{reflect.ValueOf(wrapper)})
+	if v, implemented := interface{}(controller).(IRegisterHandler); implemented {
+		v.RegisterRoute(wrapper)
 	} else {
-		// 自动根据前缀注册路由
-		format := "%s not exists method RegisterRoute(*routerWrapper)"
-		Logger().Printf(format, typ.String())
+		val, typ := reflect.ValueOf(controller), reflect.TypeOf(controller)
 		num, routeWrapper := typ.NumMethod(), wrapper
 		for i := 0; i < num; i++ {
 			name := typ.Method(i).Name
 			if _, ok := reflectingNeedIgnoreMethods[name]; !ok && val.MethodByName(name).IsValid() {
-				r.matchMethod(router, name, routeWrapper.warpHandler(name, controller))
+				r.matchRegister(
+					router,
+					name,
+					routeWrapper.warpHandler(name, controller),
+				)
 			}
 		}
 		reflectingNeedIgnoreMethods = nil
 	}
 }
 
-// 自动注册映射处理函数的http请求方法
-// 自动剔除方法前缀匹配为method, 如 GetIndex => index [GET]
-func (r *Router) matchMethod(router IRouter, path string, handle Handler) {
-	var methods = map[string]routeMaker{"Get": router.GET, "Post": router.POST, "Head": router.HEAD, "Delete": router.DELETE, "Put": router.PUT}
-	fmtStr := "autoRegisterRoute:[method: %s] %s"
+// GetIndex => index [GET]
+// GetIndexPost => index_post [GET]
+func (r *Router) matchRegister(router IRouter, path string, handle Handler) {
+	var methods = map[string]routeMaker{
+		"Get":     router.GET,
+		"Put":     router.PUT,
+		"Post":    router.POST,
+		"Head":    router.HEAD,
+		"Delete":  router.DELETE,
+		"OPTIONS": router.OPTIONS,
+	}
+
+	fmtStr := "matchRegister:[method: %s] %s%s"
+
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
-			route := urlSeparator + r.upperCharToUnderLine(strings.TrimLeft(path, method))
-			Logger().Printf(fmtStr, method, r.prefix+route)
+			route := fmt.Sprintf("%s%s", urlSeparator, upperCharToUnderLine(strings.TrimLeft(path, method)))
+			Logger().Printf(fmtStr, method, r.prefix, route)
 			routeMaker(route, handle)
 		}
 	}
-}
-
-func (_ *Router) upperCharToUnderLine(path string) string {
-	return strings.TrimLeft(regexp.MustCompile("([A-Z])").ReplaceAllStringFunc(path, func(s string) string {
-		return strings.ToLower("_" + strings.ToLower(s))
-	}), "_")
 }
 
 func (r *Router) Subdomain(subdomain string) *Router {
@@ -167,21 +199,23 @@ func (r *Router) Subdomain(subdomain string) *Router {
 		groups:               map[string]*Router{},
 		registeredSubdomains: r.registeredSubdomains,
 	}
+
 	s.methodRoutes = initRouteMap()
 	s.subdomain = subdomain + r.subdomain
 	r.registeredSubdomains[s.subdomain] = s
+
 	return s
 }
 
-func (r *Router) SetRecoverHandler(handler Handler) {
-	r.recoverHandler = handler
+func (a *Application) SetRecoverHandler(handler Handler) {
+	a.recoverHandler = handler
 }
 
-func (r *Router) SetNotFound(handler Handler) {
+func (a *Application) SetNotFound(handler Handler) {
 	errCodeCallHandler[http.StatusNotFound] = handler
 }
 
-func (r *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal) {
+func (a *Application) gracefulShutdown(srv *http.Server, quit <-chan os.Signal) {
 	<-quit
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
@@ -192,25 +226,59 @@ func (r *Router) gracefulShutdown(srv *http.Server, quit <-chan os.Signal) {
 	for _, beforeHandler := range shutdownBeforeHandler {
 		beforeHandler()
 	}
-	Logger().Print("server was closed")
 }
 
-func (r *Router) Run(srv ServerHandler, opts ...Configurator) {
+func (a *Application) handle(c *Context) {
+	if route := a.matchRoute(c); route != nil {
+		a.parseForm(c)
+		c.setRoute(route).Next()
+	} else {
+		c.SetStatus(http.StatusNotFound)
+		if handler, ok := errCodeCallHandler[http.StatusNotFound]; ok {
+			handler(c)
+		} else {
+			panic(c.Msg)
+		}
+	}
+}
+
+func (a *Application) parseForm(c *Context) {
+	if a.configuration.autoParseForm {
+		if c.IsPost() {
+			var err error
+			if c.Header("Content-Type") == "multipart/form-data" {
+				err = c.req.ParseMultipartForm(a.configuration.maxMultipartMemory)
+			} else if c.IsPost() {
+				err = c.req.ParseForm()
+			}
+			if err != nil {
+				panic(err)
+			}
+		}
+	}
+}
+
+func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 	if len(opts) > 0 {
 		for _, opt := range opts {
-			opt(r.configuration)
+			opt(a.configuration)
 		}
 	}
 	if srv == nil {
 		srv = Addr(defaultAddressWithPort)
 	}
-	if err := srv(r); err != nil && err != http.ErrServerClosed {
+
+	// Covert to readonly
+	a.ReadonlyConfiguration = ReadonlyConfiguration(a.configuration)
+
+	if err := srv(a); err != nil && err != http.ErrServerClosed {
 		panic(err)
 	}
 }
 
-func (r *Router) Handle(c IController) {
-	r.registerRoute(r, c)
+func (r *Router) Handle(c IController) *Router {
+	r.register(r, c)
+	return r
 }
 
 // 添加路由, 内部函数
@@ -255,7 +323,7 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 		Pattern:    pattern,
 		origin:     originName,
 	}
-	if pattern != "" {
+	if len(pattern) != 0 {
 		patternRoutes[pattern] = append(patternRoutes[pattern], route)
 	} else {
 		r.methodRoutes[method][path] = route
@@ -264,28 +332,24 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 
 func (r *Router) getPattern(str string) (paramName, pattern string) {
 	params := patternRouteCompiler.FindAllStringSubmatch(str, 1)
-	if params[0][2] == "" {
+	if len(params[0][2]) == 0 {
 		params[0][2] = patternMap[":string"]
 	}
 	pattern = strings.Trim(strings.Trim(params[0][2], "<"), ">")
-	if pattern != "" {
+	if len(pattern) > 0 {
 		pattern = fmt.Sprintf("(%s)", pattern)
 	}
 	paramName = params[0][1]
 	return
 }
 
-// 匹配路由
-// 首先直接匹配路由或者在分组内匹配路由
-// 其次， 匹配正则路由 如果匹配到路由则返回处理函数
-// 否则返回nil, 外部由notFound接管或空响应
 func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 	var host string
 	if r.hostname != zeroIP {
 		host = strings.Replace(strings.Split(ctx.req.Host, ":")[0], r.hostname, "", 1)
 	}
 	var ok bool
-	if host != "" {
+	if len(host) != 0 {
 		if r, ok = r.registeredSubdomains[host]; !ok {
 			return nil
 		}
@@ -299,7 +363,6 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 				continue
 			}
 			if !route.resolved {
-				// todo 有必要加锁吗?
 				route.ExtendsMiddleWare = r.middleWares
 				route.resolved = true
 			}
@@ -360,7 +423,7 @@ func (r *Router) lookupGroupRoute(i int, method string, pathInfo []string) *Rout
 }
 
 func (r *Router) Group(prefix string, middleWares ...Handler) *Router {
-	prefix = r.prefix + prefix
+	prefix = fmt.Sprintf("%s%s", r.prefix, prefix)
 
 	g := &Router{
 		prefix:      prefix,
@@ -377,47 +440,11 @@ func (r *Router) Use(middleWares ...Handler) {
 	r.middleWares = append(r.middleWares, middleWares...)
 }
 
-func (r *Router) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	c := r.pool.Acquire().(*Context)
-	c.beginRequest(res, req)
-	defer r.pool.Release(c)
-	defer c.endRequest(r.recoverHandler)
-	r.handle(c)
-
-}
-
-func (r *Router) handle(c *Context) {
-	if route := r.matchRoute(c); route != nil {
-		if configuration.autoParseForm {
-			if err := c.req.ParseForm(); err != nil {
-				panic(err)
-			}
-		}
-		c.setRoute(route).Next()
-	} else {
-		c.SetStatus(http.StatusNotFound)
-		if handler, ok := errCodeCallHandler[http.StatusNotFound]; ok {
-			handler(c)
-		} else {
-			panic(c.Msg)
-		}
-	}
-}
-
-func initRouteMap() map[string]map[string]*RouteEntry {
-	return routerMap{
-		http.MethodGet: {},
-		http.MethodPost: {},
-		http.MethodPut: {},
-		http.MethodHead: {},
-		http.MethodDelete: {},
-		http.MethodOptions: {},
-		http.MethodPatch: {}}
-}
-
 func (r *Router) Static(path, dir string, mws ...Handler) {
 	fileServer := http.FileServer(http.Dir(dir))
-	r.GET(path, func(c *Context) { http.StripPrefix(path, fileServer).ServeHTTP(c.Writer(), c.Request()) }, mws...)
+	r.GET(path, func(c *Context) {
+		http.StripPrefix(path, fileServer).ServeHTTP(c.Writer(), c.Request())
+	}, mws...)
 }
 
 func (r *Router) StaticFile(path, file string, mws ...Handler) {
@@ -455,4 +482,21 @@ func (r *Router) DELETE(path string, handle Handler, mws ...Handler) {
 
 func (r *Router) OPTIONS(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(http.MethodOptions, path, handle, mws...)
+}
+
+func initRouteMap() map[string]map[string]*RouteEntry {
+	return routerMap{
+		http.MethodGet:     {},
+		http.MethodPost:    {},
+		http.MethodPut:     {},
+		http.MethodHead:    {},
+		http.MethodDelete:  {},
+		http.MethodOptions: {},
+		http.MethodPatch:   {}}
+}
+
+func upperCharToUnderLine(path string) string {
+	return strings.TrimLeft(regexp.MustCompile("([A-Z])").ReplaceAllStringFunc(path, func(s string) string {
+		return strings.ToLower("_" + strings.ToLower(s))
+	}), "_")
 }

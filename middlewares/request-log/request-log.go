@@ -1,14 +1,15 @@
 package request_log
 
 import (
+	"fmt"
 	"github.com/gookit/color"
 	"github.com/xiusin/pine"
 	"net/http"
 	"time"
 )
 
-func RequestRecorder() pine.Handler {
-	red, green, yellow := color.FgRed.Render, color.FgGreen.Render, color.FgYellow.Render
+func RequestRecorder(minDuration ...time.Duration) pine.Handler {
+	red, green, yellow := color.FgRed.Render, color.FgGreen.Render, color.BgYellow.Render
 	return func(c *pine.Context) {
 		var start = time.Now()
 		statusInfo, status := "", c.Status()
@@ -20,10 +21,16 @@ func RequestRecorder() pine.Handler {
 			statusInfo = yellow(status)
 		}
 		c.Next()
-		go c.Logger().Printf(
-			"%s | %s | %s | %s | Path: %s",
-			statusInfo, yellow(c.Request().Method), c.ClientIP(),
-			time.Now().Sub(start).String(),
+		usedTime := time.Now().Sub(start)
+		if minDuration != nil {
+			if usedTime < minDuration[0] {
+				return
+			}
+		}
+		c.Logger().Printf(
+			"%s | %s | %s | Path: %s",
+			statusInfo, yellow(fmt.Sprintf("%5s", c.Request().Method)),
+			usedTime.String(),
 			c.Request().URL.Path,
 		)
 	}

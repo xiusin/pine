@@ -13,6 +13,7 @@ import (
 type Options struct {
 	Level        logger.Level
 	RecordCaller bool
+	ShortName    bool
 	infoWriter   io.Writer
 	errorWriter  io.Writer
 }
@@ -21,6 +22,7 @@ func DefaultOptions() *Options {
 	return &Options{
 		Level:        logger.DebugLevel,
 		RecordCaller: true,
+		ShortName:    true,
 		infoWriter:   os.Stdout,
 		errorWriter:  os.Stdout,
 	}
