@@ -17,7 +17,6 @@ require (
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/gookit/color v1.2.2
 	github.com/gorilla/schema v1.1.0
-	github.com/gorilla/securecookie v1.1.1
 	github.com/gorilla/sessions v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.11 // indirect

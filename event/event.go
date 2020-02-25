@@ -16,8 +16,8 @@ type event struct {
 	store sync.Map
 }
 
-// 注册事件. 非可调用类型忽略不注册
-// 已存在则直接覆写
+var defaultEvent = &event{}
+
 func (e *event) Register(eventName string, callback interface{}) {
 	if reflect.TypeOf(callback).Kind() != reflect.Func {
 		return
@@ -25,7 +25,6 @@ func (e *event) Register(eventName string, callback interface{}) {
 	e.store.Store(eventName, callback)
 }
 
-//触发事件
 func (e *event) Trigger(eventName string, params ...interface{}) ([]reflect.Value, error) {
 	fn, pars, err := e.getReflectData(eventName, params...)
 	if err != nil {
@@ -49,7 +48,6 @@ func (e *event) TriggerBackend(eventName string, params ...interface{}) (chan []
 	return values, nil
 }
 
-// 获取反射类型
 func (e *event) getReflectData(eventName string, params ...interface{}) (reflect.Value, []reflect.Value, error) {
 	event, ok := e.store.Load(eventName)
 	if !ok {
@@ -63,17 +61,14 @@ func (e *event) getReflectData(eventName string, params ...interface{}) (reflect
 	return reflect.ValueOf(event), calledParams, nil
 }
 
-//移除事件
 func (e *event) Remove(eventName string) {
 	e.store.Delete(eventName)
 }
 
-//清空事件
 func (e *event) Clear() {
 	e.store = sync.Map{}
 }
 
-// 检测是否存在事件
 func (e *event) Exists(eventName string) bool {
 	_, ok := e.store.Load(eventName)
 	if !ok {
@@ -82,7 +77,6 @@ func (e *event) Exists(eventName string) bool {
 	return true
 }
 
-// 统计事件数
 func (e *event) Count() int {
 	var count int
 	e.store.Range(func(_, _ interface{}) bool {
@@ -92,7 +86,6 @@ func (e *event) Count() int {
 	return count
 }
 
-// 返回所有事件名称
 func (e *event) All() []string {
 	var keys []string
 	e.store.Range(func(key, _ interface{}) bool {
@@ -101,8 +94,6 @@ func (e *event) All() []string {
 	})
 	return keys
 }
-
-var defaultEvent = &event{}
 
 func Register(eventName string, callback interface{}) {
 	defaultEvent.Register(eventName, callback)

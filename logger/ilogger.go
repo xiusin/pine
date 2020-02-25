@@ -11,13 +11,18 @@ const (
 	InfoLevel
 	WarnLevel
 	ErrorLevel
-	PanicLevel
-	FatalLevel
 )
 
 type ILogger interface {
-	Error(msg string, args ...interface{})
-	Errorf(msg string, args ...interface{})
+	Debug(msg string, args ...interface{})
+	Debugf(format string, args ...interface{})
+
+	Warning(msg string, args ...interface{})
+	Warningf(format string, args ...interface{})
+
 	Print(msg string, args ...interface{})
 	Printf(format string, args ...interface{})
+
+	Error(msg string, args ...interface{})
+	Errorf(format string, args ...interface{})
 }

@@ -8,6 +8,7 @@ import "sync"
 
 type Definition struct {
 	sync.Mutex
+
 	shared        bool
 	serviceName   string
 	instance      interface{}

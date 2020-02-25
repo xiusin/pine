@@ -7,15 +7,15 @@ package pine
 import (
 	"context"
 	"fmt"
-	"github.com/xiusin/pine/di"
-	"github.com/xiusin/pine/logger"
-	"github.com/xiusin/pine/logger/providers/log"
 	"net/http"
 	"os"
 	"reflect"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/xiusin/pine/di"
+	"github.com/xiusin/pine/logger"
 )
 
 const Version = "dev 0.0.9"
@@ -100,12 +100,6 @@ type Application struct {
 	configuration         *Configuration
 	ReadonlyConfiguration ReadonlyConfiguration
 	started               bool
-}
-
-func init() {
-	di.Set(di.ServicePineLogger, func(builder di.BuilderInf) (i interface{}, e error) {
-		return log.New(nil), nil
-	}, true)
 }
 
 func New() *Application {

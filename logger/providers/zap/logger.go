@@ -6,13 +6,15 @@ package zap
 
 import (
 	"fmt"
-	"github.com/natefinch/lumberjack"
-	"github.com/spf13/viper"
-	"go.uber.org/zap/zapcore"
 	"io"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/natefinch/lumberjack"
+	"github.com/spf13/viper"
+	"github.com/xiusin/pine/logger"
+	"go.uber.org/zap/zapcore"
 
 	"go.uber.org/zap"
 )
@@ -20,6 +22,39 @@ import (
 type Logger struct {
 	*zap.Logger
 	config *Options
+}
+
+type Options struct {
+	TimeFormat         string
+	Level              logger.Level
+	RotateLogDirFormat string
+	LogDir             string
+	DebugLogName       string
+	InfoLogName        string
+	WarnLogName        string
+	ErrorLogName       string
+	Console            bool
+	MaxSizeMB          int
+	MaxBackups         int
+	MaxAgeDay          int
+	Compress           bool // 压缩日志.(分割时)
+}
+
+func DefaultOptions() *Options {
+	return &Options{
+		TimeFormat:         "2006-01-02 15:04:05",
+		Level:              logger.DebugLevel,
+		RotateLogDirFormat: "2006-01-02",
+		DebugLogName:       "debug.log",
+		InfoLogName:        "info.log",
+		WarnLogName:        "warn.log",
+		ErrorLogName:       "error.log",
+		Console:            true,
+		MaxAgeDay:          7,
+		MaxSizeMB:          50, //50M
+		MaxBackups:         3,
+		Compress:           true,
+	}
 }
 
 func New(options *Options) *Logger {
@@ -69,12 +104,30 @@ func New(options *Options) *Logger {
 	return &Logger{Logger: zap.New(core, zap.AddCaller()), config: options}
 }
 
+func (l *Logger) Debug(msg string, args ...interface{}) {
+
+
+	//l.Logger.Debug(msg, args...)
+}
+
+func (l *Logger) Debugf(format string, args ...interface{}) {
+	panic("implement me")
+}
+
 func (l *Logger) Print(msg string, args ...interface{}) {
 	l.Logger.Info(msg)
 }
 
 func (l *Logger) Printf(format string, args ...interface{}) {
 	l.Logger.Info(fmt.Sprintf(format, args...))
+}
+
+func (l *Logger) Warning(msg string, args ...interface{}) {
+	panic("implement me")
+}
+
+func (l *Logger) Warningf(format string, args ...interface{}) {
+	panic("implement me")
 }
 
 func (l *Logger) Error(msg string, args ...interface{}) {
@@ -87,7 +140,7 @@ func (l *Logger) Errorf(msg string, args ...interface{}) {
 
 func writer(filename string, option *Options) io.Writer {
 	return &lumberjack.Logger{
-		Filename:   filepath.Join(option.LogDir,option.RotateLogDirFormat, filename),
+		Filename:   filepath.Join(option.LogDir, option.RotateLogDirFormat, filename),
 		MaxSize:    option.MaxSizeMB,
 		MaxBackups: option.MaxBackups,
 		MaxAge:     option.MaxAgeDay,

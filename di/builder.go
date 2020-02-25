@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
+
+	"github.com/xiusin/pine/logger/providers/log"
 )
 
 type BuilderInf interface {
@@ -32,6 +34,14 @@ const ServicePineLogger = "pine.logger"
 const ServicePineRender = "pine.render"
 
 const formatErrServiceNotExists = "service %s not exists"
+
+var ServiceSingletonErr = errors.New("service is singleton, cannot use it with GetWithParams")
+
+func init() {
+	di.Set(ServicePineLogger, func(builder BuilderInf) (i interface{}, e error) {
+		return log.New(nil), nil
+	}, true)
+}
 
 func (b *builder) GetDefinition(serviceAny interface{}) (*Definition, error) {
 	serviceName := ResolveServiceName(serviceAny)
@@ -61,7 +71,7 @@ func ResolveServiceName(service interface{}) string {
 			//fmt.Println(ty.String())
 			return ty.String()
 		}
-		panic("serviceName type is not support" + ty.String())
+		panic(fmt.Sprintf("serviceName type(%s) is not support", ty.String()))
 	}
 }
 
@@ -95,8 +105,8 @@ func (b *builder) GetWithParams(serviceAny interface{}, params ...interface{}) (
 	if !ok {
 		return nil, errors.New(fmt.Sprintf(formatErrServiceNotExists, serviceName))
 	}
-	if !service.(*Definition).IsSingleton() {
-		return nil, errors.New("service is not singleton, cannot use it with GetWithParams")
+	if service.(*Definition).IsSingleton() {
+		return nil, ServiceSingletonErr
 	}
 	s, err := service.(*Definition).resolveWithParams(b, params...)
 	if err != nil {
