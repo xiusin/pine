@@ -14,7 +14,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xiusin/pine/di"
 	"github.com/xiusin/pine/logger"
 )
 
@@ -92,8 +91,7 @@ type Router struct {
 type Application struct {
 	*Router
 
-	Logger    logger.ILogger
-	Container di.BuildHandler
+	Logger logger.ILogger
 
 	recoverHandler        Handler
 	pool                  *Pool
@@ -494,3 +492,4 @@ func upperCharToUnderLine(path string) string {
 		return strings.ToLower("_" + strings.ToLower(s))
 	}), "_")
 }
+

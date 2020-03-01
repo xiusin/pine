@@ -3,6 +3,8 @@ module github.com/xiusin/pine
 go 1.13
 
 require (
+	github.com/CloudyKit/fastprinter v0.0.0-20200109182630-33d98a066a53 // indirect
+	github.com/CloudyKit/jet v2.1.2+incompatible
 	github.com/aliyun/aliyun-oss-go-sdk v2.0.3+incompatible
 	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
 	github.com/betacraft/yaag v1.0.0
@@ -17,7 +19,6 @@ require (
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/gookit/color v1.2.2
 	github.com/gorilla/schema v1.1.0
-	github.com/gorilla/sessions v1.2.0 // indirect
 	github.com/mattn/go-colorable v0.1.4 // indirect
 	github.com/mattn/go-isatty v0.0.11 // indirect
 	github.com/natefinch/lumberjack v2.0.0+incompatible

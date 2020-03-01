@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"sync"
 )
 
@@ -21,12 +22,14 @@ type htmlEngine struct {
 	once    sync.Once
 	reload  bool
 	viewDir string
+	ext     string
 }
 
-func New(viewDir string, reload bool) *htmlEngine {
+func New(viewDir, ext string, reload bool) *htmlEngine {
 	html := &htmlEngine{
 		reload:  reload,
 		funcMap: template.FuncMap{},
+		ext:     ext,
 	}
 	var err error
 	html.viewDir, err = filepath.Abs(viewDir)
@@ -40,7 +43,7 @@ func New(viewDir string, reload bool) *htmlEngine {
 func (t *htmlEngine) walk() {
 	t.once.Do(func() {
 		if err := filepath.Walk(t.viewDir, func(targetPath string, info os.FileInfo, err error) error {
-			if info != nil && !info.IsDir() {
+			if info != nil && !info.IsDir() && strings.HasSuffix(info.Name(), t.ext) {
 				relPath, err := filepath.Rel(t.viewDir, targetPath)
 				if err != nil {
 					return err
@@ -61,6 +64,10 @@ func (t *htmlEngine) walk() {
 	})
 }
 
+func (t *htmlEngine) Ext() string {
+	return t.ext
+}
+
 func (t *htmlEngine) AddFunc(funcName string, funcEntry interface{}) {
 	if reflect.ValueOf(funcEntry).Kind() == reflect.Func {
 		t.funcMap[funcName] = funcEntry
@@ -69,7 +76,7 @@ func (t *htmlEngine) AddFunc(funcName string, funcEntry interface{}) {
 
 func (t *htmlEngine) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
 	if t.reload {
-		tmpl := New(t.viewDir, t.reload)
+		tmpl := New(t.viewDir, t.ext, t.reload)
 		tmpl.funcMap = t.funcMap
 		tmpl.walk()
 		return tmpl.template.ExecuteTemplate(writer, filepath.ToSlash(name), binding)

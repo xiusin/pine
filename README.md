@@ -21,3 +21,7 @@
 - [ ] group递归注册
 - [ ] session cache 组件重构
 - [ ] 基于pinecms增加一些实用方法
+
+# bug #
+- [ ] debug 组件无法显示页面
+- [ ] *action路由是否需要包括 /， 参考其他框架

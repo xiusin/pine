@@ -112,6 +112,7 @@ func (c *Context) WriteString(str string) error {
 //	if err != nil {
 //		panic(err)
 //	}
+//
 //	(c.Writer().(http.Flusher)).Flush()
 //}
 

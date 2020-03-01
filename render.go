@@ -9,17 +9,19 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"github.com/xiusin/pine/render"
 	"io"
 	"net/http"
+	"path/filepath"
 
-	"github.com/xiusin/pine/di"
+	"github.com/xiusin/pine/render"
 )
 
 type H map[string]interface{}
 
+var engines = map[string]render.IRenderer{}
+
 type Render struct {
-	engine  render.IRenderer
+	engines map[string]render.IRenderer
 	writer  http.ResponseWriter
 	tplData H
 	charset string
@@ -34,15 +36,14 @@ const (
 	contentTypeXML  = "text/xml"
 )
 
-func newRender(writer http.ResponseWriter, charset string) *Render {
-	var rendererInf render.IRenderer
+func RegisterViewEngine(engine render.IRenderer) {
+	engines[engine.Ext()] = engine
+}
 
-	if di.Exists(di.ServicePineRender) {
-		rendererInf = di.MustGet(di.ServicePineRender).(render.IRenderer)
-	}
+func newRender(writer http.ResponseWriter, charset string) *Render {
 
 	return &Render{
-		rendererInf,
+		engines,
 		writer,
 		H{},
 		charset,
@@ -80,11 +81,7 @@ func (c *Render) Bytes(v []byte) error {
 
 func (c *Render) HTML(viewPath string) {
 	c.ContentType(contentTypeHTML)
-
-	if c.engine == nil {
-		panic("please inject `render` service")
-	}
-	if err := c.engine.HTML(c.writer, viewPath, c.tplData); err != nil {
+	if err := c.engines[filepath.Ext(viewPath)].HTML(c.writer, viewPath, c.tplData); err != nil {
 		panic(err)
 	}
 
