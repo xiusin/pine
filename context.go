@@ -9,8 +9,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gorilla/schema"
+	"github.com/xiusin/logger"
 	"github.com/xiusin/pine/di"
-	"github.com/xiusin/pine/logger"
 	"github.com/xiusin/pine/sessions"
 	"io/ioutil"
 	"mime/multipart"
@@ -42,8 +42,6 @@ type Context struct {
 	stopped bool
 	// Current middleware iteration index, init with -1
 	middlewareIndex int
-	// Response status code record
-	status int
 	// Temporary recording error information
 	Msg string
 	// Binding some value to context
@@ -62,9 +60,12 @@ func NewContext(app *Application) *Context {
 }
 
 func (c *Context) beginRequest(res http.ResponseWriter, req *http.Request) {
-	c.req, c.res, c.route = req, res, nil
-	c.middlewareIndex, c.status = -1, http.StatusOK
-	c.stopped, c.Msg = false, ""
+	c.req = req
+	c.res = res
+	c.route = nil
+	c.middlewareIndex = -1
+	c.stopped = false
+	c.Msg = ""
 	c.keys = map[string]interface{}{}
 
 	if c.params != nil {
@@ -138,7 +139,7 @@ func (c *Context) Header(key string) string {
 	return c.req.Header.Get(key)
 }
 
-func (c *Context) Logger() logger.ILogger {
+func (c *Context) Logger() logger.AbstractLogger {
 	return Logger()
 }
 
@@ -220,12 +221,7 @@ func (c *Context) SendFile(filepath string) {
 	http.ServeFile(c.res, c.req, filepath)
 }
 
-func (c *Context) Status() int {
-	return c.status
-}
-
 func (c *Context) SetStatus(statusCode int) {
-	c.status = statusCode
 	c.res.WriteHeader(statusCode)
 }
 

@@ -9,7 +9,8 @@ import (
 )
 
 type IRenderer interface {
-	AddFunc(string, interface{})
-	HTML(writer io.Writer, name string, binding map[string]interface{}) error
 	Ext() string
+	AddFunc(string, interface{})
+
+	HTML(writer io.Writer, name string, binding map[string]interface{}) error
 }

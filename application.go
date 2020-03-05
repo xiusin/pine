@@ -13,11 +13,9 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
-	"github.com/xiusin/pine/logger"
 )
 
-const Version = "dev 0.0.9"
+const Version = "dev 0.1.0"
 
 const logo = `
    ___  _         
@@ -90,8 +88,6 @@ type Router struct {
 
 type Application struct {
 	*Router
-
-	Logger logger.ILogger
 
 	recoverHandler        Handler
 	pool                  *Pool
@@ -174,12 +170,12 @@ func (r *Router) matchRegister(router IRouter, path string, handle Handler) {
 		"OPTIONS": router.OPTIONS,
 	}
 
-	fmtStr := "matchRegister:[method: %s] %s%s"
+	format := "matchRegister:[method: %s] %s%s"
 
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
 			route := fmt.Sprintf("%s%s", urlSeparator, upperCharToUnderLine(strings.TrimLeft(path, method)))
-			Logger().Printf(fmtStr, method, r.prefix, route)
+			Logger().Printf(format, method, r.prefix, route)
 			routeMaker(route, handle)
 		}
 	}
@@ -227,7 +223,10 @@ func (a *Application) handle(c *Context) {
 	} else {
 		c.SetStatus(http.StatusNotFound)
 		if handler, ok := errCodeCallHandler[http.StatusNotFound]; ok {
-			handler(c)
+			c.setRoute(&RouteEntry{
+				ExtendsMiddleWare: a.middleWares,
+				Handle:            handler,
+			}).Next()
 		} else {
 			panic(c.Msg)
 		}
@@ -238,9 +237,9 @@ func (a *Application) parseForm(c *Context) {
 	if a.configuration.autoParseForm {
 		if c.IsPost() {
 			var err error
-			if c.Header("Content-Type") == "multipart/form-data" {
+			if strings.HasPrefix(c.Header("Content-Type"), "multipart/form-data") {
 				err = c.req.ParseMultipartForm(a.configuration.maxMultipartMemory)
-			} else if c.IsPost() {
+			} else {
 				err = c.req.ParseForm()
 			}
 			if err != nil {
@@ -492,4 +491,3 @@ func upperCharToUnderLine(path string) string {
 		return strings.ToLower("_" + strings.ToLower(s))
 	}), "_")
 }
-

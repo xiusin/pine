@@ -11,7 +11,7 @@ func main() {
 	app := pine.New()
 
 	di.Set("render", func(builder di.BuilderInf) (i interface{}, e error) {
-		p := pongo.New("views", false)
+		p := pongo.New("views", ".html",false)
 		// reload = true 每次都会重载模板
 		p.AddFunc("hello", func(in *pongo2.Value, param *pongo2.Value) (out *pongo2.Value, err *pongo2.Error) {
 			return pongo2.AsValue("hello " + in.String()), nil

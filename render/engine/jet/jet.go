@@ -7,33 +7,40 @@ import (
 	"github.com/CloudyKit/jet"
 )
 
-type pineJet struct {
+type PineJet struct {
 	*jet.Set
+
 	ext string
 }
 
-func New(dir string, ext string, reload bool) *pineJet {
-	template := &pineJet{
-		Set: jet.NewHTMLSet(dir),
+func New(viewDir , ext string, reload bool) *PineJet {
+	if len(viewDir) == 0 || len(ext) == 0 {
+		panic("viewDir or ext cannot be empty")
+	}
+
+	template := &PineJet{
+		Set: jet.NewHTMLSet(viewDir),
 		ext: ext,
 	}
 	template.SetDevelopmentMode(reload)
+
 	return template
 }
 
-func (p *pineJet) AddFunc(funcName string, funcEntry interface{}) {
+func (p *PineJet) AddFunc(funcName string, funcEntry interface{}) {
 	p.Set.AddGlobalFunc(funcName, funcEntry.(jet.Func))
 }
 
-func (p *pineJet) Ext() string {
+func (p *PineJet) Ext() string {
 	return p.ext
 }
 
-func (p *pineJet) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
+func (p *PineJet) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
 	t, err := p.GetTemplate(name)
 	if err != nil {
 		return err
 	}
+
 	var vars jet.VarMap
 	if binding != nil {
 		vars = jet.VarMap{}
@@ -41,5 +48,6 @@ func (p *pineJet) HTML(writer io.Writer, name string, binding map[string]interfa
 			vars[k] = reflect.ValueOf(v)
 		}
 	}
+
 	return t.Execute(writer, vars, nil)
 }

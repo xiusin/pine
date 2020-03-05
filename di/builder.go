@@ -10,7 +10,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/xiusin/pine/logger/providers/log"
+	"github.com/xiusin/logger"
 )
 
 type BuilderInf interface {
@@ -39,7 +39,9 @@ var ServiceSingletonErr = errors.New("service is singleton, cannot use it with G
 
 func init() {
 	di.Set(ServicePineLogger, func(builder BuilderInf) (i interface{}, e error) {
-		return log.New(nil), nil
+		l := logger.New()
+		l.SetLogLevel(logger.DebugLevel)
+		return l, nil
 	}, true)
 }
 

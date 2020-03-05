@@ -5,14 +5,14 @@
 package pine
 
 import (
+	"github.com/xiusin/logger"
 	"github.com/xiusin/pine/di"
-	"github.com/xiusin/pine/logger"
 )
 
 func Make(service interface{}, params ...interface{}) interface{} {
 	return di.MustGet(service, params...)
 }
 
-func Logger() logger.ILogger {
-	return Make(di.ServicePineLogger).(logger.ILogger)
+func Logger() logger.AbstractLogger {
+	return Make(di.ServicePineLogger).(logger.AbstractLogger)
 }

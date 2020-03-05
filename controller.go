@@ -5,7 +5,7 @@
 package pine
 
 import (
-	"github.com/xiusin/pine/logger"
+	"github.com/xiusin/logger"
 	"github.com/xiusin/pine/sessions"
 	"reflect"
 )
@@ -23,7 +23,7 @@ type IController interface {
 
 	Render() *Render
 
-	Logger() logger.ILogger
+	Logger() logger.AbstractLogger
 	Session() sessions.ISession
 	Cookie() *sessions.Cookie
 }
@@ -58,7 +58,7 @@ func (c *Controller) View(name string) {
 	c.context.render.HTML(name)
 }
 
-func (c *Controller) Logger() logger.ILogger {
+func (c *Controller) Logger() logger.AbstractLogger {
 	return c.context.Logger()
 }
 

@@ -11,7 +11,7 @@ func main() {
 
 	di.Set("render", func(builder di.BuilderInf) (i interface{}, e error) {
 		// reload = true 每次都会重载模板
-		return template.New("views", false), nil
+		return template.New("views", ".html", false), nil
 	}, true)
 
 	app.GET("/", func(ctx *pine.Context) {

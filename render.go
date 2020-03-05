@@ -37,6 +37,9 @@ const (
 )
 
 func RegisterViewEngine(engine render.IRenderer) {
+	if engine == nil {
+		panic("engine can not be nil")
+	}
 	engines[engine.Ext()] = engine
 }
 
