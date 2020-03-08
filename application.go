@@ -237,7 +237,7 @@ func (a *Application) parseForm(c *Context) {
 	if a.configuration.autoParseForm {
 		if c.IsPost() {
 			var err error
-			if strings.HasPrefix(c.Header("Content-Type"), "multipart/form-data") {
+			if strings.Contains(c.Header("Content-Type"), "multipart/form-data") {
 				err = c.req.ParseMultipartForm(a.configuration.maxMultipartMemory)
 			} else {
 				err = c.req.ParseForm()

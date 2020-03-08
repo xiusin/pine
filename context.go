@@ -89,6 +89,7 @@ func (c *Context) beginRequest(res http.ResponseWriter, req *http.Request) {
 
 func (c *Context) endRequest(recoverHandler Handler) {
 	if err := recover(); err != nil {
+		c.SetStatus(http.StatusInternalServerError)
 		c.Msg = fmt.Sprintf("%s", err)
 		recoverHandler(c)
 	}
