@@ -67,7 +67,6 @@ var (
 
 const defaultNotFoundMsg = "Sorry, the page you are looking for could not be found."
 
-// register server shutdown func
 func RegisterOnInterrupt(handler func()) {
 	shutdownBeforeHandler = append(shutdownBeforeHandler, handler)
 }
@@ -77,7 +76,6 @@ func RegisterErrorCodeHandler(status int, handler Handler)  {
 }
 
 func defaultRecoverHandler(c *Context) {
-	c.SetStatus(http.StatusInternalServerError)
 	stackInfo, strFmt := debug.Stack(), "msg: %s  method: %s  path: %s\n stack: %s"
 	c.Logger().Errorf(strFmt, c.Msg, c.Request().Method, c.Request().URL.RequestURI(), stackInfo)
 	err := DefaultErrTemplate.Execute(c.Writer(), H{"Message": c.Msg, "Code": http.StatusInternalServerError})

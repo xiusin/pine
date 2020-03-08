@@ -221,8 +221,8 @@ func (a *Application) handle(c *Context) {
 		a.parseForm(c)
 		c.setRoute(route).Next()
 	} else {
-		c.SetStatus(http.StatusNotFound)
 		if handler, ok := errCodeCallHandler[http.StatusNotFound]; ok {
+			c.SetStatus(http.StatusNotFound)
 			c.setRoute(&RouteEntry{
 				ExtendsMiddleWare: a.middleWares,
 				Handle:            handler,

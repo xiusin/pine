@@ -44,7 +44,6 @@ func RegisterViewEngine(engine render.IRenderer) {
 }
 
 func newRender(writer http.ResponseWriter, charset string) *Render {
-
 	return &Render{
 		engines,
 		writer,
@@ -84,6 +83,7 @@ func (c *Render) Bytes(v []byte) error {
 
 func (c *Render) HTML(viewPath string) {
 	c.ContentType(contentTypeHTML)
+
 	if err := c.engines[filepath.Ext(viewPath)].HTML(c.writer, viewPath, c.tplData); err != nil {
 		panic(err)
 	}

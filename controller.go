@@ -47,7 +47,7 @@ func (c *Controller) Cookie() *sessions.Cookie {
 }
 
 func (c *Controller) Render() *Render {
-	return c.context.render
+	return c.context.Render()
 }
 
 func (c *Controller) Param() *Params {
@@ -55,7 +55,7 @@ func (c *Controller) Param() *Params {
 }
 
 func (c *Controller) View(name string) {
-	c.context.render.HTML(name)
+	c.context.Render().HTML(name)
 }
 
 func (c *Controller) Logger() logger.AbstractLogger {
@@ -67,5 +67,5 @@ func (c *Controller) Session() sessions.ISession {
 }
 
 func (c *Controller) ViewData(key string, val interface{}) {
-	c.context.render.ViewData(key, val)
+	c.context.Render().ViewData(key, val)
 }
