@@ -33,10 +33,7 @@ func (c *Cookie) Get(name string) string {
 	} else if cookie != nil {
 
 		if c.transcoder != nil {
-			err = c.transcoder.Decode(name, cookie.Value, &value)
-			if err != nil {
-				panic(err)
-			}
+			c.transcoder.Decode(name, cookie.Value, &value)
 		} else {
 			value = cookie.Value
 		}
