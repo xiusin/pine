@@ -1,16 +1,13 @@
 package main
 
 import (
+
 	"github.com/xiusin/pine"
-	"github.com/xiusin/pine/middlewares/cookies"
 )
 
 func main() {
 	app := pine.New()
-	app.Use(cookies.New(&cookies.Config{
-		HashKey:  []byte("there is "),
-		BlockKey: []byte("there is 16bytes"),
-	}))
+
 	// http://0.0.0.0:9528/ 设置cookie
 	// http://0.0.0.0:9528/ 获取cookie: myname => xiusin
 	app.GET("/", func(ctx *pine.Context) {
@@ -21,7 +18,6 @@ func main() {
 			ctx.Writer().Write([]byte("获取cookie: myname => " + val))
 		}
 	})
-
 
 	// http://0.0.0.0:9528/delete/myname deleted => myname
 	app.GET("/delete/:name:string", func(ctx *pine.Context) {
@@ -34,4 +30,7 @@ func main() {
 		}
 	})
 	app.Run(pine.Addr(""))
+	// 如果需要加密cookie
+	// "github.com/gorilla/securecookie"
+	//app.Run(nil, pine.WithCookieTranscoder(securecookie.New([]byte("k"), []byte("b"))))
 }

@@ -5,7 +5,6 @@
 package badger
 
 import (
-	"fmt"
 	"runtime"
 	"time"
 
@@ -104,7 +103,6 @@ func (c *badger) Clear(prefix string) {
 	for iter.Rewind(); iter.ValidForPrefix([]byte(c.prefix+prefix)); iter.Next() {
 		key := iter.Item().Key()
 		if err := txn.Delete(key); err != nil {
-			fmt.Println(err)
 			continue
 		}
 	}

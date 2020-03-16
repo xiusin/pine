@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/xiusin/debug"
 	"github.com/xiusin/pine"
 )
 
@@ -13,13 +14,11 @@ func main() {
 	})
 
 	app.SetRecoverHandler(func(ctx *pine.Context) {
-		if err := recover(); err != nil {
-			ctx.Render().Text(fmt.Sprintf("recover函数必须放到recover的判断里: %s", err))
-		}
+			ctx.Render().Text(fmt.Sprintf("recover函数必须放到recover的判断里: %s", ctx.Msg))
 	})
 
 	// 使用debug组件替换默认recover函数
-	//app.SetRecoverHandler(debug.Recover(app))
+	app.SetRecoverHandler(debug.Recover(app))
 
 	app.Run(pine.Addr(":9528"))
 }

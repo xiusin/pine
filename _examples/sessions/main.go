@@ -2,38 +2,31 @@ package main
 
 import (
 	"github.com/xiusin/pine"
+	"github.com/xiusin/pine/cache/providers/memory"
 	"github.com/xiusin/pine/di"
-	"github.com/xiusin/pine/middlewares/cookies"
 	"github.com/xiusin/pine/sessions"
-	"github.com/xiusin/pine/sessions/providers/file"
-	"os"
+	cacheProvider "github.com/xiusin/pine/sessions/providers/cache"
+	"time"
 )
 
 func main() {
 	app := pine.New()
-	app.Use(cookies.New(&cookies.Config{
-		HashKey:  []byte("there is HashKey"),
-		BlockKey: []byte("there is 16bytes"),
-	}))
-
-	// 注入pine.sessionManager才能正常使用session功能
-	di.Set("pine.sessionManager", func(builder di.BuilderInf) (i interface{}, e error) {
-		return sessions.New(file.NewStore(&file.Config{
-			SessionPath: os.TempDir(),
-			CookieName:  "pine_sessionid",
-		})), nil
+	di.Set(di.ServicePineSessions, func(builder di.BuilderInf) (i interface{}, e error) {
+		sess := sessions.New(cacheProvider.NewStore(memory.New(memory.Option{
+			GCInterval: 0,
+			Prefix:     "test_",
+		})), &sessions.Config{
+			CookieName: "PINE_SESSIONID",
+			Expires:    time.Second * 10,
+		})
+		return sess, nil
 	}, true)
 
 	app.GET("/", func(ctx *pine.Context) {
 		if val := ctx.Session().Get("name"); val == "" {
-			pine.Logger().Error("get session failed")
+			pine.Logger().Error("get session failed, will set name = xiusin")
 			ctx.Session().Set("name", "xiusin")
-			if err := ctx.Session().Save(); err != nil {
-				ctx.Writer().Write([]byte(err.Error()))
-				return
-			}
 			ctx.Writer().Write([]byte("set sesssion name => xiusin"))
-
 		} else {
 			ctx.Writer().Write([]byte("get sesssion name => " + val))
 		}

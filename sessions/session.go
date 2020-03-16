@@ -6,6 +6,7 @@ package sessions
 
 import (
 	"fmt"
+	"time"
 )
 
 const defaultSessionName = "pine_sessionid"
@@ -16,8 +17,8 @@ type Session struct {
 }
 
 type entry struct {
-	V string
-	F bool
+	Val            string
+	Flush          bool
 }
 
 func newSession(id string, store ISessionStore) (*Session, error) {
@@ -29,21 +30,21 @@ func newSession(id string, store ISessionStore) (*Session, error) {
 }
 
 func (sess *Session) Set(key string, val string) {
-	sess.store.Save(sess.makeKey(key), &entry{V: val})
+	sess.store.Save(sess.makeKey(key), &entry{Val: val})
 }
 
 func (sess *Session) Get(key string) string {
 	var val entry
 	if err := sess.store.Get(sess.makeKey(key), &val); err != nil {
-		if val.F {
+		if val.Flush {
 			sess.Remove(sess.makeKey(key))
 		}
 	}
-	return val.V
+	return val.Val
 }
 
 func (sess *Session) AddFlush(key string, val string) {
-	if err := sess.store.Save(sess.makeKey(key), &entry{V: val, F: true}); err != nil {
+	if err := sess.store.Save(sess.makeKey(key), &entry{Val: val, Flush: true}); err != nil {
 		fmt.Println("占位以后替换为组件:", err)
 	}
 }

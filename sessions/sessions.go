@@ -53,7 +53,11 @@ func (m *Sessions) Session(cookie *Cookie) (sess ISession, err error) {
 	sessID := cookie.Get(m.cfg.CookieName)
 	if len(sessID) == 0 {
 		sessID = GetSessionId()
-		cookie.Set(m.cfg.CookieName, sessID, int(m.cfg.Expires.Seconds()))
+		cookie.Set(
+			m.cfg.CookieName,
+			sessID,
+			int(m.cfg.Expires.Seconds()),
+		)
 	}
 	return newSession(sessID, m.provider)
 }

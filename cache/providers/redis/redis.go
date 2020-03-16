@@ -25,6 +25,7 @@ type Option struct {
 	WriteTimeout   int
 	Wait           bool
 	TTL            int
+	Prefix         string
 }
 
 type redis struct {
@@ -32,6 +33,23 @@ type redis struct {
 	prefix string
 	ttl    int
 	pool   *redisgo.Pool
+}
+
+func (cache *redis) Set(key string, val []byte, ttl ...int) error {
+	if len(ttl) == 0 {
+		ttl = []int{cache.ttl}
+	}
+	client := cache.pool.Get()
+	_, err := client.Do("SET", cache.getCacheKey(key), val, "EX", ttl[0])
+	_ = client.Close()
+	return err
+}
+
+func (cache *redis) Delete(key string) error {
+	client := cache.pool.Get()
+	_, _ = client.Do("DEL", cache.getCacheKey(key))
+	_ = client.Close()
+	return nil
 }
 
 func DefaultOption() Option {
@@ -53,7 +71,7 @@ func New(opt Option) *redis {
 		opt.Port = 6379
 	}
 	b := redis{
-		prefix: "",
+		prefix: opt.Prefix,
 		option: &opt,
 		ttl:    opt.TTL,
 		pool: &redisgo.Pool{
@@ -101,26 +119,6 @@ func (cache *redis) Do(callback func(*redisgo.Conn)) {
 	_ = client.Close()
 }
 
-func (cache *redis) Save(key string, val []byte, ttl ...int) bool {
-	if len(ttl) == 0 {
-		ttl = []int{cache.ttl}
-	}
-	client := cache.pool.Get()
-	_, err := client.Do("SET", cache.getCacheKey(key), val, "EX", ttl[0])
-	_ = client.Close()
-	if err != nil {
-		return false
-	}
-	return true
-}
-
-func (cache *redis) Delete(key string) bool {
-	client := cache.pool.Get()
-	_, _ = client.Do("DEL", cache.getCacheKey(key))
-	_ = client.Close()
-	return true
-}
-
 func (cache *redis) Exists(key string) bool {
 	client := cache.pool.Get()
 	isKeyExit, _ := redisgo.Bool(client.Do("EXISTS", cache.getCacheKey(key)))
@@ -131,19 +129,6 @@ func (cache *redis) Exists(key string) bool {
 	return false
 }
 
-func (cache *redis) Batch(data map[string][]byte, ttl ...int) bool {
-	if len(ttl) == 0 {
-		ttl[0] = cache.ttl
-	}
-	client := cache.pool.Get()
-	_ = client.Send("MULTI") // 事务
-	for key, val := range data {
-		_ = client.Send("SET", cache.getCacheKey(key), val, "EX", ttl[0])
-	}
-	_, err := client.Do("EXEC")
-	_ = client.Close()
-	if err != nil {
-		return false
-	}
-	return true
+func (cache *redis) Clear(prefix string) {
+
 }

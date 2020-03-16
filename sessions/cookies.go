@@ -42,17 +42,16 @@ func (c *Cookie) Get(name string) string {
 }
 
 func (c *Cookie) Set(name string, value string, maxAge int) {
-	var val string
 	if c.transcoder != nil {
 		var err error
-		val, err = c.transcoder.Encode(name, value)
+		value, err = c.transcoder.Encode(name, value)
 		if err != nil {
 			panic(err)
 		}
 	}
 	cookie := &http.Cookie{
 		Name:   name,
-		Value:  val,
+		Value:  value,
 		Path:   "/",
 		MaxAge: maxAge,
 	}

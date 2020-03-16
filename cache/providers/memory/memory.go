@@ -7,27 +7,55 @@ package memory
 import (
 	"errors"
 	"github.com/xiusin/pine"
+	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 	"unsafe"
 )
 
-
-var	keyNotExistsError = errors.New("key not exists or expired")
+var keyNotExistsError = errors.New("key not exists or expired")
 
 type Option struct {
-	TTL        int
-	GCInterval int //sec
+	GCInterval int
 	Prefix     string
-	maxMemSize int // bit
 }
 type memory struct {
-	prefix    string
-	totalSize int32
-	option    *Option
-	store     sync.Map
+	prefix string
+	option *Option
+	store  sync.Map
 }
+
+func (m *memory) Set(key string, val []byte, ttl ...int) error {
+	data := &entry{
+		data:      val,
+		ExpiresAt: m.getExpireAt(ttl),
+	}
+	data.size = int32(unsafe.Sizeof(data)) + 4
+	m.store.Store(m.getKey(key), data)
+	return nil
+}
+
+func (m *memory) Delete(key string) error {
+	if data, ok := m.store.Load(m.getKey(key)); ok {
+		_, ok := data.(*entry)
+		if ok {
+			m.store.Delete(m.getKey(key))
+		} else {
+			return keyNotExistsError
+		}
+	}
+	return nil
+}
+
+func (m *memory) Clear(prefix string) {
+	m.store.Range(func(key, value interface{}) bool {
+		if strings.HasPrefix(key.(string), prefix) {
+			m.store.Delete(key)
+		}
+		return true
+	})
+}
+
 type entry struct {
 	data      []byte
 	size      int32
@@ -39,11 +67,8 @@ func (e *entry) isExpired() bool {
 }
 
 func New(opt Option) *memory {
-	if opt.maxMemSize == 0 {
-		opt.maxMemSize = 500 * 1024 * 1024
-	}
 	if opt.GCInterval == 0 {
-		opt.GCInterval = 30
+		opt.GCInterval = 15
 	}
 	cache := &memory{
 		prefix: opt.Prefix,
@@ -53,11 +78,11 @@ func New(opt Option) *memory {
 	return cache
 }
 
-func (m *memory) getExpireAt(ttl int) time.Time {
-	if ttl == 0 {
+func (m *memory) getExpireAt(ttl []int) time.Time {
+	if ttl == nil {
 		return time.Time{}
 	}
-	return time.Now().Add(time.Duration(ttl) * time.Second)
+	return time.Now().Add(time.Duration(ttl[0]) * time.Second)
 }
 
 func (m *memory) Get(key string) ([]byte, error) {
@@ -76,63 +101,24 @@ func (m *memory) getKey(key string) string {
 	return m.prefix + key
 }
 
-func (m *memory) Save(key string, val []byte, ttl ...int) bool {
-	if len(ttl) == 0 {
-		ttl = []int{m.option.TTL}
-	}
-	data := &entry{
-		data:      val,
-		ExpiresAt: m.getExpireAt(ttl[0]),
-	}
-	data.size = int32(unsafe.Sizeof(data)) + 4
-	if int32(m.option.maxMemSize) > m.totalSize {
-		atomic.AddInt32(&m.totalSize, data.size)
-		m.store.Store(m.getKey(key), data)
-	} else {
-		pine.Logger().Error("已超出设置内存限制, 无法存储")
-		return false
-	}
-	return true
-}
-
-func (m *memory) Delete(key string) bool {
-	if data, ok := m.store.Load(m.getKey(key)); ok {
-		d, ok := data.(*entry)
-		if ok {
-			atomic.AddInt32(&m.totalSize, -d.size)
-			m.store.Delete(m.getKey(key))
-		}
-	}
-	return true
-}
-
 func (m *memory) Exists(key string) bool {
 	if data, ok := m.store.Load(m.getKey(key)); ok {
 		d, ok := data.(*entry)
 		if ok && !d.isExpired() {
 			return true
 		}
-		atomic.AddInt32(&m.totalSize, -d.size)
 		m.store.Delete(m.getKey(key))
 	}
 	return false
 }
 
-func (m *memory) Batch(data map[string][]byte, ttl ...int) bool {
-	for k, v := range data {
-		m.Save(k, v, ttl...)
-	}
-	return true
-}
-
-// 简单化实现
 func (m *memory) cleanup() {
 	for range time.Tick(time.Duration(m.option.GCInterval) * time.Second) {
 		m.store.Range(func(key, value interface{}) bool {
 			item, ok := value.(*entry)
 			if ok && item.isExpired() {
+				pine.Logger().Print("session", key, "expired!")
 				m.store.Delete(key)
-				atomic.AddInt32(&m.totalSize, -item.size)
 			}
 			return true
 		})
