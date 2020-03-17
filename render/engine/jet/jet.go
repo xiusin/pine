@@ -1,10 +1,11 @@
 package jet
 
 import (
+	"github.com/CloudyKit/jet"
 	"io"
 	"reflect"
-
-	"github.com/CloudyKit/jet"
+	"runtime"
+	"strings"
 )
 
 type PineJet struct {
@@ -36,6 +37,9 @@ func (p *PineJet) Ext() string {
 }
 
 func (p *PineJet) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
+	if runtime.GOOS == "windows" {
+		name = strings.Replace(name, "\\","/",-1)
+	}
 	t, err := p.GetTemplate(name)
 	if err != nil {
 		return err

@@ -6,7 +6,6 @@ package sessions
 
 import (
 	"fmt"
-	"time"
 )
 
 const defaultSessionName = "pine_sessionid"

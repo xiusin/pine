@@ -5,7 +5,8 @@
 package badger
 
 import (
-	"runtime"
+	"github.com/xiusin/logger"
+	"github.com/xiusin/pine"
 	"time"
 
 	badgerDB "github.com/dgraph-io/badger"
@@ -17,7 +18,7 @@ type Option struct {
 	Prefix string
 }
 
-func New(revOpt Option) *badger {
+func New(revOpt Option) *Badger {
 	var err error
 	if revOpt.Path == "" {
 		panic("path params must be set")
@@ -29,23 +30,30 @@ func New(revOpt Option) *badger {
 	if err != nil {
 		panic(err)
 	}
-	b := badger{
-		client: db,
+	b := Badger{
+		Client: db,
 		option: &revOpt,
 		prefix: revOpt.Prefix,
 	}
-	runtime.SetFinalizer(&b, func(b *badger) { _ = b.client.Close() })
+	pine.RegisterOnInterrupt(func() {
+		err := b.Client.Close()
+		if err != nil {
+			logger.Error("Close the Badger DB Failed", err)
+		} else {
+			logger.Print("Close the Badger DB Success")
+		}
+	})
 	return &b
 }
 
-type badger struct {
+type Badger struct {
 	option *Option
 	prefix string
-	client *badgerDB.DB
+	Client *badgerDB.DB
 }
 
-func (c *badger) Get(key string) (val []byte, err error) {
-	if err = c.client.View(func(tx *badgerDB.Txn) error {
+func (c *Badger) Get(key string) (val []byte, err error) {
+	if err = c.Client.View(func(tx *badgerDB.Txn) error {
 		if e, err := tx.Get([]byte(c.prefix + key)); err != nil {
 			return err
 		} else {
@@ -60,8 +68,8 @@ func (c *badger) Get(key string) (val []byte, err error) {
 	return
 }
 
-func (c *badger) Set(key string, val []byte, ttl ...int) error {
-	return c.client.Update(func(tx *badgerDB.Txn) error {
+func (c *Badger) Set(key string, val []byte, ttl ...int) error {
+	return c.Client.Update(func(tx *badgerDB.Txn) error {
 		if len(ttl) == 0 {
 			ttl = []int{c.option.TTL}
 		}
@@ -73,8 +81,8 @@ func (c *badger) Set(key string, val []byte, ttl ...int) error {
 	})
 }
 
-func (c *badger) Delete(key string) error {
-	return c.client.Update(func(tx *badgerDB.Txn) error {
+func (c *Badger) Delete(key string) error {
+	return c.Client.Update(func(tx *badgerDB.Txn) error {
 		if err := tx.Delete([]byte(c.prefix + key)); err != nil {
 			return err
 		}
@@ -82,8 +90,8 @@ func (c *badger) Delete(key string) error {
 	})
 }
 
-func (c *badger) Exists(key string) bool {
-	if err := c.client.View(func(tx *badgerDB.Txn) error {
+func (c *Badger) Exists(key string) bool {
+	if err := c.Client.View(func(tx *badgerDB.Txn) error {
 		if _, err := tx.Get([]byte(c.prefix + key)); err != nil {
 			return err
 		}
@@ -94,13 +102,13 @@ func (c *badger) Exists(key string) bool {
 	return true
 }
 
-func (c *badger) Clear(prefix string) {
-	txn := c.client.NewTransaction(true)
+func (c *Badger) Clear(prefix string) {
+	txn := c.Client.NewTransaction(true)
 	defer txn.Commit()
 
 	iter := txn.NewIterator(badgerDB.IteratorOptions{PrefetchSize: 100})
 	defer iter.Close()
-	for iter.Rewind(); iter.ValidForPrefix([]byte(c.prefix+prefix)); iter.Next() {
+	for iter.Rewind(); iter.ValidForPrefix([]byte(c.prefix + prefix)); iter.Next() {
 		key := iter.Item().Key()
 		if err := txn.Delete(key); err != nil {
 			continue

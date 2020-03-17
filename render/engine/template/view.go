@@ -19,7 +19,7 @@ type htmlEngine struct {
 	sync.Once
 	*template.Template
 
-	funcMap  template.FuncMap
+	funcMap template.FuncMap
 	reload  bool
 	viewDir string
 	ext     string
@@ -60,7 +60,7 @@ func (t *htmlEngine) walk() {
 					panic(err)
 				}
 
-				_, err = t.Template.New(relPath).Funcs(t.funcMap).Parse(string(buf))
+				_, err = t.Template.New(strings.Replace(relPath, "\\", "/", -1)).Funcs(t.funcMap).Parse(string(buf))
 				if err != nil {
 					panic(err)
 				}
