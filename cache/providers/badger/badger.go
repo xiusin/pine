@@ -6,10 +6,9 @@ package badger
 
 import (
 	"github.com/xiusin/logger"
-	"github.com/xiusin/pine"
 	"time"
 
-	badgerDB "github.com/dgraph-io/badger"
+	badgerDB "github.com/dgraph-io/badger/v2"
 )
 
 type Option struct {
@@ -23,6 +22,7 @@ func New(revOpt Option) *Badger {
 	if revOpt.Path == "" {
 		panic("path params must be set")
 	}
+	logger.Debug("Bardger version: ")
 	opt := badgerDB.DefaultOptions(revOpt.Path)
 	opt.Dir = revOpt.Path
 	opt.ValueDir = revOpt.Path
@@ -35,14 +35,6 @@ func New(revOpt Option) *Badger {
 		option: &revOpt,
 		prefix: revOpt.Prefix,
 	}
-	pine.RegisterOnInterrupt(func() {
-		err := b.Client.Close()
-		if err != nil {
-			logger.Error("Close the Badger DB Failed", err)
-		} else {
-			logger.Print("Close the Badger DB Success")
-		}
-	})
 	return &b
 }
 

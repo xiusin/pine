@@ -9,7 +9,6 @@ import (
 	"errors"
 	"github.com/xiusin/pine"
 	bolt "go.etcd.io/bbolt"
-	"runtime"
 	"time"
 )
 
@@ -67,7 +66,6 @@ func New(opt Option) *boltdb {
 		prefix: opt.Prefix,
 	}
 	go b.cleanup()
-	runtime.SetFinalizer(&b, func(b *boltdb) { _ = b.client.Close() })
 	return &b
 }
 

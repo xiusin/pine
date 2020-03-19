@@ -91,6 +91,11 @@ func (c *Render) HTML(viewPath string) {
 	c.applied = true
 }
 
+func (c *Render) GetEngine(ext string) render.IRenderer {
+	return c.engines[ext]
+}
+
+
 func (c *Render) JSONP(callback string, v interface{}) error {
 	c.ContentType(contentTypeJSON)
 

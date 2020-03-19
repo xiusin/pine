@@ -8,7 +8,6 @@ import (
 	"fmt"
 	redisgo "github.com/gomodule/redigo/redis"
 	"github.com/xiusin/pine"
-	"runtime"
 	"time"
 )
 
@@ -33,23 +32,6 @@ type redis struct {
 	prefix string
 	ttl    int
 	pool   *redisgo.Pool
-}
-
-func (cache *redis) Set(key string, val []byte, ttl ...int) error {
-	if len(ttl) == 0 {
-		ttl = []int{cache.ttl}
-	}
-	client := cache.pool.Get()
-	_, err := client.Do("SET", cache.getCacheKey(key), val, "EX", ttl[0])
-	_ = client.Close()
-	return err
-}
-
-func (cache *redis) Delete(key string) error {
-	client := cache.pool.Get()
-	_, _ = client.Do("DEL", cache.getCacheKey(key))
-	_ = client.Close()
-	return nil
 }
 
 func DefaultOption() Option {
@@ -94,7 +76,6 @@ func New(opt Option) *redis {
 			},
 		},
 	}
-	runtime.SetFinalizer(&b, func(b *redis) { _ = b.pool.Close() })
 	return &b
 }
 
@@ -117,6 +98,23 @@ func (cache *redis) Do(callback func(*redisgo.Conn)) {
 	client := cache.pool.Get()
 	callback(&client)
 	_ = client.Close()
+}
+
+func (cache *redis) Set(key string, val []byte, ttl ...int) error {
+	if len(ttl) == 0 {
+		ttl = []int{cache.ttl}
+	}
+	client := cache.pool.Get()
+	_, err := client.Do("SET", cache.getCacheKey(key), val, "EX", ttl[0])
+	_ = client.Close()
+	return err
+}
+
+func (cache *redis) Delete(key string) error {
+	client := cache.pool.Get()
+	_, _ = client.Do("DEL", cache.getCacheKey(key))
+	_ = client.Close()
+	return nil
 }
 
 func (cache *redis) Exists(key string) bool {
