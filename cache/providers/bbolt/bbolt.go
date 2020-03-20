@@ -7,6 +7,7 @@ package bbolt
 import (
 	"encoding/json"
 	"errors"
+	"github.com/xiusin/logger"
 	"github.com/xiusin/pine"
 	bolt "go.etcd.io/bbolt"
 	"time"
@@ -29,12 +30,12 @@ type boltdb struct {
 	client *bolt.DB
 }
 
-type entry struct {
+type Entry struct {
 	LifeTime time.Time `json:"life_time"`
-	Val      []byte    `json:"val"`
+	Val      string    `json:"val"`
 }
 
-func (e *entry) isExpired() bool {
+func (e *Entry) isExpired() bool {
 	return !e.LifeTime.IsZero() && time.Now().Sub(e.LifeTime) >= 0
 }
 
@@ -49,7 +50,7 @@ func New(opt Option) *boltdb {
 	if opt.CleanupInterval == 0 {
 		opt.CleanupInterval = 30
 	}
-	db, err := bolt.Open(opt.Path, 0600, opt.BoltOpt)
+	db, err := bolt.Open(opt.Path, 0666, opt.BoltOpt)
 	if err != nil {
 		panic(err)
 	}
@@ -69,57 +70,54 @@ func New(opt Option) *boltdb {
 	return &b
 }
 
-func (c *boltdb) Get(key string) (val []byte, err error) {
-	err = c.client.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(c.option.BucketName))
-		key := []byte(c.option.Prefix + key)
-		valByte := b.Get(key)
-		var e entry
+func (b *boltdb) Get(key string) (val []byte, err error) {
+	err = b.client.View(func(tx *bolt.Tx) error {
+		buck := tx.Bucket([]byte(b.option.BucketName))
+		valByte:= buck.Get(b.getKey(key))
+		pine.Logger().Debug("valByte ", string(valByte))
+		var e Entry
 		if err = json.Unmarshal(valByte, &e); err != nil {
+			logger.Error(b.option.BucketName, string(b.getKey(key)),string(valByte), err)
 			return err
 		}
 		if e.isExpired() {
 			err = keyNotExistsErr
 		} else {
-			val = e.Val
+			val = []byte(e.Val)
 		}
 		return err
 	})
 	return
 }
 
-func (c *boltdb) Save(key string, val []byte, ttl ...int) bool {
-	if err := c.client.Update(func(tx *bolt.Tx) error {
-		var e = entry{LifeTime: c.getTime(ttl...), Val: val}
+
+func (b *boltdb) Set(key string, val []byte, ttl ...int) error {
+	return b.client.Update(func(tx *bolt.Tx) error {
+		var e = Entry{LifeTime: b.getTime(ttl...), Val: string(val)}
 		var err error
 		if val, err = json.Marshal(&e); err != nil {
 			return err
 		}
-		return tx.Bucket([]byte(c.option.BucketName)).Put([]byte(c.option.Prefix+key), val)
-	}); err != nil {
-		return false
-	}
-	return true
+		return tx.Bucket([]byte(b.option.BucketName)).Put(b.getKey(key), val)
+	})
 }
 
-func (c *boltdb) Delete(key string) bool {
-	if err := c.client.Update(func(tx *bolt.Tx) error {
-		if err := tx.Bucket([]byte(c.option.BucketName)).Delete([]byte(c.prefix + key)); err != nil {
+
+func (b *boltdb) Delete(key string) error {
+	return b.client.Update(func(tx *bolt.Tx) error {
+		if err := tx.Bucket([]byte(b.option.BucketName)).Delete(b.getKey(key)); err != nil {
 			return err
 		}
 		return nil
-	}); err != nil {
-		return false
-	}
-	return true
+	})
 }
 
-func (c *boltdb) Exists(key string) bool {
-	if err := c.client.View(func(tx *bolt.Tx) error {
-		if val := tx.Bucket([]byte(c.option.BucketName)).Get([]byte(c.prefix + key)); val == nil {
+func (b *boltdb) Exists(key string) bool {
+	if err := b.client.View(func(tx *bolt.Tx) error {
+		if val := tx.Bucket([]byte(b.option.BucketName)).Get(b.getKey(key)); val == nil {
 			return keyNotExistsErr
 		} else {
-			var e entry
+			var e Entry
 			if err := json.Unmarshal(val, &e); err != nil {
 				return err
 			}
@@ -135,51 +133,26 @@ func (c *boltdb) Exists(key string) bool {
 	return true
 }
 
-func (c *boltdb) Batch(data map[string][]byte, ttl ...int) bool {
-	if err := c.client.Batch(func(tx *bolt.Tx) error {
-		t := c.getTime(ttl...)
-		for key, val := range data {
-			var e = entry{LifeTime: t, Val: val}
-			var err error
-			if val, err = json.Marshal(&e); err != nil {
-				return err
-			}
-			if err := tx.Bucket([]byte(c.option.BucketName)).Put([]byte(c.prefix+key), val); err != nil {
-				return err
-			}
+func (b *boltdb) Clear(prefix string) {
+	if err := b.client.Update(func(tx *bolt.Tx) error {
+		buckName := []byte(b.option.BucketName)
+		err := tx.DeleteBucket(buckName)
+		if err == nil {
+			_, err = tx.CreateBucketIfNotExists(buckName)
 		}
-		return nil
+		return err
 	}); err != nil {
-		return false
-	} else {
-		return true
+		panic(err)
 	}
 }
 
-func (c *boltdb) Do(callback func(*bolt.DB)) {
-	callback(c.client)
+func (b *boltdb) Client() *bolt.DB {
+	return b.client
 }
 
-//func (c *boltdb) Clear() {
-//	if err := c.client.Update(func(tx *bolt.Tx) error {
-//		buckName := []byte(c.option.BucketName)
-//		err := tx.DeleteBucket(buckName)
-//		if err == nil {
-//			_, err = tx.CreateBucketIfNotExists(buckName)
-//		}
-//		return err
-//	}); err != nil {
-//		panic(err)
-//	}
-//}
-
-func (c *boltdb) Client() *bolt.DB {
-	return c.client
-}
-
-func (c *boltdb) getTime(ttl ...int) time.Time {
+func (b *boltdb) getTime(ttl ...int) time.Time {
 	if len(ttl) == 0 {
-		ttl = append(ttl, c.option.TTL)
+		ttl = append(ttl, b.option.TTL)
 	}
 	var t time.Time
 	if ttl[0] == 0 {
@@ -190,12 +163,16 @@ func (c *boltdb) getTime(ttl ...int) time.Time {
 	return t
 }
 
-func (c *boltdb) cleanup() {
-	for range time.Tick(time.Second * time.Duration(c.option.CleanupInterval)) {
-		if err := c.client.Batch(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(c.option.BucketName))
+func (b *boltdb) getKey(key string) []byte  {
+	return []byte(b.prefix+key)
+}
+
+func (b *boltdb) cleanup() {
+	for range time.Tick(time.Second * time.Duration(b.option.CleanupInterval)) {
+		if err := b.client.Batch(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(b.option.BucketName))
 			return b.ForEach(func(k, v []byte) error {
-				var e entry
+				var e Entry
 				var err error
 				if err = json.Unmarshal(v, &e); err != nil {
 					return err

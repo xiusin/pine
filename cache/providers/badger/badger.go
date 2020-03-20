@@ -5,7 +5,6 @@
 package badger
 
 import (
-	"github.com/xiusin/logger"
 	"time"
 
 	badgerDB "github.com/dgraph-io/badger/v2"
@@ -22,7 +21,6 @@ func New(revOpt Option) *Badger {
 	if revOpt.Path == "" {
 		panic("path params must be set")
 	}
-	logger.Debug("Bardger version: ")
 	opt := badgerDB.DefaultOptions(revOpt.Path)
 	opt.Dir = revOpt.Path
 	opt.ValueDir = revOpt.Path
