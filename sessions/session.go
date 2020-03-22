@@ -34,7 +34,7 @@ func (sess *Session) Set(key string, val string) {
 
 func (sess *Session) Get(key string) string {
 	var val entry
-	if err := sess.store.Get(sess.makeKey(key), &val); err != nil {
+	if err := sess.store.Get(sess.makeKey(key), &val); err == nil {
 		if val.Flush {
 			sess.Remove(sess.makeKey(key))
 		}
@@ -43,15 +43,11 @@ func (sess *Session) Get(key string) string {
 }
 
 func (sess *Session) AddFlush(key string, val string) {
-	if err := sess.store.Save(sess.makeKey(key), &entry{Val: val, Flush: true}); err != nil {
-		fmt.Println("占位以后替换为组件:", err)
-	}
+	 sess.store.Save(sess.makeKey(key), &entry{Val: val, Flush: true})
 }
 
 func (sess *Session) Remove(key string) {
-	if err := sess.store.Delete(sess.makeKey(key)); err != nil {
-		fmt.Println("占位以后替换为组件:", err)
-	}
+	sess.store.Delete(sess.makeKey(key))
 }
 
 func (sess *Session) Clear() {

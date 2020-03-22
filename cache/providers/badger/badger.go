@@ -7,7 +7,7 @@ package badger
 import (
 	"time"
 
-	badgerDB "github.com/dgraph-io/badger/v2"
+	badgerDB "github.com/dgraph-io/badger"
 )
 
 type Option struct {
@@ -21,15 +21,17 @@ func New(revOpt Option) *Badger {
 	if revOpt.Path == "" {
 		panic("path params must be set")
 	}
+
 	opt := badgerDB.DefaultOptions(revOpt.Path)
 	opt.Dir = revOpt.Path
 	opt.ValueDir = revOpt.Path
+
 	db, err := badgerDB.Open(opt)
 	if err != nil {
 		panic(err)
 	}
 	b := Badger{
-		Client: db,
+		DB: db,
 		option: &revOpt,
 		prefix: revOpt.Prefix,
 	}
@@ -39,11 +41,11 @@ func New(revOpt Option) *Badger {
 type Badger struct {
 	option *Option
 	prefix string
-	Client *badgerDB.DB
+	*badgerDB.DB
 }
 
 func (c *Badger) Get(key string) (val []byte, err error) {
-	if err = c.Client.View(func(tx *badgerDB.Txn) error {
+	err = c.View(func(tx *badgerDB.Txn) error {
 		if e, err := tx.Get([]byte(c.prefix + key)); err != nil {
 			return err
 		} else {
@@ -52,14 +54,12 @@ func (c *Badger) Get(key string) (val []byte, err error) {
 				return nil
 			})
 		}
-	}); err != nil {
-		return val, err
-	}
+	})
 	return
 }
 
 func (c *Badger) Set(key string, val []byte, ttl ...int) error {
-	return c.Client.Update(func(tx *badgerDB.Txn) error {
+	return c.Update(func(tx *badgerDB.Txn) error {
 		if len(ttl) == 0 {
 			ttl = []int{c.option.TTL}
 		}
@@ -72,7 +72,7 @@ func (c *Badger) Set(key string, val []byte, ttl ...int) error {
 }
 
 func (c *Badger) Delete(key string) error {
-	return c.Client.Update(func(tx *badgerDB.Txn) error {
+	return c.Update(func(tx *badgerDB.Txn) error {
 		if err := tx.Delete([]byte(c.prefix + key)); err != nil {
 			return err
 		}
@@ -81,7 +81,7 @@ func (c *Badger) Delete(key string) error {
 }
 
 func (c *Badger) Exists(key string) bool {
-	if err := c.Client.View(func(tx *badgerDB.Txn) error {
+	if err := c.View(func(tx *badgerDB.Txn) error {
 		if _, err := tx.Get([]byte(c.prefix + key)); err != nil {
 			return err
 		}
@@ -93,7 +93,7 @@ func (c *Badger) Exists(key string) bool {
 }
 
 func (c *Badger) Clear(prefix string) {
-	txn := c.Client.NewTransaction(true)
+	txn := c.NewTransaction(true)
 	defer txn.Commit()
 
 	iter := txn.NewIterator(badgerDB.IteratorOptions{PrefetchSize: 100})

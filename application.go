@@ -82,6 +82,7 @@ type Router struct {
 
 	groups               map[string]*Router
 	registeredSubdomains map[string]*Router
+	staticPath           map[string]struct{}
 	subdomain            string
 	hostname             string
 }
@@ -103,6 +104,7 @@ func New() *Application {
 			methodRoutes:         initRouteMap(),
 			groups:               map[string]*Router{},
 			registeredSubdomains: map[string]*Router{},
+			staticPath:           map[string]struct{}{},
 		},
 		configuration:  &Configuration{},
 		recoverHandler: defaultRecoverHandler,
@@ -334,12 +336,14 @@ func (r *Router) getPattern(str string) (paramName, pattern string) {
 	return
 }
 
+// 匹配路由  非匹配路由的时候不可直接
 func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 	var host string
 	if r.hostname != zeroIP {
 		host = strings.Replace(strings.Split(ctx.req.Host, ":")[0], r.hostname, "", 1)
 	}
 	var ok bool
+	// 查看是否有注册域名路由
 	if len(host) != 0 {
 		if r, ok = r.registeredSubdomains[host]; !ok {
 			return nil
@@ -353,10 +357,14 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 			if route.Method != method {
 				continue
 			}
+
 			if !route.resolved {
-				route.ExtendsMiddleWare = r.middleWares
+				if _, ok := r.staticPath[p]; !ok {
+					route.ExtendsMiddleWare = r.middleWares
+				}
 				route.resolved = true
 			}
+
 			return route
 		}
 		groupRouter, ok := r.groups[p]
@@ -433,6 +441,7 @@ func (r *Router) Use(middleWares ...Handler) {
 
 func (r *Router) Static(path, dir string, mws ...Handler) {
 	fileServer := http.FileServer(http.Dir(dir))
+	r.staticPath[path] = struct{}{}	// 记录静态资源路由,排除中间件调用
 	r.GET(path, func(c *Context) {
 		http.StripPrefix(path, fileServer).ServeHTTP(c.Writer(), c.Request())
 	}, mws...)

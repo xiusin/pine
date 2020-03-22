@@ -6,6 +6,7 @@ package sessions
 
 import (
 	uuid "github.com/satori/go.uuid"
+	"strings"
 	"time"
 )
 
@@ -45,8 +46,8 @@ func New(provider ISessionStore, cfg *Config) *Sessions {
 }
 
 func GetSessionId() string {
-	u := uuid.NewV4()
-	return u.String()
+	// //todo key如果包含"-"会无法读取到内容 Badger  bbolt都如此
+	return strings.ReplaceAll(uuid.NewV4().String(), "-", "")
 }
 
 func (m *Sessions) Session(cookie *Cookie) (sess ISession, err error) {
