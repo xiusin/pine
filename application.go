@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"path"
 	"reflect"
 	"regexp"
 	"strings"
@@ -33,8 +34,11 @@ var (
 	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_/]+)(<.+?>)?")
 
 	// 路由规则与字段映射
-	patternMap = map[string]string{":int": "<\\d+>", ":string": "<[\\w0-9\\_\\.\\+\\-]+>"}
-
+	patternMap = map[string]string{
+		":int":    "<\\d+>",
+		":string": "<[\\w0-9\\_\\.\\+\\-]+>",
+		":any":    "<[/\\w0-9\\_\\.\\+\\-]+>", // *
+	}
 	_ IRouter = (*Application)(nil)
 )
 
@@ -60,7 +64,7 @@ type IRouter interface {
 	DELETE(path string, handle Handler, mws ...Handler)
 
 	StaticFile(string, string, ...Handler)
-	Static(string, string, ...Handler)
+	Static(string, string)
 }
 
 type IRegisterHandler interface {
@@ -82,7 +86,6 @@ type Router struct {
 
 	groups               map[string]*Router
 	registeredSubdomains map[string]*Router
-	staticPath           map[string]struct{}
 	subdomain            string
 	hostname             string
 }
@@ -104,7 +107,6 @@ func New() *Application {
 			methodRoutes:         initRouteMap(),
 			groups:               map[string]*Router{},
 			registeredSubdomains: map[string]*Router{},
-			staticPath:           map[string]struct{}{},
 		},
 		configuration:  &Configuration{},
 		recoverHandler: defaultRecoverHandler,
@@ -160,8 +162,6 @@ func (r *Router) register(router IRouter, controller IController) {
 	}
 }
 
-// GetIndex => index [GET]
-// GetIndexPost => index_post [GET]
 func (r *Router) matchRegister(router IRouter, path string, handle Handler) {
 	var methods = map[string]routeMaker{
 		"Get":     router.GET,
@@ -294,12 +294,12 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 		for _, v := range uriPartials {
 			if strings.Contains(v, ":") {
 				pattern = pattern + urlSeparator + patternRouteCompiler.ReplaceAllStringFunc(v, func(s string) string {
-					param, patternStr := r.getPattern(s)
+					param, patternStr := r.getPattern(s, false)
 					params = append(params, param)
 					return patternStr
 				})
 			} else if strings.HasPrefix(v, "*") {
-				param, patternStr := r.getPattern(v)
+				param, patternStr := r.getPattern(v, true)
 				pattern = fmt.Sprintf("%s%s?%s?", pattern, urlSeparator, patternStr)
 				params = append(params, param)
 			} else {
@@ -323,10 +323,14 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 	}
 }
 
-func (r *Router) getPattern(str string) (paramName, pattern string) {
+func (r *Router) getPattern(str string, any bool) (paramName, pattern string) {
 	params := patternRouteCompiler.FindAllStringSubmatch(str, 1)
 	if len(params[0][2]) == 0 {
-		params[0][2] = patternMap[":string"]
+		if any {
+			params[0][2] = patternMap[":any"]
+		} else {
+			params[0][2] = patternMap[":string"]
+		}
 	}
 	pattern = strings.Trim(strings.Trim(params[0][2], "<"), ">")
 	if len(pattern) > 0 {
@@ -343,30 +347,28 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 		host = strings.Replace(strings.Split(ctx.req.Host, ":")[0], r.hostname, "", 1)
 	}
 	var ok bool
+	method := ctx.Request().Method
 	// 查看是否有注册域名路由
 	if len(host) != 0 {
 		if r, ok = r.registeredSubdomains[host]; !ok {
 			return nil
 		}
 	}
+
+	// 优先匹配完整路由
+	fullPath := strings.Trim(ctx.req.URL.Path, urlSeparator)
+	if route, ok := r.methodRoutes[method][fullPath]; ok {
+		if !route.resolved {
+			route.ExtendsMiddleWare = r.middleWares
+			route.resolved = true
+		}
+		return route
+	}
+
 	pathInfo := strings.Split(ctx.req.URL.Path, urlSeparator)
-	method, l := ctx.Request().Method, len(pathInfo)
+	l := len(pathInfo)
 	for i := 1; i <= l; i++ {
 		p := strings.Join(pathInfo[:i], urlSeparator)
-		if route, ok := r.methodRoutes[method][p]; ok {
-			if route.Method != method {
-				continue
-			}
-
-			if !route.resolved {
-				if _, ok := r.staticPath[p]; !ok {
-					route.ExtendsMiddleWare = r.middleWares
-				}
-				route.resolved = true
-			}
-
-			return route
-		}
 		groupRouter, ok := r.groups[p]
 		if ok {
 			if route := groupRouter.lookupGroupRoute(i, method, pathInfo); route != nil {
@@ -439,12 +441,19 @@ func (r *Router) Use(middleWares ...Handler) {
 	r.middleWares = append(r.middleWares, middleWares...)
 }
 
-func (r *Router) Static(path, dir string, mws ...Handler) {
+// 注意: 会走全局中间件
+func (r *Router) Static(urlPath, dir string) {
 	fileServer := http.FileServer(http.Dir(dir))
-	r.staticPath[path] = struct{}{}	// 记录静态资源路由,排除中间件调用
-	r.GET(path, func(c *Context) {
-		http.StripPrefix(path, fileServer).ServeHTTP(c.Writer(), c.Request())
-	}, mws...)
+	handler := func(c *Context) {
+		if c.Params().Get("filepath") == "" {
+			c.Abort(http.StatusNotFound)
+			return
+		}
+		http.StripPrefix(urlPath, fileServer).ServeHTTP(c.Writer(), c.Request())
+	}
+	routePath := path.Join(urlPath, "*filepath")
+	r.GET(routePath, handler)
+	r.HEAD(routePath, handler)
 }
 
 func (r *Router) StaticFile(path, file string, mws ...Handler) {

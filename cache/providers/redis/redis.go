@@ -101,11 +101,15 @@ func (cache *redis) Do(callback func(*redisgo.Conn)) {
 }
 
 func (cache *redis) Set(key string, val []byte, ttl ...int) error {
+	params := []interface{}{cache.getCacheKey(key), val}
 	if len(ttl) == 0 {
 		ttl = []int{cache.ttl}
 	}
+	if ttl[0] > 0 {
+		params = append(params, "EX", ttl[0])
+	}
 	client := cache.pool.Get()
-	_, err := client.Do("SET", cache.getCacheKey(key), val, "EX", ttl[0])
+	_, err := client.Do("SET", params...)
 	_ = client.Close()
 	return err
 }

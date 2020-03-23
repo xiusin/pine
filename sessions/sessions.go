@@ -5,8 +5,9 @@
 package sessions
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	uuid "github.com/satori/go.uuid"
-	"strings"
 	"time"
 )
 
@@ -46,8 +47,10 @@ func New(provider ISessionStore, cfg *Config) *Sessions {
 }
 
 func GetSessionId() string {
-	// //todo key如果包含"-"会无法读取到内容 Badger  bbolt都如此
-	return strings.ReplaceAll(uuid.NewV4().String(), "-", "")
+	hash := md5.New()
+	hash.Write(uuid.NewV4().Bytes())
+	bytes := hash.Sum(nil)
+	return hex.EncodeToString(bytes)[:16]
 }
 
 func (m *Sessions) Session(cookie *Cookie) (sess ISession, err error) {

@@ -15,6 +15,8 @@ func main() {
 		ctx.Next()
 	})
 
+	app.Static("/assets/", ".")
+
 	app.Use(func(ctx *pine.Context) {
 		if ctx.Params().Get("action") == "stop" {
 			ctx.Abort(404) // or ctx.Stop()
@@ -34,7 +36,7 @@ func main() {
 				return
 			}
 		}
-		ctx.Render().Text("无数据")
+		ctx.Render().Text("无数据" + action)
 	})
 
 	// http://127.0.0.1:9528/hello/!  404
@@ -56,6 +58,9 @@ func main() {
 			fmt.Println("向g中添加新的中间件")
 			ctx.Next()
 		})
+		g.GET("/", func(ctx *pine.Context) {
+			ctx.Render().Text("分组路由跟地址:" + ctx.Request().URL.Path )
+		})
 		g.GET("/index", func(ctx *pine.Context) {
 			ctx.Writer().Write([]byte(ctx.Request().RequestURI))
 		})
@@ -70,5 +75,5 @@ func main() {
 		}
 	}
 
-	app.Run(pine.Addr(":9528"))
+	app.Run(pine.Addr(":9528"), pine.WithCharset("UTF8"))
 }

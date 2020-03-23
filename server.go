@@ -23,8 +23,9 @@ const defaultAddressWithPort = zeroIP + ":9528"
 func (a *Application) newServer(s *http.Server, tls bool) *http.Server {
 	if s.Handler == nil {
 		s.Handler = a.handler
+	} else {
+		a.handler = s.Handler
 	}
-	a.handler = s.Handler
 	if s.ErrorLog == nil {
 		s.ErrorLog = log.New(
 			os.Stdout,

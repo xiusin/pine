@@ -5,9 +5,10 @@
 package badger
 
 import (
+	"github.com/xiusin/logger"
 	"time"
 
-	badgerDB "github.com/dgraph-io/badger"
+	badgerDB "github.com/dgraph-io/badger/v2"
 )
 
 type Option struct {
@@ -25,7 +26,7 @@ func New(revOpt Option) *Badger {
 	opt := badgerDB.DefaultOptions(revOpt.Path)
 	opt.Dir = revOpt.Path
 	opt.ValueDir = revOpt.Path
-
+	logger.SetLogLevel(logger.DebugLevel)
 	db, err := badgerDB.Open(opt)
 	if err != nil {
 		panic(err)
@@ -46,11 +47,14 @@ type Badger struct {
 
 func (c *Badger) Get(key string) (val []byte, err error) {
 	err = c.View(func(tx *badgerDB.Txn) error {
-		if e, err := tx.Get([]byte(c.prefix + key)); err != nil {
+		e, err := tx.Get([]byte(c.prefix + key))
+		if err != nil {
+			logger.Error(err)
 			return err
 		} else {
 			return e.Value(func(v []byte) error {
 				val = v
+				logger.Debugf("get key %s => val : %s",c.prefix + key, string(v))
 				return nil
 			})
 		}
@@ -67,7 +71,13 @@ func (c *Badger) Set(key string, val []byte, ttl ...int) error {
 		if ttl[0] > 0 {
 			e.WithTTL(time.Duration(ttl[0]) * time.Second)
 		}
-		return tx.SetEntry(e)
+		err := tx.SetEntry(e)
+		if err != nil {
+			logger.Error(err)
+		} else {
+			logger.Debugf("set key %s => val : %s",c.prefix + key, string(e.Value))
+		}
+		return err
 	})
 }
 
