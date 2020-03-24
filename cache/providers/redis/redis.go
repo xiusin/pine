@@ -5,6 +5,7 @@
 package redis
 
 import (
+	"encoding/json"
 	"fmt"
 	redisgo "github.com/gomodule/redigo/redis"
 	"github.com/xiusin/pine"
@@ -79,51 +80,69 @@ func New(opt Option) *redis {
 	return &b
 }
 
-func (cache *redis) getCacheKey(key string) string {
-	return cache.prefix + key
+func (r *redis) getCacheKey(key string) string {
+	return r.prefix + key
 }
 
-func (cache *redis) Pool() *redisgo.Pool {
-	return cache.pool
+func (r *redis) Pool() *redisgo.Pool {
+	return r.pool
 }
 
-func (cache *redis) Get(key string) ([]byte, error) {
-	client := cache.pool.Get()
-	s, err := redisgo.Bytes(client.Do("GET", cache.getCacheKey(key)))
+func (r *redis) Get(key string) ([]byte, error) {
+	client := r.pool.Get()
+	s, err := redisgo.Bytes(client.Do("GET", r.getCacheKey(key)))
 	_ = client.Close()
 	return s, err
 }
 
-func (cache *redis) Do(callback func(*redisgo.Conn)) {
-	client := cache.pool.Get()
+func (r *redis) GetWithUnmarshal(key string, receiver interface{}) error {
+	data, err := r.Get(key)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(data, receiver)
+	return err
+}
+
+func (r *redis) Do(callback func(*redisgo.Conn)) {
+	client := r.pool.Get()
 	callback(&client)
 	_ = client.Close()
 }
 
-func (cache *redis) Set(key string, val []byte, ttl ...int) error {
-	params := []interface{}{cache.getCacheKey(key), val}
+func (r *redis) Set(key string, val []byte, ttl ...int) error {
+	params := []interface{}{r.getCacheKey(key), val}
 	if len(ttl) == 0 {
-		ttl = []int{cache.ttl}
+		ttl = []int{r.ttl}
 	}
 	if ttl[0] > 0 {
 		params = append(params, "EX", ttl[0])
 	}
-	client := cache.pool.Get()
+	client := r.pool.Get()
 	_, err := client.Do("SET", params...)
 	_ = client.Close()
 	return err
 }
 
-func (cache *redis) Delete(key string) error {
-	client := cache.pool.Get()
-	_, _ = client.Do("DEL", cache.getCacheKey(key))
-	_ = client.Close()
-	return nil
+func (r *redis) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
+	data, err := json.Marshal(structData)
+	if err != nil {
+		return  err
+	}
+	return r.Set(key, data, ttl...)
 }
 
-func (cache *redis) Exists(key string) bool {
-	client := cache.pool.Get()
-	isKeyExit, _ := redisgo.Bool(client.Do("EXISTS", cache.getCacheKey(key)))
+
+func (r *redis) Delete(key string) error {
+	client := r.pool.Get()
+	_, err := client.Do("DEL", r.getCacheKey(key))
+	_ = client.Close()
+	return err
+}
+
+func (r *redis) Exists(key string) bool {
+	client := r.pool.Get()
+	isKeyExit, _ := redisgo.Bool(client.Do("EXISTS", r.getCacheKey(key)))
 	_ = client.Close()
 	if isKeyExit {
 		return true
@@ -131,6 +150,6 @@ func (cache *redis) Exists(key string) bool {
 	return false
 }
 
-func (cache *redis) Clear(prefix string) {
+func (r *redis) Clear(prefix string) {
 
 }

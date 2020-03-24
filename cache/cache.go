@@ -4,10 +4,12 @@
 
 package cache
 
+
 type ICache interface {
 	Get(string) ([]byte, error)
-	//GetStruct(string) ([]byte, error)	// 预定一个需要传入对象反序列化的方法
+	GetWithUnmarshal(string, interface{}) error
 	Set(string, []byte, ...int) error
+	SetWithMarshal(string, interface{}, ...int) error
 	Delete(string) error
 	Exists(string) bool
 	Clear(string)

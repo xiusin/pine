@@ -36,7 +36,7 @@ func (sess *Session) Get(key string) string {
 	var val entry
 	if err := sess.store.Get(sess.makeKey(key), &val); err == nil {
 		if val.Flush {
-			sess.Remove(sess.makeKey(key))
+			sess.Remove(key)
 		}
 	}
 	return val.Val

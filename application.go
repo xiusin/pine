@@ -356,7 +356,7 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 	}
 
 	// 优先匹配完整路由
-	fullPath := strings.Trim(ctx.req.URL.Path, urlSeparator)
+	fullPath := ctx.req.URL.Path
 	if route, ok := r.methodRoutes[method][fullPath]; ok {
 		if !route.resolved {
 			route.ExtendsMiddleWare = r.middleWares
@@ -366,6 +366,7 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 	}
 
 	pathInfo := strings.Split(ctx.req.URL.Path, urlSeparator)
+
 	l := len(pathInfo)
 	for i := 1; i <= l; i++ {
 		p := strings.Join(pathInfo[:i], urlSeparator)
