@@ -28,7 +28,7 @@ type Option struct {
 	Prefix         string
 }
 
-type redis struct {
+type PineRedis struct {
 	option *Option
 	prefix string
 	ttl    int
@@ -46,14 +46,14 @@ func DefaultOption() Option {
 	}
 }
 
-func New(opt Option) *redis {
+func New(opt Option) *PineRedis {
 	if opt.Host == "" {
 		opt.Host = "127.0.0.1"
 	}
 	if opt.Port == 0 {
 		opt.Port = 6379
 	}
-	b := redis{
+	b := PineRedis{
 		prefix: opt.Prefix,
 		option: &opt,
 		ttl:    opt.TTL,
@@ -80,22 +80,22 @@ func New(opt Option) *redis {
 	return &b
 }
 
-func (r *redis) getCacheKey(key string) string {
+func (r *PineRedis) getCacheKey(key string) string {
 	return r.prefix + key
 }
 
-func (r *redis) Pool() *redisgo.Pool {
+func (r *PineRedis) Pool() *redisgo.Pool {
 	return r.pool
 }
 
-func (r *redis) Get(key string) ([]byte, error) {
+func (r *PineRedis) Get(key string) ([]byte, error) {
 	client := r.pool.Get()
 	s, err := redisgo.Bytes(client.Do("GET", r.getCacheKey(key)))
 	_ = client.Close()
 	return s, err
 }
 
-func (r *redis) GetWithUnmarshal(key string, receiver interface{}) error {
+func (r *PineRedis) GetWithUnmarshal(key string, receiver interface{}) error {
 	data, err := r.Get(key)
 	if err != nil {
 		return err
@@ -104,13 +104,8 @@ func (r *redis) GetWithUnmarshal(key string, receiver interface{}) error {
 	return err
 }
 
-func (r *redis) Do(callback func(*redisgo.Conn)) {
-	client := r.pool.Get()
-	callback(&client)
-	_ = client.Close()
-}
 
-func (r *redis) Set(key string, val []byte, ttl ...int) error {
+func (r *PineRedis) Set(key string, val []byte, ttl ...int) error {
 	params := []interface{}{r.getCacheKey(key), val}
 	if len(ttl) == 0 {
 		ttl = []int{r.ttl}
@@ -124,7 +119,7 @@ func (r *redis) Set(key string, val []byte, ttl ...int) error {
 	return err
 }
 
-func (r *redis) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
+func (r *PineRedis) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
 	data, err := json.Marshal(structData)
 	if err != nil {
 		return  err
@@ -133,14 +128,14 @@ func (r *redis) SetWithMarshal(key string, structData interface{}, ttl ...int) e
 }
 
 
-func (r *redis) Delete(key string) error {
+func (r *PineRedis) Delete(key string) error {
 	client := r.pool.Get()
 	_, err := client.Do("DEL", r.getCacheKey(key))
 	_ = client.Close()
 	return err
 }
 
-func (r *redis) Exists(key string) bool {
+func (r *PineRedis) Exists(key string) bool {
 	client := r.pool.Get()
 	isKeyExit, _ := redisgo.Bool(client.Do("EXISTS", r.getCacheKey(key)))
 	_ = client.Close()
@@ -150,6 +145,6 @@ func (r *redis) Exists(key string) bool {
 	return false
 }
 
-func (r *redis) Clear(prefix string) {
-
+func (r *PineRedis) GetRedisPool() *redisgo.Pool  {
+	return r.pool
 }

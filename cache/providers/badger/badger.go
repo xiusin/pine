@@ -5,6 +5,7 @@
 package badger
 
 import (
+	"encoding/json"
 	"github.com/xiusin/logger"
 	"time"
 
@@ -17,44 +18,54 @@ type Option struct {
 	Prefix string
 }
 
-func New(revOpt Option) *Badger {
-	var err error
+type PineBadger struct {
+	*Option
+	*badgerDB.DB
+}
+
+func New(revOpt Option) *PineBadger {
 	if revOpt.Path == "" {
 		panic("path params must be set")
 	}
-
 	opt := badgerDB.DefaultOptions(revOpt.Path)
 	opt.Dir = revOpt.Path
 	opt.ValueDir = revOpt.Path
-	logger.SetLogLevel(logger.DebugLevel)
 	db, err := badgerDB.Open(opt)
 	if err != nil {
 		panic(err)
 	}
-	b := Badger{
+	b := PineBadger{
 		DB: db,
-		option: &revOpt,
-		prefix: revOpt.Prefix,
+		Option: &revOpt,
 	}
 	return &b
 }
 
-type Badger struct {
-	option *Option
-	prefix string
-	*badgerDB.DB
+func (c *PineBadger) GetWithUnmarshal(key string, receiver interface{}) error {
+	data, err := c.Get(key)
+	if err != nil {
+		return err
+	}
+	err = json.Unmarshal(data, receiver)
+	return err
 }
 
-func (c *Badger) Get(key string) (val []byte, err error) {
+func (c *PineBadger) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
+	data, err := json.Marshal(structData)
+	if err != nil {
+		return  err
+	}
+	return c.Set(key, data, ttl...)
+}
+
+func (c *PineBadger) Get(key string) (val []byte, err error) {
 	err = c.View(func(tx *badgerDB.Txn) error {
-		e, err := tx.Get([]byte(c.prefix + key))
+		e, err := tx.Get(c.getKey(key))
 		if err != nil {
-			logger.Error(err)
 			return err
 		} else {
 			return e.Value(func(v []byte) error {
 				val = v
-				logger.Debugf("get key %s => val : %s",c.prefix + key, string(v))
 				return nil
 			})
 		}
@@ -62,37 +73,35 @@ func (c *Badger) Get(key string) (val []byte, err error) {
 	return
 }
 
-func (c *Badger) Set(key string, val []byte, ttl ...int) error {
+func (c *PineBadger) Set(key string, val []byte, ttl ...int) error {
 	return c.Update(func(tx *badgerDB.Txn) error {
 		if len(ttl) == 0 {
-			ttl = []int{c.option.TTL}
+			ttl = []int{c.TTL}
 		}
-		e := badgerDB.NewEntry([]byte(c.prefix+key), val)
+		e := badgerDB.NewEntry(c.getKey(key), val)
 		if ttl[0] > 0 {
 			e.WithTTL(time.Duration(ttl[0]) * time.Second)
 		}
 		err := tx.SetEntry(e)
 		if err != nil {
 			logger.Error(err)
-		} else {
-			logger.Debugf("set key %s => val : %s",c.prefix + key, string(e.Value))
 		}
 		return err
 	})
 }
 
-func (c *Badger) Delete(key string) error {
+func (c *PineBadger) Delete(key string) error {
 	return c.Update(func(tx *badgerDB.Txn) error {
-		if err := tx.Delete([]byte(c.prefix + key)); err != nil {
+		if err := tx.Delete(c.getKey(key)); err != nil {
 			return err
 		}
 		return nil
 	})
 }
 
-func (c *Badger) Exists(key string) bool {
+func (c *PineBadger) Exists(key string) bool {
 	if err := c.View(func(tx *badgerDB.Txn) error {
-		if _, err := tx.Get([]byte(c.prefix + key)); err != nil {
+		if _, err := tx.Get(c.getKey(key)); err != nil {
 			return err
 		}
 		return nil
@@ -102,16 +111,10 @@ func (c *Badger) Exists(key string) bool {
 	return true
 }
 
-func (c *Badger) Clear(prefix string) {
-	txn := c.NewTransaction(true)
-	defer txn.Commit()
+func (c *PineBadger) getKey(key string) []byte {
+	return []byte(c.Option.Prefix + key)
+}
 
-	iter := txn.NewIterator(badgerDB.IteratorOptions{PrefetchSize: 100})
-	defer iter.Close()
-	for iter.Rewind(); iter.ValidForPrefix([]byte(c.prefix + prefix)); iter.Next() {
-		key := iter.Item().Key()
-		if err := txn.Delete(key); err != nil {
-			continue
-		}
-	}
+func (c *PineBadger) GetBadgerDB() *badgerDB.DB {
+	return c.DB
 }

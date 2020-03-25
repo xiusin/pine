@@ -50,10 +50,6 @@ func (sess *Session) Remove(key string) {
 	sess.store.Delete(sess.makeKey(key))
 }
 
-func (sess *Session) Clear() {
-	sess.store.Clear(sess.makeKey(""))
-}
-
 func (sess *Session) makeKey(key string) string {
 	return fmt.Sprintf("%s_%s", sess.id, key)
 }

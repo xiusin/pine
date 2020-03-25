@@ -15,7 +15,6 @@ type ISessionStore interface {
 	Get(string, interface{}) error
 	Save(string, interface{}) error
 	Delete(string) error
-	Clear(string)
 }
 
 type ISession interface {
@@ -23,7 +22,6 @@ type ISession interface {
 	Get(string) string
 	AddFlush(string, string)
 	Remove(string)
-	Clear()
 }
 
 type Sessions struct {

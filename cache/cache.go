@@ -12,5 +12,5 @@ type ICache interface {
 	SetWithMarshal(string, interface{}, ...int) error
 	Delete(string) error
 	Exists(string) bool
-	Clear(string)
+	//Clear(string)
 }

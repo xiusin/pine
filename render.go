@@ -106,6 +106,10 @@ func (c *Render) ViewData(key string, val interface{}) {
 	c.tplData[key] = val
 }
 
+func (c *Render) GetViewData() map[string]interface{}  {
+	return c.tplData
+}
+
 func (c *Render) XML(v interface{}) error {
 	c.ContentType(contentTypeXML)
 

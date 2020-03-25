@@ -38,10 +38,6 @@ func (store *Store) Delete(id string) error {
 	return store.Cache.Delete(getId(id))
 }
 
-func (store *Store) Clear(sessID string)  {
-	store.Cache.Clear(getId(sessID))
-}
-
 func getId(id string) string {
 	return "sess:" + id
 }
