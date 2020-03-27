@@ -9,7 +9,7 @@ import (
 func main() {
 	app := pine.New()
 
-	di.Set("render", func(builder di.BuilderInf) (i interface{}, e error) {
+	di.Set("render", func(builder di.AbstractBuilder) (i interface{}, e error) {
 		// reload = true 每次都会重载模板
 		return jet.New("views", ".jet", true), nil
 	}, true)

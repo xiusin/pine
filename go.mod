@@ -5,8 +5,6 @@ go 1.13
 require (
 	github.com/CloudyKit/fastprinter v0.0.0-20200109182630-33d98a066a53 // indirect
 	github.com/CloudyKit/jet v2.1.3-0.20180809161101-62edd43e4f88+incompatible
-	github.com/aliyun/aliyun-oss-go-sdk v2.0.4+incompatible // indirect
-	github.com/baiyubin/aliyun-sts-go-sdk v0.0.0-20180326062324-cfa1a18b161f // indirect
 	github.com/betacraft/yaag v1.0.0
 	github.com/casbin/casbin v1.9.1
 	github.com/dgraph-io/badger/v2 v2.0.2
@@ -17,9 +15,8 @@ require (
 	github.com/gookit/color v1.2.3
 	github.com/gorilla/schema v1.1.0
 	github.com/satori/go.uuid v1.2.0
-	github.com/xiusin/logger v0.0.0-20200317110656-2975204f94e6
+	github.com/xiusin/logger v0.0.1
 	go.etcd.io/bbolt v1.3.4
-	golang.org/x/time v0.0.0-20191024005414-555d28b269f0 // indirect
 )
 
 replace github.com/xiusin/debug => ../debug

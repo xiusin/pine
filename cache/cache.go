@@ -5,11 +5,13 @@
 package cache
 
 
-type ICache interface {
+type AbstractCache interface {
 	Get(string) ([]byte, error)
 	GetWithUnmarshal(string, interface{}) error
+
 	Set(string, []byte, ...int) error
 	SetWithMarshal(string, interface{}, ...int) error
+
 	Delete(string) error
 	Exists(string) bool
 }

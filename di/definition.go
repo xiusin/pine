@@ -41,7 +41,7 @@ func (d *Definition) IsResolved() bool {
 	return d.instance != nil
 }
 
-func (d *Definition) resolve(builder BuilderInf) (service interface{}, err error) {
+func (d *Definition) resolve(builder AbstractBuilder) (service interface{}, err error) {
 	d.Lock()
 	defer d.Unlock()
 
@@ -57,7 +57,7 @@ func (d *Definition) resolve(builder BuilderInf) (service interface{}, err error
 	return service, nil
 }
 
-func (d *Definition) resolveWithParams(builder BuilderInf, params ...interface{}) (service interface{}, err error) {
+func (d *Definition) resolveWithParams(builder AbstractBuilder, params ...interface{}) (service interface{}, err error) {
 	d.Lock()
 	defer d.Unlock()
 	service, err = d.paramsFactory(builder, params...)

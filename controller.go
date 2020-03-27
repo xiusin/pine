@@ -24,7 +24,7 @@ type IController interface {
 	Render() *Render
 
 	Logger() logger.AbstractLogger
-	Session() sessions.ISession
+	Session() sessions.AbstractSession
 	Cookie() *sessions.Cookie
 }
 
@@ -50,7 +50,7 @@ func (c *Controller) Render() *Render {
 	return c.context.Render()
 }
 
-func (c *Controller) Param() *Params {
+func (c *Controller) Param() params {
 	return c.context.params
 }
 
@@ -62,7 +62,7 @@ func (c *Controller) Logger() logger.AbstractLogger {
 	return c.context.Logger()
 }
 
-func (c *Controller) Session() sessions.ISession {
+func (c *Controller) Session() sessions.AbstractSession {
 	return c.context.Session()
 }
 

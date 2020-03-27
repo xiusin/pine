@@ -11,7 +11,7 @@ import (
 
 func main() {
 	app := pine.New()
-	di.Set(di.ServicePineSessions, func(builder di.BuilderInf) (i interface{}, e error) {
+	di.Set(di.ServicePineSessions, func(builder di.AbstractBuilder) (i interface{}, e error) {
 		sess := sessions.New(cacheProvider.NewStore(memory.New(memory.Option{
 			GCInterval: 0,
 			Prefix:     "test_",

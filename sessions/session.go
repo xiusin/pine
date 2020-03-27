@@ -12,7 +12,7 @@ const defaultSessionName = "pine_sessionid"
 
 type Session struct {
 	id    string
-	store ISessionStore
+	store AbstractSessionStore
 }
 
 type entry struct {
@@ -20,7 +20,7 @@ type entry struct {
 	Flush          bool
 }
 
-func newSession(id string, store ISessionStore) (*Session, error) {
+func newSession(id string, store AbstractSessionStore) (*Session, error) {
 	sess := &Session{
 		store: store,
 		id:    id,

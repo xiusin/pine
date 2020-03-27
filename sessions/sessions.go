@@ -11,13 +11,13 @@ import (
 	"time"
 )
 
-type ISessionStore interface {
+type AbstractSessionStore interface {
 	Get(string, interface{}) error
 	Save(string, interface{}) error
 	Delete(string) error
 }
 
-type ISession interface {
+type AbstractSession interface {
 	Set(string, string)
 	Get(string) string
 	AddFlush(string, string)
@@ -25,7 +25,7 @@ type ISession interface {
 }
 
 type Sessions struct {
-	provider ISessionStore
+	provider AbstractSessionStore
 	cfg      *Config
 }
 
@@ -34,7 +34,7 @@ type Config struct {
 	Expires    time.Duration
 }
 
-func New(provider ISessionStore, cfg *Config) *Sessions {
+func New(provider AbstractSessionStore, cfg *Config) *Sessions {
 	if len(cfg.CookieName) == 0 {
 		cfg.CookieName = defaultSessionName
 	}
@@ -51,7 +51,7 @@ func GetSessionId() string {
 	return hex.EncodeToString(bytes)[:16]
 }
 
-func (m *Sessions) Session(cookie *Cookie) (sess ISession, err error) {
+func (m *Sessions) Session(cookie *Cookie) (sess AbstractSession, err error) {
 	sessID := cookie.Get(m.cfg.CookieName)
 	if len(sessID) == 0 {
 		sessID = GetSessionId()

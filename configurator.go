@@ -13,16 +13,16 @@ type Configuration struct {
 	withoutStartupLog         bool
 	autoParseControllerResult bool
 	autoParseForm             bool
-	CookieTranscoder          cookie_transcoder.ICookieTranscoder
+	CookieTranscoder          cookie_transcoder.AbstractCookieTranscoder
 }
 
-type ReadonlyConfiguration interface {
+type AbstractReadonlyConfiguration interface {
 	GetServerName() string
 	GetCharset() string
 	GetAutoParseForm() bool
 	GetMaxMultipartMemory() int64
 	GetAutoParseControllerResult() bool
-	GetCookieTranscoder() cookie_transcoder.ICookieTranscoder
+	GetCookieTranscoder() cookie_transcoder.AbstractCookieTranscoder
 }
 
 type Configurator func(o *Configuration)
@@ -33,7 +33,7 @@ func WithServerName(srvName string) Configurator {
 	}
 }
 
-func WithCookieTranscoder(transcoder cookie_transcoder.ICookieTranscoder) Configurator {
+func WithCookieTranscoder(transcoder cookie_transcoder.AbstractCookieTranscoder) Configurator {
 	return func(o *Configuration) {
 		o.CookieTranscoder = transcoder
 	}
@@ -85,7 +85,7 @@ func (c *Configuration) GetAutoParseControllerResult() bool {
 	return c.autoParseControllerResult
 }
 
-func (c *Configuration) GetCookieTranscoder() cookie_transcoder.ICookieTranscoder {
+func (c *Configuration) GetCookieTranscoder() cookie_transcoder.AbstractCookieTranscoder {
 	return c.CookieTranscoder
 }
 

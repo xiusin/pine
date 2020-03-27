@@ -10,7 +10,7 @@ import (
 )
 
 func RequestRecorder(minDuration ...time.Duration) pine.Handler {
-	red, green, yellow := color.FgRed.Render, color.FgGreen.Render, color.BgYellow.Render
+	red, green, yellow := color.FgRed.Render, color.FgGreen.Render, color.FgYellow.Render
 	return func(c *pine.Context) {
 		var start = time.Now()
 		c.Next()
@@ -34,10 +34,9 @@ func RequestRecorder(minDuration ...time.Duration) pine.Handler {
 			statusInfo = yellow(status)
 		}
 		c.Logger().Debugf(
-			"[%s] %s | %s | %s | path: %s",
-			color.BgLightCyan.Render("PINECMS"),
+			"[RQLOG] %s | %s | %s | path: %s",
 			statusInfo,
-			yellow(fmt.Sprintf("%5s", c.Request().Method)),
+			color.BgBlue.Render(fmt.Sprintf("%5s", c.Request().Method)),
 			usedTime.String(),
 			c.Request().URL.Path,
 		)

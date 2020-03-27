@@ -15,6 +15,7 @@ var prefixes = []string  {"/favicon.ico"}
 
 const timeFormat = "2006-01-02 13:04:05"
 
+// https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/If-None-Match
 func Cache304(expires time.Duration, prefix ...string) pine.Handler {
 	prefixes = append(prefixes, prefix...)
 	return func(c *pine.Context) {
@@ -22,6 +23,7 @@ func Cache304(expires time.Duration, prefix ...string) pine.Handler {
 			now := time.Now()
 			if modified, err := checkIfModifiedSince(c, now.Add(-expires)); !modified && err == nil {
 				c.SetStatus(http.StatusNotModified)
+				c.Stop()
 				return
 			}
 			c.Writer().Header().Set("Last-Modified", now.Format(timeFormat))
@@ -52,7 +54,7 @@ func checkIfModifiedSince(c *pine.Context, modtime time.Time) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	if modtime.UTC().Before(t.Add(1 * time.Second)) {
+	if modtime.Before(t.Add(1 * time.Second)) {
 		return false, nil
 	}
 	return true, nil

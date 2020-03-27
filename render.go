@@ -18,10 +18,10 @@ import (
 
 type H map[string]interface{}
 
-var engines = map[string]render.IRenderer{}
+var engines = map[string]render.AbstractRenderer{}
 
 type Render struct {
-	engines map[string]render.IRenderer
+	engines map[string]render.AbstractRenderer
 	writer  http.ResponseWriter
 	tplData H
 	charset string
@@ -36,7 +36,7 @@ const (
 	contentTypeXML  = "text/xml"
 )
 
-func RegisterViewEngine(engine render.IRenderer) {
+func RegisterViewEngine(engine render.AbstractRenderer) {
 	if engine == nil {
 		panic("engine can not be nil")
 	}
@@ -91,7 +91,7 @@ func (c *Render) HTML(viewPath string) {
 	c.applied = true
 }
 
-func (c *Render) GetEngine(ext string) render.IRenderer {
+func (c *Render) GetEngine(ext string) render.AbstractRenderer {
 	return c.engines[ext]
 }
 

@@ -35,9 +35,9 @@ type Context struct {
 	// cookie cookie manager
 	cookie *sessions.Cookie
 	// SessionManager
-	sess sessions.ISession
+	sess sessions.AbstractSession
 	// Request params
-	params *Params
+	params params
 	// Stop middleware iteration
 	stopped bool
 	// Current middleware iteration index, init with -1
@@ -49,12 +49,11 @@ type Context struct {
 	autoParseValue bool
 }
 
-func NewContext(app *Application) *Context {
+func newContext(app *Application) *Context {
 	return &Context{
 		middlewareIndex: -1,
 		app:             app,
 		keys:            map[string]interface{}{},
-		params:          newParams(),
 		autoParseValue:  app.ReadonlyConfiguration.GetAutoParseControllerResult(),
 	}
 }
@@ -62,6 +61,18 @@ func NewContext(app *Application) *Context {
 func (c *Context) beginRequest(res http.ResponseWriter, req *http.Request) {
 	c.req = req
 	c.res = res
+	if c.cookie == nil {
+		c.cookie = sessions.NewCookie(req, res, c.app.configuration.CookieTranscoder)
+	} else {
+		c.cookie.Reset(req, res)
+	}
+	c.reset()
+	if len(c.app.configuration.serverName) > 0 {
+		res.Header().Set("Server", c.app.configuration.serverName)
+	}
+}
+
+func (c *Context) reset() {
 	c.route = nil
 	c.middlewareIndex = -1
 	c.stopped = false
@@ -76,15 +87,6 @@ func (c *Context) beginRequest(res http.ResponseWriter, req *http.Request) {
 		c.render.reset(c.res)
 	}
 	c.sess = nil
-	if c.cookie == nil {
-		c.cookie = sessions.NewCookie(req, res, c.app.configuration.CookieTranscoder)
-	} else {
-		c.cookie.Reset(req, res)
-	}
-
-	if len(c.app.configuration.serverName) > 0 {
-		res.Header().Set("Server", c.app.configuration.serverName)
-	}
 }
 
 func (c *Context) endRequest(recoverHandler Handler) {
@@ -99,25 +101,6 @@ func (c *Context) WriteString(str string) error {
 	return c.Render().Text(str)
 }
 
-//func (c *Context) Flush(data []byte) {
-//	if c.Writer().Header().Get("Transfer-Encoding") == "" {
-//
-//		c.Writer().Header().Add("Transfer-Encoding", "chunked")
-//		c.Writer().Header().Add("Content-Type",
-//			fmt.Sprintf("%s; Charset=%s", contentTypeHTML, c.app.configuration.charset))
-//
-//		c.Writer().WriteHeader(http.StatusOK)
-//	}
-//
-//	data = append(data, '\n')
-//	_, err := c.Writer().Write(data)
-//	if err != nil {
-//		panic(err)
-//	}
-//
-//	(c.Writer().(http.Flusher)).Flush()
-//}
-
 func (c *Context) Render() *Render {
 	if c.render == nil {
 		c.render = newRender(c.res, c.app.configuration.charset)
@@ -125,7 +108,7 @@ func (c *Context) Render() *Render {
 	return c.render
 }
 
-func (c *Context) Params() *Params {
+func (c *Context) Params() params {
 	if c.params == nil {
 		c.params = newParams()
 	}
@@ -162,7 +145,7 @@ func (c *Context) sessions() *sessions.Sessions {
 	return Make(di.ServicePineSessions).(*sessions.Sessions)
 }
 
-func (c *Context) Session() sessions.ISession {
+func (c *Context) Session() sessions.AbstractSession {
 	if c.sess == nil {
 		sess, err := c.sessions().Session(c.cookie)
 		if err != nil {
@@ -182,10 +165,15 @@ func (c *Context) Next() {
 	mws = append(mws, c.route.Middleware...)
 	length := len(mws)
 	if length == c.middlewareIndex {
-		c.route.Handle(c)
+		c.Handle()
 	} else {
 		mws[c.middlewareIndex](c)
 	}
+}
+
+// skip all middleware to exec router handler
+func (c *Context) Handle() {
+	c.route.Handle(c)
 }
 
 func (c *Context) Stop() {

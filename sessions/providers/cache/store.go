@@ -10,15 +10,15 @@ import (
 )
 
 type Store struct {
-	Cache cache.ICache
+	Cache cache.AbstractCache
 }
 
-func NewStore(cache cache.ICache) *Store {
+func NewStore(cache cache.AbstractCache) *Store {
 	return &Store{cache}
 }
 
 func (store *Store) Get(key string, receiver interface{}) error {
-	sess, err := store.Cache.Get(getId(key))
+	sess, err := store.Cache.Get(key)
 	if err != nil {
 		return err
 	}
@@ -30,14 +30,10 @@ func (store *Store) Save(id string, val interface{}) error {
 	if err != nil {
 		return err
 	}
-	id = getId(id)
 	return store.Cache.Set(id, s)
 }
 
 func (store *Store) Delete(id string) error {
-	return store.Cache.Delete(getId(id))
+	return store.Cache.Delete(id)
 }
 
-func getId(id string) string {
-	return "sess:" + id
-}

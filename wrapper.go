@@ -27,11 +27,11 @@ type IRouterWrapper interface {
 
 // 控制器映射路由
 type routerWrapper struct {
-	router     IRouter
+	router     AbstractRouter
 	controller IController
 }
 
-func newRouterWrapper(router IRouter, controller IController) *routerWrapper {
+func newRouterWrapper(router AbstractRouter, controller IController) *routerWrapper {
 	return &routerWrapper{router, controller}
 }
 

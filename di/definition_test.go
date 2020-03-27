@@ -7,7 +7,7 @@ package di
 import "testing"
 
 func TestNewDefinition(t *testing.T) {
-	def := NewDefinition("name", func(builder BuilderInf) (i interface{}, err error) {
+	def := NewDefinition("name", func(builder AbstractBuilder) (i interface{}, err error) {
 		return "xiusin", nil
 	}, true)
 	t.Logf("%+v", def)

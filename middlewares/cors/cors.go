@@ -1,6 +1,6 @@
 package cors
 
-// 抄袭来自 rs/cors
+// from rs/cors
 import (
 	"github.com/xiusin/pine"
 	"log"

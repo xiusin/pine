@@ -8,10 +8,10 @@ import (
 type Cookie struct {
 	r          *http.Request
 	w          http.ResponseWriter
-	transcoder cookie_transcoder.ICookieTranscoder
+	transcoder cookie_transcoder.AbstractCookieTranscoder
 }
 
-func NewCookie(r *http.Request, w http.ResponseWriter, transcoder cookie_transcoder.ICookieTranscoder) *Cookie {
+func NewCookie(r *http.Request, w http.ResponseWriter, transcoder cookie_transcoder.AbstractCookieTranscoder) *Cookie {
 	return &Cookie{
 		r:          r,
 		w:          w,

@@ -28,7 +28,7 @@ type callTimes struct {
 
 func TestBuilder(t *testing.T) {
 	c := &callTimes{}
-	Set("hello", func(builder BuilderInf) (i interface{}, err error) {
+	Set("hello", func(builder AbstractBuilder) (i interface{}, err error) {
 		rand.Seed(time.Now().UnixNano())
 		if c.hello == 1 {
 			t.Fatal("failed")
@@ -37,7 +37,7 @@ func TestBuilder(t *testing.T) {
 		t.Log("hello make called, must call one time")
 		return "hello world: " + strconv.Itoa(rand.Int()), nil
 	}, true)
-	Set("test", func(builder BuilderInf) (i interface{}, err error) {
+	Set("test", func(builder AbstractBuilder) (i interface{}, err error) {
 		helloInf, err := Get("hello1")
 		if err != nil {
 			t.Log(err.Error())
@@ -49,7 +49,7 @@ func TestBuilder(t *testing.T) {
 		return t, nil
 	}, false)
 
-	SetWithParams("testWithParams", func(builder BuilderInf, params ...interface{}) (i interface{}, err error) {
+	SetWithParams("testWithParams", func(builder AbstractBuilder, params ...interface{}) (i interface{}, err error) {
 		helloInf, err := Get("hello1")
 		if err != nil {
 			t.Log(err.Error())

@@ -5,7 +5,6 @@
 package pine
 
 import (
-	"crypto/tls"
 	"fmt"
 	"github.com/fatih/color"
 	"log"
@@ -78,21 +77,5 @@ func Addr(addr string) ServerHandler {
 func Func(f func() error) ServerHandler {
 	return func(_ *Application) error {
 		return f()
-	}
-}
-
-func TLS(addr, certFile, keyFile string) ServerHandler {
-	s := &http.Server{Addr: addr}
-	return func(b *Application) error {
-		s = b.newServer(s, true)
-		config := new(tls.Config)
-		var err error
-		config.Certificates = make([]tls.Certificate, 1)
-		if config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile); err != nil {
-			return err
-		}
-		config.NextProtos = []string{"h2", "http/1.1"}
-		s.TLSConfig = config
-		return s.ListenAndServeTLS(certFile, keyFile)
 	}
 }

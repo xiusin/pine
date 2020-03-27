@@ -85,7 +85,7 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 	db, _ = gorm.Open("sqlite3", filepath.Join(os.TempDir(), "test.db"))
 	db.AutoMigrate(&Product{})
-	di.Set(&gorm.DB{}, func(builder di.BuilderInf) (i interface{}, err error) {
+	di.Set(&gorm.DB{}, func(builder di.AbstractBuilder) (i interface{}, err error) {
 		return db, nil
 	}, true)
 	pine.RegisterOnInterrupt(func() {

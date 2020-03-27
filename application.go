@@ -8,6 +8,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"net/http/pprof"
 	"os"
 	"path"
 	"reflect"
@@ -16,7 +17,7 @@ import (
 	"time"
 )
 
-const Version = "dev 0.1.0"
+const Version = "dev 0.2.1"
 
 const logo = `
    ___  _         
@@ -39,7 +40,7 @@ var (
 		":string": "<[\\w0-9\\_\\.\\+\\-]+>",
 		":any":    "<[/\\w0-9\\_\\.\\+\\-]+>", // *
 	}
-	_ IRouter = (*Application)(nil)
+	_ AbstractRouter = (*Application)(nil)
 )
 
 type RouteEntry struct {
@@ -50,10 +51,9 @@ type RouteEntry struct {
 	resolved          bool
 	Param             []string
 	Pattern           string
-	origin            string
 }
 
-type IRouter interface {
+type AbstractRouter interface {
 	AddRoute(method, path string, handle Handler, mws ...Handler)
 	ANY(path string, handle Handler, mws ...Handler)
 	GET(path string, handle Handler, mws ...Handler)
@@ -96,7 +96,7 @@ type Application struct {
 	recoverHandler        Handler
 	pool                  *Pool
 	configuration         *Configuration
-	ReadonlyConfiguration ReadonlyConfiguration
+	ReadonlyConfiguration AbstractReadonlyConfiguration
 	started               bool
 }
 
@@ -113,7 +113,7 @@ func New() *Application {
 	}
 
 	app.pool = NewPool(func() interface{} {
-		return NewContext(app)
+		return newContext(app)
 	})
 
 	app.handler = app
@@ -127,7 +127,7 @@ func New() *Application {
 				"Code":    http.StatusNotFound,
 			})
 		if err != nil {
-			Logger().Print("%s", err)
+			Logger().Errorf("%s", err)
 		}
 	})
 	return app
@@ -141,7 +141,7 @@ func (a *Application) ServeHTTP(res http.ResponseWriter, req *http.Request) {
 	a.handle(c)
 }
 
-func (r *Router) register(router IRouter, controller IController) {
+func (r *Router) register(router AbstractRouter, controller IController) {
 	wrapper := newRouterWrapper(router, controller)
 	if v, implemented := interface{}(controller).(IRegisterHandler); implemented {
 		v.RegisterRoute(wrapper)
@@ -150,7 +150,8 @@ func (r *Router) register(router IRouter, controller IController) {
 		num, routeWrapper := typ.NumMethod(), wrapper
 		for i := 0; i < num; i++ {
 			name := typ.Method(i).Name
-			if _, ok := reflectingNeedIgnoreMethods[name]; !ok && val.MethodByName(name).IsValid() {
+			_, ok := reflectingNeedIgnoreMethods[name]
+			if !ok && val.MethodByName(name).IsValid() {
 				r.matchRegister(
 					router,
 					name,
@@ -162,7 +163,7 @@ func (r *Router) register(router IRouter, controller IController) {
 	}
 }
 
-func (r *Router) matchRegister(router IRouter, path string, handle Handler) {
+func (r *Router) matchRegister(router AbstractRouter, path string, handle Handler) {
 	var methods = map[string]routeMaker{
 		"Get":     router.GET,
 		"Put":     router.PUT,
@@ -251,6 +252,23 @@ func (a *Application) parseForm(c *Context) {
 	}
 }
 
+func (a *Application) StartPProf() {
+	a.GET("/debug/pprof/:action", func(ctx *Context) {
+		switch ctx.Params().Get("action") {
+		case "profile":
+			pprof.Profile(ctx.Writer(), ctx.Request())
+		case "symbol":
+			pprof.Symbol(ctx.Writer(), ctx.Request())
+		case "trace":
+			pprof.Trace(ctx.Writer(), ctx.Request())
+		case "cmdline":
+			pprof.Cmdline(ctx.Writer(), ctx.Request())
+		default:
+			pprof.Index(ctx.Writer(), ctx.Request())
+		}
+	})
+}
+
 func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 	if len(opts) > 0 {
 		for _, opt := range opts {
@@ -262,7 +280,7 @@ func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 	}
 
 	// Covert to readonly
-	a.ReadonlyConfiguration = ReadonlyConfiguration(a.configuration)
+	a.ReadonlyConfiguration = AbstractReadonlyConfiguration(a.configuration)
 
 	if err := srv(a); err != nil && err != http.ErrServerClosed {
 		panic(err)
@@ -274,12 +292,7 @@ func (r *Router) Handle(c IController) *Router {
 	return r
 }
 
-// 添加路由, 内部函数
-// *any 只支持路由段级别的设置
-// *filepath 指定router.Static代理目录下所有文件标志
-// :param 支持路由段内嵌
 func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
-	originName := r.prefix + path
 	var (
 		params  []string
 		pattern string
@@ -314,7 +327,6 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 		Middleware: mws,
 		Param:      params,
 		Pattern:    pattern,
-		origin:     originName,
 	}
 	if len(pattern) != 0 {
 		patternRoutes[pattern] = append(patternRoutes[pattern], route)

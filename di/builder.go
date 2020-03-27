@@ -13,7 +13,7 @@ import (
 	"github.com/xiusin/logger"
 )
 
-type BuilderInf interface {
+type AbstractBuilder interface {
 	Set(interface{}, BuildHandler, bool) *Definition
 	SetWithParams(interface{}, BuildWithHandler) *Definition
 	Add(*Definition)
@@ -26,8 +26,8 @@ type BuilderInf interface {
 type builder struct {
 	services sync.Map
 }
-type BuildHandler func(builder BuilderInf) (interface{}, error)
-type BuildWithHandler func(builder BuilderInf, params ...interface{}) (interface{}, error)
+type BuildHandler func(builder AbstractBuilder) (interface{}, error)
+type BuildWithHandler func(builder AbstractBuilder, params ...interface{}) (interface{}, error)
 
 const ServicePineSessions = "pine.sessions"
 const ServicePineLogger = "pine.logger"
@@ -38,7 +38,7 @@ const formatErrServiceNotExists = "service %s not exists"
 var ServiceSingletonErr = errors.New("service is singleton, cannot use it with GetWithParams")
 
 func init() {
-	di.Set(ServicePineLogger, func(builder BuilderInf) (i interface{}, e error) {
+	di.Set(ServicePineLogger, func(builder AbstractBuilder) (i interface{}, e error) {
 		l := logger.New()
 		l.SetLogLevel(logger.DebugLevel)
 		return l, nil
