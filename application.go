@@ -31,10 +31,11 @@ var (
 	// 记录匹配路由映射， 不管是分组还是非分组的正则路由均记录到此变量
 	patternRoutes = map[string][]*RouteEntry{}
 
-	// 正则匹配规则
+	// 按照注册顺序保存匹配路由内容, 防止map迭代出现随机匹配的情况
+	sortedPattern []string
+
 	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_/]+)(<.+?>)?")
 
-	// 路由规则与字段映射
 	patternMap = map[string]string{
 		":int":    "<\\d+>",
 		":string": "<[\\w0-9\\_\\.\\+\\-]+>",
@@ -170,7 +171,7 @@ func (r *Router) matchRegister(router AbstractRouter, path string, handle Handle
 		"Post":    router.POST,
 		"Head":    router.HEAD,
 		"Delete":  router.DELETE,
-		"OPTIONS": router.OPTIONS,
+		"Options": router.OPTIONS,
 	}
 
 	format := "matchRegister:[method: %s] %s%s"
@@ -330,6 +331,7 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 	}
 	if len(pattern) != 0 {
 		patternRoutes[pattern] = append(patternRoutes[pattern], route)
+		sortedPattern = append(sortedPattern, pattern)
 	} else {
 		r.methodRoutes[method][path] = route
 	}
@@ -391,7 +393,8 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 	}
 
 	// pattern route
-	for pattern, routes := range patternRoutes {
+	for _, pattern := range sortedPattern {
+		routes := patternRoutes[pattern]
 		reg := regexp.MustCompile(pattern)
 		matchedStrings := reg.FindAllStringSubmatch(ctx.req.URL.Path, -1)
 		for _, route := range routes {
