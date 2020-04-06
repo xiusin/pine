@@ -29,6 +29,8 @@ type builder struct {
 type BuildHandler func(builder AbstractBuilder) (interface{}, error)
 type BuildWithHandler func(builder AbstractBuilder, params ...interface{}) (interface{}, error)
 
+//reflect.TypeOf((*logger.AbstractLogger)(nil)).Elem()) 直接反射类型， 后续判断是否可以100%反射pkgPath
+
 const ServicePineSessions = "pine.sessions"
 const ServicePineLogger = "pine.logger"
 const ServicePineRender = "pine.render"
