@@ -7,7 +7,6 @@ package bbolt
 import (
 	"encoding/json"
 	"errors"
-	"github.com/xiusin/logger"
 	"github.com/xiusin/pine"
 	bolt "go.etcd.io/bbolt"
 	"time"
@@ -72,10 +71,8 @@ func (b *PineBoltdb) Get(key string) (val []byte, err error) {
 	err = b.View(func(tx *bolt.Tx) error {
 		buck := tx.Bucket([]byte(b.BucketName))
 		valByte:= buck.Get(b.getKey(key))
-		pine.Logger().Debug("valByte ", string(valByte))
 		var e Entry
 		if err = json.Unmarshal(valByte, &e); err != nil {
-			logger.Error(b.BucketName, string(b.getKey(key)),string(valByte), err)
 			return err
 		}
 		if e.isExpired() {
