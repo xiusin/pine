@@ -10,7 +10,6 @@ require (
 	github.com/dgraph-io/badger/v2 v2.0.2
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/fatih/color v1.7.0
-	github.com/flosch/pongo2 v0.0.0-20190707114632-bbf5a6c351f4
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/gookit/color v1.2.3
 	github.com/gorilla/schema v1.1.0
