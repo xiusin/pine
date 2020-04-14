@@ -124,7 +124,7 @@ func (c *Render) XML(v interface{}) error {
 func responseJson(writer io.Writer, v interface{}, callback string) error {
 	b, err := json.Marshal(v)
 	if err == nil {
-		if callback == "" {
+		if len(callback) == 0 {
 			_, err = writer.Write(b)
 		} else {
 			var ret bytes.Buffer

@@ -32,11 +32,11 @@ func (a *Application) newServer(s *http.Server, tls bool) *http.Server {
 			log.Lshortfile|log.LstdFlags,
 		)
 	}
-	if s.Addr == "" {
+	if len(s.Addr) == 0 {
 		s.Addr = defaultAddressWithPort
 	}
 	addrInfo := strings.Split(s.Addr, ":")
-	if addrInfo[0] == "" {
+	if len(addrInfo[0]) == 0 {
 		addrInfo[0] = zeroIP
 	}
 	a.hostname = addrInfo[0]

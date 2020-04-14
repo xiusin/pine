@@ -60,7 +60,6 @@ var (
         <div class="title">{{ .Code }} {{ .Message }} </div>
       </div>
     </div>
-	<div class="footer"><pre class="logo">` + logo + `</pre></div>
   </body>
 </html>`))
 )

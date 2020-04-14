@@ -9,23 +9,18 @@ import (
 )
 
 type Pool struct {
-	*sync.Pool
-	builder func() interface{}
+	sync.Pool
 }
 
 func NewPool(builder func() interface{}) *Pool {
-	p := &Pool{
-		Pool:    &sync.Pool{},
-		builder: builder,
-	}
-	p.New = p.builder
+	p := &Pool{sync.Pool{New:builder}}
 	return p
 }
 
-func (c *Pool) Acquire() interface{} {
-	return c.Get()
+func (p *Pool) Acquire() interface{} {
+	return p.Get()
 }
 
-func (c *Pool) Release(val interface{}) {
-	c.Put(val)
+func (p *Pool) Release(val interface{}) {
+	p.Put(val)
 }

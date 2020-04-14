@@ -322,8 +322,8 @@ func (c *Context) GetString(key string, defaultVal ...string) string {
 	return val
 }
 
-func (c *Context) GetStrings(key string) (val []string, ok bool) {
-	val, ok = c.req.URL.Query()[key]
+func (c *Context) GetStrings(key string) (val []string) {
+	val, _ = c.req.URL.Query()[key]
 	return
 }
 
