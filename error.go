@@ -1,23 +1,25 @@
-package router
+// Copyright 2014 Manu Martinez-Almeida.  All rights reserved.
+// Use of this source code is governed by a MIT style
+// license that can be found in the LICENSE file.
+
+package pine
 
 import (
-	"fmt"
 	"net/http"
 	"runtime/debug"
 	"text/template"
 )
 
 var (
-	shutdownBeforeHandler  []func()
-	errCodeCallHandler     = make(map[int]Handler)
-	DefaultErrTemplateHTML = template.Must(template.New("ErrTemplate").Parse(`<!DOCTYPE html>
+	shutdownBeforeHandler []func()
+	errCodeCallHandler    = make(map[int]Handler)
+	DefaultErrTemplate    = template.Must(template.New("ErrTemplate").Parse(`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{{.Code}} {{ .Message }}</title>
-  <link href="//fonts.googleapis.com/css?family=Open+Sans:300,400,700" rel="stylesheet" type="text/css">
   <style>
     html {-ms-text-size-adjust:100%;-webkit-text-size-adjust:100%}
     html, body {
@@ -33,7 +35,7 @@ var (
       display: flex;
       justify-content: center;
       position: relative;
-      height: 80vh;
+      height: 85vh;
     }
     .content {
       text-align: center;
@@ -43,6 +45,13 @@ var (
       font-weight: bold;
       padding: 20px;
     }
+	.logo {
+		text-align: left;
+	}
+	.footer {
+		float:right;
+		margin-right:10px;
+	}
   </style>
   </head>
   <body>
@@ -55,30 +64,21 @@ var (
 </html>`))
 )
 
-const (
-	Version = "dev 0.0.9"
-	Logo    = `
-____  __.__            .__      __________               __                
-\   \/  |__|__ __ _____|__| ____\______   \ ____  __ ___/  |_  ___________ 
- \     /|  |  |  /  ___|  |/    \|       _//  _ \|  |  \   ___/ __ \_  __ \
- /     \|  |  |  \___ \|  |   |  |    |   (  <_> |  |  /|  | \  ___/|  | \/
-/___/\  |__|____/____  |__|___|  |____|_  /\____/|____/ |__|  \___  |__|   
-      \_/            \/        \/       \/                        \/   	  Version: ` + Version
-)
+const defaultNotFoundMsg = "Sorry, the page you are looking for could not be found."
 
-// register server shutdown func
 func RegisterOnInterrupt(handler func()) {
 	shutdownBeforeHandler = append(shutdownBeforeHandler, handler)
 }
 
-func DefaultRecoverHandler(c *Context) {
-	if err := recover(); err != nil {
-		c.SetStatus(http.StatusInternalServerError)
-		stackInfo, strErr, strFmt := debug.Stack(), fmt.Sprintf("%s", err), "msg: %s  Method: %s  Path: %s\n Stack: %s"
-		c.Logger().Errorf(strFmt, strErr, c.Request().Method, c.Request().URL.RequestURI(), stackInfo)
-		_ = DefaultErrTemplateHTML.Execute(c.Writer(), map[string]interface{}{
-			"Message": strErr,
-			"Code": http.StatusInternalServerError,
-		})
+func RegisterErrorCodeHandler(status int, handler Handler)  {
+	errCodeCallHandler[status] = handler
+}
+
+func defaultRecoverHandler(c *Context) {
+	stackInfo, strFmt := debug.Stack(), "msg: %s  method: %s  path: %s\n stack: %s"
+	c.Logger().Errorf(strFmt, c.Msg, c.Request().Method, c.Request().URL.RequestURI(), stackInfo)
+	err := DefaultErrTemplate.Execute(c.Writer(), H{"Message": c.Msg, "Code": http.StatusInternalServerError})
+	if err != nil {
+		panic(err)
 	}
 }

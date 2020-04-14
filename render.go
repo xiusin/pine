@@ -1,71 +1,139 @@
-package router
+// Copyright 2014 Manu Martinez-Almeida.  All rights reserved.
+// Use of this source code is governed by a MIT style
+// license that can be found in the LICENSE file.
+
+package pine
 
 import (
-	"github.com/xiusin/router/components/template"
+	"bytes"
+	"encoding/json"
+	"encoding/xml"
+	"fmt"
+	"io"
 	"net/http"
+	"path/filepath"
 
-	"github.com/xiusin/router/components/di"
+	"github.com/xiusin/pine/render"
 )
 
 type H map[string]interface{}
 
+var engines = map[string]render.AbstractRenderer{}
+
 type Render struct {
-	// 渲染引擎
-	engine template.IRenderer
-	// 响应对象
-	writer http.ResponseWriter
-
-	// 模板变量数据
+	engines map[string]render.AbstractRenderer
+	writer  http.ResponseWriter
 	tplData H
+	charset string
 
-	// 是否已经渲染过
 	applied bool
 }
 
-func NewRender(writer http.ResponseWriter) *Render {
-	var rendererInf template.IRenderer
-	if di.Exists("render") {
-		rendererInf = di.MustGet("render").(template.IRenderer)
+const (
+	contentTypeJSON = "application/json"
+	contentTypeHTML = "text/html"
+	contentTypeText = "text/plain"
+	contentTypeXML  = "text/xml"
+)
+
+func RegisterViewEngine(engine render.AbstractRenderer) {
+	if engine == nil {
+		panic("engine can not be nil")
 	}
-	return &Render{rendererInf, writer, H{}, false}
+	engines[engine.Ext()] = engine
 }
 
-// 重置实例, contextPool里取出context时会调用Reset
-func (c *Render) Reset(writer http.ResponseWriter) {
+func newRender(writer http.ResponseWriter, charset string) *Render {
+	return &Render{
+		engines,
+		writer,
+		H{},
+		charset,
+		false,
+	}
+}
+
+func (c *Render) ContentType(typ string) {
+	c.writer.Header().Set("Content-Type", fmt.Sprintf("%s; Charset=%s", typ, c.charset))
+}
+
+func (c *Render) reset(writer http.ResponseWriter) {
 	c.writer = writer
+	c.tplData = H{}
 	c.applied = false
 }
+func (c *Render) JSON(v interface{}) error {
+	c.ContentType(contentTypeJSON)
 
-// 是否已经渲染过, 每个请求只能渲染一次结果
-func (c *Render) Rendered() bool {
-	return c.applied
+	return responseJson(c.writer, v, "")
 }
 
-func (c *Render) XML(v H) error {
-	return c.engine.XML(c.writer, v)
+func (c *Render) Text(v string) error {
+	c.ContentType(contentTypeText)
+
+	return c.Bytes([]byte(v))
 }
 
-func (c *Render) JSON(v H) error {
-	return c.engine.JSON(c.writer, v)
+func (c *Render) Bytes(v []byte) error {
+	c.ContentType(contentTypeText)
+
+	_, err := c.writer.Write(v)
+	return err
 }
 
-func (c *Render) Text(v []byte) error {
-	return c.engine.Text(c.writer, v)
-}
+func (c *Render) HTML(viewPath string) {
+	c.ContentType(contentTypeHTML)
 
-func (c *Render) HTML(name string) error {
-	if err := c.engine.HTML(c.writer, name, c.tplData); err != nil {
-		return err
+	if err := c.engines[filepath.Ext(viewPath)].HTML(c.writer, viewPath, c.tplData); err != nil {
+		panic(err)
 	}
+
 	c.applied = true
-	return nil
 }
 
-func (c *Render) JSONP(callback string, v H) error {
-	return c.engine.JSONP(c.writer, callback, v)
+func (c *Render) GetEngine(ext string) render.AbstractRenderer {
+	return c.engines[ext]
 }
 
-// 注册模板数据到Data里
+
+func (c *Render) JSONP(callback string, v interface{}) error {
+	c.ContentType(contentTypeJSON)
+
+	return responseJson(c.writer, v, callback)
+}
+
 func (c *Render) ViewData(key string, val interface{}) {
 	c.tplData[key] = val
+}
+
+func (c *Render) GetViewData() map[string]interface{}  {
+	return c.tplData
+}
+
+func (c *Render) XML(v interface{}) error {
+	c.ContentType(contentTypeXML)
+
+	b, err := xml.MarshalIndent(v, "", " ")
+	if err == nil {
+		_, err = c.writer.Write(b)
+	}
+
+	return err
+}
+
+func responseJson(writer io.Writer, v interface{}, callback string) error {
+	b, err := json.Marshal(v)
+	if err == nil {
+		if len(callback) == 0 {
+			_, err = writer.Write(b)
+		} else {
+			var ret bytes.Buffer
+			ret.Write([]byte(callback))
+			ret.Write([]byte("("))
+			ret.Write(b)
+			ret.Write([]byte(")"))
+			_, err = writer.Write(ret.Bytes())
+		}
+	}
+	return err
 }

@@ -1,9 +1,12 @@
-package router
+// Copyright 2014 Manu Martinez-Almeida.  All rights reserved.
+// Use of this source code is governed by a MIT style
+// license that can be found in the LICENSE file.
+
+package pine
 
 import (
-	"crypto/tls"
 	"fmt"
-	"github.com/xiusin/router/components/logger"
+	"github.com/fatih/color"
 	"log"
 	"net/http"
 	"os"
@@ -11,50 +14,59 @@ import (
 	"strings"
 )
 
-type ServerHandler func(*Router) error
+type ServerHandler func(*Application) error
 
-func (r *Router) newServer(s *http.Server, tls bool) *http.Server {
+const zeroIP = "0.0.0.0"
+const defaultAddressWithPort = zeroIP + ":9528"
+
+func (a *Application) newServer(s *http.Server, tls bool) *http.Server {
 	if s.Handler == nil {
-		s.Handler = r.handler
+		s.Handler = a.handler
+	} else {
+		a.handler = s.Handler
 	}
-	r.handler = s.Handler
 	if s.ErrorLog == nil {
-		s.ErrorLog = log.New(Logger().GetOutput(), logger.HttpErroPrefix, log.Lshortfile|log.LstdFlags)
+		s.ErrorLog = log.New(
+			os.Stdout,
+			color.RedString("%s", "[ERRO] "),
+			log.Lshortfile|log.LstdFlags,
+		)
 	}
-	if s.Addr == "" {
-		s.Addr = ":9528"
+	if len(s.Addr) == 0 {
+		s.Addr = defaultAddressWithPort
 	}
-	addrInfo := strings.SplitN(s.Addr, ":", 1)
-
- 	r.domain = addrInfo[0]
-
-	if !r.configuration.withoutFrameworkLog {
-		r.printInfo(s.Addr, tls)
+	addrInfo := strings.Split(s.Addr, ":")
+	if len(addrInfo[0]) == 0 {
+		addrInfo[0] = zeroIP
 	}
-	quit := make(chan os.Signal)
-	signal.Notify(quit, os.Interrupt, os.Kill)
-	go r.gracefulShutdown(s, quit)
+	a.hostname = addrInfo[0]
+	if !a.configuration.withoutStartupLog {
+		a.printSetupInfo(s.Addr, tls)
+	}
+	quitCh := make(chan os.Signal)
+	signal.Notify(quitCh, os.Interrupt, os.Kill)
+	go a.gracefulShutdown(s, quitCh)
 	return s
 }
 
 func Server(s *http.Server) ServerHandler {
-	return func(r *Router) error {
-		s := r.newServer(s, false)
+	return func(a *Application) error {
+		s := a.newServer(s, false)
 		return s.ListenAndServe()
 	}
 }
 
-func (_ *Router) printInfo(addr string, tls bool) {
+func (a *Application) printSetupInfo(addr string, tls bool) {
 	if strings.HasPrefix(addr, ":") {
-		addr = "0.0.0.0" + addr
+		addr = fmt.Sprintf("%s%s", a.hostname, addr)
 	}
+	protocol := "http"
 	if tls {
-		addr = "https://" + addr
-	} else {
-		addr = "http://" + addr
+		addr = "https"
 	}
-	fmt.Println(Logo)
-	fmt.Println("server now listening on: " + addr)
+	addr = color.GreenString(fmt.Sprintf("%s://%s", protocol, addr))
+	fmt.Println(color.GreenString("%s", logo))
+	fmt.Println(color.New(color.Bold).Sprintf("\nServer now listening on: %s/\n", addr))
 }
 
 func Addr(addr string) ServerHandler {
@@ -63,24 +75,7 @@ func Addr(addr string) ServerHandler {
 }
 
 func Func(f func() error) ServerHandler {
-	return func(_ *Router) error {
-		Logger().Print("start server with callback")
+	return func(_ *Application) error {
 		return f()
-	}
-}
-
-func TLS(addr, certFile, keyFile string) ServerHandler {
-	s := &http.Server{Addr: addr}
-	return func(b *Router) error {
-		s = b.newServer(s, true)
-		config := new(tls.Config)
-		var err error
-		config.Certificates = make([]tls.Certificate, 1)
-		if config.Certificates[0], err = tls.LoadX509KeyPair(certFile, keyFile); err != nil {
-			return err
-		}
-		config.NextProtos = []string{"h2", "http/1.1"}
-		s.TLSConfig = config
-		return s.ListenAndServeTLS(certFile, keyFile)
 	}
 }

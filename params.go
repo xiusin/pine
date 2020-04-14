@@ -1,29 +1,36 @@
-package router
+// Copyright 2014 Manu Martinez-Almeida.  All rights reserved.
+// Use of this source code is governed by a MIT style
+// license that can be found in the LICENSE file.
 
-import "strconv"
+package pine
 
-type Params struct {
-	data map[string]string
+import (
+	"strconv"
+)
+
+type params map[string]string
+
+func newParams() params {
+	return params{}
 }
 
-func NewParams(data map[string]string) *Params {
-	return &Params{data}
+func (c params) reset() {
+	// compile to mapclear @see runtime/map.go
+	for k := range c {
+		delete(c, k)
+	}
 }
 
-func (c *Params) Reset() {
-	c.data = make(map[string]string)
+func (c params) Set(key, value string) {
+	c[key] = value
 }
 
-func (c *Params) Set(key, value string) {
-	c.data[key] = value
-}
-
-func (c *Params) Get(key string) string {
-	value, _ := c.data[key]
+func (c params) Get(key string) string {
+	value, _ := c[key]
 	return value
 }
 
-func (c *Params) GetDefault(key, defaultVal string) string {
+func (c params) GetDefault(key, defaultVal string) string {
 	val := c.Get(key)
 	if val != "" {
 		return val
@@ -31,30 +38,26 @@ func (c *Params) GetDefault(key, defaultVal string) string {
 	return defaultVal
 }
 
-
-func (c *Params) GetInt(key string, defaultVal ...int) (val int, res bool) {
-	var err error
+func (c params) GetInt(key string, defaultVal ...int) (val int, err error) {
 	val, err = strconv.Atoi(c.Get(key))
 	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+		val, err = defaultVal[0], nil
 	}
 	return
 }
 
-func (c *Params) GetInt64(key string, defaultVal ...int64) (val int64, res bool) {
-	var err error
+func (c params) GetInt64(key string, defaultVal ...int64) (val int64, err error) {
 	val, err = strconv.ParseInt(c.Get(key), 10, 64)
 	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+		val, err = defaultVal[0], nil
 	}
 	return
 }
 
-func (c *Params) GetFloat64(key string, defaultVal ...float64) (val float64, res bool) {
-	var err error
+func (c params) GetFloat64(key string, defaultVal ...float64) (val float64, err error) {
 	val, err = strconv.ParseFloat(c.Get(key), 64)
 	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+		val, err = defaultVal[0], nil
 	}
 	return
 }

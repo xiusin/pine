@@ -1,37 +1,43 @@
-package router
+// Copyright 2014 Manu Martinez-Almeida.  All rights reserved.
+// Use of this source code is governed by a MIT style
+// license that can be found in the LICENSE file.
+
+package pine
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/xiusin/router/components/di"
-	"github.com/xiusin/router/components/json"
+	"github.com/xiusin/pine/di"
 	"reflect"
 	"strings"
 	"unsafe"
 )
 
 type IRouterWrapper interface {
-	warpControllerHandler(string, IController) Handler
+	warpHandler(string, IController) Handler
 
+	ANY(path string, handle string, mws ...Handler)
 	GET(path string, handle string, mws ...Handler)
 	POST(path string, handle string, mws ...Handler)
 	PUT(path string, handle string, mws ...Handler)
 	HEAD(path string, handle string, mws ...Handler)
 	DELETE(path string, handle string, mws ...Handler)
+	OPTIONS(path string, handle string, mws ...Handler)
 }
 
 // 控制器映射路由
 type routerWrapper struct {
-	router     IRouter
+	router     AbstractRouter
 	controller IController
 }
 
-func newRouterWrapper(router IRouter, controller IController) *routerWrapper {
+func newRouterWrapper(router AbstractRouter, controller IController) *routerWrapper {
 	return &routerWrapper{router, controller}
 }
 
-// warpControllerHandler 用于包装controller方法为Handler
+// warpHandler 用于包装controller方法为Handler
 // 通过反射传入controller实例用于每次请求构建或新的实例
-func (cmr *routerWrapper) warpControllerHandler(method string, controller IController) Handler {
+func (cmr *routerWrapper) warpHandler(method string, controller IController) Handler {
 	rvCtrl := reflect.ValueOf(controller)
 	return func(context *Context) {
 		// 使用反射类型构建一个新的控制器实例
@@ -49,7 +55,7 @@ func (cmr *routerWrapper) warpControllerHandler(method string, controller IContr
 
 		// 处理请求
 		// 如果开启解析方法返回值参数, 会自动接收并分析渲染
-		cmr.handlerResult(c, rvCtrl.Elem().Type().Name(), method)
+		cmr.result(c, rvCtrl.Elem().Type().Name(), method)
 	}
 }
 
@@ -57,23 +63,23 @@ func (cmr *routerWrapper) warpControllerHandler(method string, controller IContr
 // c是控制器一个反射值
 // ctrlName 控制器名称
 // method 方法名称
-func (cmr *routerWrapper) handlerResult(c reflect.Value, ctrlName, method string) {
+func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 	var err error
 	var ins []reflect.Value
 	// 转换为context实体实例
 	ctx := c.MethodByName("Ctx").Call(nil)[0].Interface().(*Context)
 
-	// 请求前置操作, 可以用于初始化等功能
-	beforeAction := c.MethodByName("BeforeAction")
-	if beforeAction.IsValid() {
-		beforeAction.Call(ins)
-	}
-
-	// 请求后置操作, 可以用于关闭一些资源, 保存一些内容
-	afterAction := c.MethodByName("AfterAction")
-	if afterAction.IsValid() {
-		defer func() { afterAction.Call(ins) }()
-	}
+	//// 请求前置操作, 可以用于初始化等功能
+	//beforeAction := c.MethodByName("BeforeAction")
+	//if beforeAction.IsValid() {
+	//	beforeAction.Call(ins)
+	//}
+	//
+	//// 请求后置操作, 可以用于关闭一些资源, 保存一些内容
+	//afterAction := c.MethodByName("AfterAction")
+	//if afterAction.IsValid() {
+	//	defer func() { afterAction.Call(ins) }()
+	//}
 
 	// 反射执行函数参数, 解析并设置可获取的参数类型
 	mt := c.MethodByName(method).Type()
@@ -81,30 +87,30 @@ func (cmr *routerWrapper) handlerResult(c reflect.Value, ctrlName, method string
 	if numIn := mt.NumIn(); numIn > 0 {
 		for i := 0; i < numIn; i++ {
 			if in := mt.In(i); in.Kind() == reflect.Ptr || in.Kind() == reflect.Interface {
-				typs := in.String()
-				switch typs {
+				inType := in.String()
+				switch inType {
 				case "*http.Request":
 					ins = append(ins, reflect.ValueOf(ctx.req))
 				case "http.ResponseWriter":
 					ins = append(ins, reflect.ValueOf(ctx.res))
-				case "interfaces.ISession":
+				case "sessions.ISession":
 					ins = append(ins, reflect.ValueOf(ctx.Session()))
-				case "*router.Params":
+				case "*pine.Params":
 					ins = append(ins, reflect.ValueOf(ctx.Params()))
-				case "router.ICookie":
-					ins = append(ins, reflect.ValueOf(ctx.getCookiesHandler()))
-				case "*router.Render":
+				case "sessions.ICookie":
+					ins = append(ins, reflect.ValueOf(ctx.cookies()))
+				case "*pine.Render":
 					ins = append(ins, reflect.ValueOf(ctx.Render()))
 				default:
 					// 在di容器内查找服务, 如果可以得到则加入参数列表, 否则终止程序
-					if di.Exists(typs) {
-						ins = append(ins, reflect.ValueOf(di.MustGet(typs)))
+					if di.Exists(inType) {
+						ins = append(ins, reflect.ValueOf(di.MustGet(inType)))
 					} else {
-						panic(fmt.Sprintf("con't resolve service `%s@%s` in di", typs, in.PkgPath()))
+						panic(fmt.Sprintf("con't resolve service `%s` in di", inType))
 					}
 				}
 			} else {
-				// 不支持的参数直接中断程序
+				// unsupported
 				panic(fmt.Sprintf("controller %s method: %s params(NO.%d)(%s)  not support. only ptr or interface ", c.Type().String(), mt.Name(), i, in.String()))
 			}
 		}
@@ -125,23 +131,20 @@ func (cmr *routerWrapper) handlerResult(c reflect.Value, ctrlName, method string
 				body, err = cmr.parseValue(val)
 			}
 			if err == nil && len(body) > 0 {
-				err = ctx.Render().Text(body)
+				err = ctx.Render().Bytes(body)
 			}
-		} else if !ctx.Render().Rendered() {
+		} else if !ctx.Render().applied {
 			// 如果是异步请求渲染json
 			if ctx.IsAjax() {
 				err = ctx.Render().JSON(ctx.Render().tplData)
 			} else {
 				// 没有返回值视为需要渲染指定的模板内容
-				err = ctx.Render().HTML(
+				ctx.Render().HTML(
 					strings.ToLower(
 						fmt.Sprintf(
 							"%s/%s",
 							strings.Replace(ctrlName, ControllerSuffix, "", 1), method)))
 			}
-		}
-		if err != nil {
-			panic(err)
 		}
 	}
 }
@@ -200,21 +203,29 @@ func (cmr *routerWrapper) returnValToJSON(valInterface interface{}) ([]byte, err
 }
 
 func (cmr *routerWrapper) GET(path, method string, mws ...Handler) {
-	cmr.router.GET(path, cmr.warpControllerHandler(method, cmr.controller), mws...)
-}
-
-func (cmr *routerWrapper) POST(path, method string, mws ...Handler) {
-	cmr.router.POST(path, cmr.warpControllerHandler(method, cmr.controller), mws...)
+	cmr.router.GET(path, cmr.warpHandler(method, cmr.controller), mws...)
 }
 
 func (cmr *routerWrapper) PUT(path, method string, mws ...Handler) {
-	cmr.router.PUT(path, cmr.warpControllerHandler(method, cmr.controller), mws...)
+	cmr.router.PUT(path, cmr.warpHandler(method, cmr.controller), mws...)
+}
+
+func (cmr *routerWrapper) ANY(path, method string, mws ...Handler) {
+	cmr.router.ANY(path, cmr.warpHandler(method, cmr.controller), mws...)
+}
+
+func (cmr *routerWrapper) POST(path, method string, mws ...Handler) {
+	cmr.router.POST(path, cmr.warpHandler(method, cmr.controller), mws...)
 }
 
 func (cmr *routerWrapper) HEAD(path, method string, mws ...Handler) {
-	cmr.router.HEAD(path, cmr.warpControllerHandler(method, cmr.controller), mws...)
+	cmr.router.HEAD(path, cmr.warpHandler(method, cmr.controller), mws...)
 }
 
 func (cmr *routerWrapper) DELETE(path, method string, mws ...Handler) {
-	cmr.router.DELETE(path, cmr.warpControllerHandler(method, cmr.controller), mws...)
+	cmr.router.DELETE(path, cmr.warpHandler(method, cmr.controller), mws...)
+}
+
+func (cmr *routerWrapper) OPTIONS(path, method string, mws ...Handler) {
+	cmr.router.OPTIONS(path, cmr.warpHandler(method, cmr.controller), mws...)
 }

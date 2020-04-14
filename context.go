@@ -1,9 +1,18 @@
-package router
+// Copyright 2014 Manu Martinez-Almeida.  All rights reserved.
+// Use of this source code is governed by a MIT style
+// license that can be found in the LICENSE file.
+
+package pine
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/xiusin/router/components/logger"
-	"github.com/xiusin/router/components/sessions"
+	"github.com/gorilla/schema"
+	"github.com/xiusin/logger"
+	"github.com/xiusin/pine/di"
+	"github.com/xiusin/pine/sessions"
+	"io/ioutil"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -11,7 +20,10 @@ import (
 	"strings"
 )
 
+var schemaDecoder = schema.NewDecoder()
+
 type Context struct {
+	app *Application
 	// response object
 	res http.ResponseWriter
 	// request object
@@ -21,17 +33,15 @@ type Context struct {
 	//  reader service
 	render *Render
 	// cookie cookie manager
-	cookie ICookie
+	cookie *sessions.Cookie
 	// SessionManager
-	sess sessions.ISession
+	sess sessions.AbstractSession
 	// Request params
-	params *Params
+	params params
 	// Stop middleware iteration
 	stopped bool
 	// Current middleware iteration index, init with -1
 	middlewareIndex int
-	// Response status code record
-	status int
 	// Temporary recording error information
 	Msg string
 	// Binding some value to context
@@ -39,65 +49,69 @@ type Context struct {
 	autoParseValue bool
 }
 
-func NewContext(auto bool) *Context {
+func newContext(app *Application) *Context {
 	return &Context{
-		params:          NewParams(map[string]string{}),
-		middlewareIndex: -1, // 初始化中间件索引.
-		autoParseValue:  auto,
+		middlewareIndex: -1,
+		app:             app,
 		keys:            map[string]interface{}{},
+		autoParseValue:  app.ReadonlyConfiguration.GetAutoParseControllerResult(),
 	}
 }
 
-// 重置Context对象
-func (c *Context) Reset(res http.ResponseWriter, req *http.Request) {
-	c.req, c.res, c.route = req, res, nil
-	c.middlewareIndex, c.status = -1, http.StatusOK
-	c.stopped, c.Msg = false, ""
+func (c *Context) beginRequest(res http.ResponseWriter, req *http.Request) {
+	c.req = req
+	c.res = res
+	if c.cookie == nil {
+		c.cookie = sessions.NewCookie(req, res, c.app.configuration.CookieTranscoder)
+	} else {
+		c.cookie.Reset(req, res)
+	}
+	c.reset()
+	if len(c.app.configuration.serverName) > 0 {
+		res.Header().Set("Server", c.app.configuration.serverName)
+	}
+}
+
+func (c *Context) reset() {
+	c.route = nil
+	c.middlewareIndex = -1
+	c.stopped = false
+	c.Msg = ""
 	c.keys = map[string]interface{}{}
-	c.initCtxComponent(res)
-}
 
-func (c *Context) SetCookiesHandler(cookie ICookie) {
-	c.cookie = cookie
-}
+	if c.params != nil {
+		c.params.reset()
+	}
 
-func (c *Context) initCtxComponent(res http.ResponseWriter) {
-	if c.params == nil {
-		c.params = NewParams(make(map[string]string))
-	} else {
-		c.params.Reset()
+	if c.render != nil {
+		c.render.reset(c.res)
 	}
-	if c.render == nil {
-		c.render = NewRender(res)
-	} else {
-		c.render.Reset(res)
-	}
-	c.cookie = nil
 	c.sess = nil
 }
 
-// @see: https://www.jianshu.com/p/4417af75a9f4
-// todo 客户端断开自动关闭flush
-func (c *Context) Flush(data []byte) {
-	if c.Writer().Header().Get("Transfer-Encoding") == "" {
-		c.Writer().Header().Add("Transfer-Encoding", "chunked")
-		c.Writer().Header().Add("Content-Type", "text/html")
-		c.Writer().WriteHeader(http.StatusOK)
+func (c *Context) endRequest(recoverHandler Handler) {
+	if err := recover(); err != nil {
+		c.SetStatus(http.StatusInternalServerError)
+		c.Msg = fmt.Sprintf("%s", err)
+		recoverHandler(c)
 	}
+}
 
-	data = append(data, '\n')
-	_, err := c.Writer().Write(data)
-	if err != nil {
-		panic(err)
-	}
-	(c.Writer().(http.Flusher)).Flush()
+func (c *Context) WriteString(str string) error {
+	return c.Render().Text(str)
 }
 
 func (c *Context) Render() *Render {
+	if c.render == nil {
+		c.render = newRender(c.res, c.app.configuration.charset)
+	}
 	return c.render
 }
 
-func (c *Context) Params() *Params {
+func (c *Context) Params() params {
+	if c.params == nil {
+		c.params = newParams()
+	}
 	return c.params
 }
 
@@ -109,11 +123,14 @@ func (c *Context) Header(key string) string {
 	return c.req.Header.Get(key)
 }
 
-func (c *Context) Logger() logger.ILogger {
+func (c *Context) Logger() logger.AbstractLogger {
 	return Logger()
 }
 
-func (c *Context) Writer() http.ResponseWriter {
+func (c *Context) Writer(writers ...http.ResponseWriter) http.ResponseWriter {
+	if writers != nil {
+		c.res = writers[0]
+	}
 	return c.res
 }
 
@@ -124,17 +141,13 @@ func (c *Context) Redirect(url string, statusHeader ...int) {
 	http.Redirect(c.res, c.req, url, statusHeader[0])
 }
 
-func (c *Context) sessionManger() sessions.ISessionManager {
-	sessionInf, ok := Make("sessionManager").(sessions.ISessionManager)
-	if !ok {
-		panic("Type of `sessionManager` component error")
-	}
-	return sessionInf
+func (c *Context) sessions() *sessions.Sessions {
+	return Make(di.ServicePineSessions).(*sessions.Sessions)
 }
 
-func (c *Context) Session() sessions.ISession {
+func (c *Context) Session() sessions.AbstractSession {
 	if c.sess == nil {
-		sess, err := c.sessionManger().Session(c.req, c.res)
+		sess, err := c.sessions().Session(c.cookie)
 		if err != nil {
 			panic(fmt.Sprintf("Get sessionInstance failed: %s", err.Error()))
 		}
@@ -143,9 +156,8 @@ func (c *Context) Session() sessions.ISession {
 	return c.sess
 }
 
-// 执行下个中间件
 func (c *Context) Next() {
-	if c.IsStopped() == true {
+	if c.stopped == true {
 		return
 	}
 	c.middlewareIndex++
@@ -153,10 +165,19 @@ func (c *Context) Next() {
 	mws = append(mws, c.route.Middleware...)
 	length := len(mws)
 	if length == c.middlewareIndex {
-		c.route.Handle(c)
+		c.Handle()
 	} else {
 		mws[c.middlewareIndex](c)
 	}
+}
+
+// skip all middleware to exec router handler
+func (c *Context) Handle() {
+	c.route.Handle(c)
+}
+
+func (c *Context) Stop() {
+	c.stopped = true
 }
 
 func (c *Context) IsStopped() bool {
@@ -167,22 +188,21 @@ func (c *Context) getRoute() *RouteEntry {
 	return c.route
 }
 
-func (c *Context) setRoute(route *RouteEntry) *Context{
+func (c *Context) setRoute(route *RouteEntry) *Context {
 	c.route = route
 	return c
 }
 
-func (c *Context) Abort(statusCode int, msg string) {
+func (c *Context) Abort(statusCode int, msg ...string) {
 	c.SetStatus(statusCode)
-	c.Msg = msg
-	handler, ok := errCodeCallHandler[statusCode]
-	if ok {
+	c.Stop()
+	if len(msg) > 0 {
+		c.Msg = msg[0]
+	}
+	if handler, ok := errCodeCallHandler[statusCode]; ok {
 		handler(c)
 	} else {
-		DefaultErrTemplateHTML.Execute(c.Writer(), map[string]interface{}{
-			"Message": c.Msg,
-			"Code":    statusCode,
-		})
+		panic(errors.New(c.Msg))
 	}
 }
 
@@ -190,12 +210,7 @@ func (c *Context) SendFile(filepath string) {
 	http.ServeFile(c.res, c.req, filepath)
 }
 
-func (c *Context) Status() int {
-	return c.status
-}
-
 func (c *Context) SetStatus(statusCode int) {
-	c.status = statusCode
 	c.res.WriteHeader(statusCode)
 }
 
@@ -208,11 +223,11 @@ func (c *Context) IsAjax() bool {
 }
 
 func (c *Context) IsGet() bool {
-	return c.req.Method == http.MethodGet
+	return strings.EqualFold(c.req.Method, http.MethodGet)
 }
 
 func (c *Context) IsPost() bool {
-	return c.req.Method == http.MethodPost
+	return strings.EqualFold(c.req.Method, http.MethodPost)
 }
 
 func (c *Context) ClientIP() string {
@@ -230,36 +245,73 @@ func (c *Context) ClientIP() string {
 	return ""
 }
 
-// ************************************** GET QUERY METHOD ***************************************************** //
+func (c *Context) BindJSON(rev interface{}) error {
+	data, err := c.GetBody()
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, rev)
+}
+
+func (c *Context) BindForm(rev interface{}) error {
+	values := c.PostData()
+	if len(values) == 0 {
+		return nil
+	}
+
+	return schemaDecoder.Decode(rev, values)
+}
+
+func (c *Context) GetBody() ([]byte, error) {
+	return ioutil.ReadAll(c.req.Body)
+}
+
 func (c *Context) GetData() map[string][]string {
 	return c.req.URL.Query()
 }
 
-func (c *Context) GetInt(key string, defaultVal ...int) (val int, res bool) {
-	var err error
+func (c *Context) GetInt(key string, defaultVal ...int) (val int, err error) {
 	val, err = strconv.Atoi(c.req.URL.Query().Get(key))
 	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+		val, err = defaultVal[0], nil
 	}
 	return
 }
 
-func (c *Context) GetInt64(key string, defaultVal ...int64) (val int64, res bool) {
-	var err error
+func (c *Context) GetInt64(key string, defaultVal ...int64) (val int64, err error) {
 	val, err = strconv.ParseInt(c.req.URL.Query().Get(key), 10, 64)
 	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+		val, err = defaultVal[0], nil
+	}
+	return val, err
+}
+
+func (c *Context) GetBool(key string, defaultVal ...bool) (val bool, err error) {
+	val, err = strconv.ParseBool(c.req.URL.Query().Get(key))
+	if err != nil && len(defaultVal) > 0 {
+		val, err = defaultVal[0], nil
+	}
+	return val, err
+}
+
+func (c *Context) GetFloat64(key string, defaultVal ...float64) (val float64, err error) {
+	val, err = strconv.ParseFloat(c.req.URL.Query().Get(key), 64)
+	if err != nil && len(defaultVal) > 0 {
+		val, err = defaultVal[0], nil
 	}
 	return
 }
 
-func (c *Context) GetFloat64(key string, defaultVal ...float64) (val float64, res bool) {
-	var err error
-	val, err = strconv.ParseFloat(c.req.URL.Query().Get(key), 64)
-	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
-	}
-	return
+func (c *Context) URLParam(key string) string {
+	return c.GetString(key)
+}
+
+func (c *Context) URLParamInt64(key string) (int64, error) {
+	return c.GetInt64(key)
+}
+
+func (c *Context) URLParamInt(key string) (int, error) {
+	return c.GetInt(key)
 }
 
 func (c *Context) GetString(key string, defaultVal ...string) string {
@@ -270,46 +322,47 @@ func (c *Context) GetString(key string, defaultVal ...string) string {
 	return val
 }
 
-func (c *Context) GetStrings(key string) (val []string, ok bool) {
-	//like php style
-	val, ok = c.req.URL.Query()[key+"[]"]
+func (c *Context) GetStrings(key string) (val []string) {
+	val, _ = c.req.URL.Query()[key]
 	return
 }
 
-// ************************************** GET POST DATA METHOD ********************************************** //
-func (c *Context) PostInt(key string, defaultVal ...int) (val int, res bool) {
-	var err error
+func (c *Context) PostInt(key string, defaultVal ...int) (val int, err error) {
 	val, err = strconv.Atoi(c.req.PostFormValue(key))
 	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+		val, err = defaultVal[0], nil
 	}
 	return
 }
 
-func (c *Context) PostString(key string, defaultVal ...string) (val string, res bool) {
-	val, res = c.req.PostFormValue(key), false
-	if val != "" {
-		res = true
-	} else if len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
-	}
-	return
+func (c *Context) PostValue(key string) string {
+	return c.PostString(key)
 }
 
-func (c *Context) PostInt64(key string, defaultVal ...int64) (val int64, res bool) {
-	var err error
+func (c *Context) FormValue(key string) string {
+	return c.PostString(key)
+}
+
+func (c *Context) PostString(key string, defaultVal ...string) string {
+	val := c.req.PostFormValue(key)
+	if val == "" && len(defaultVal) > 0 {
+		val = defaultVal[0]
+	}
+	return val
+}
+
+func (c *Context) PostInt64(key string, defaultVal ...int64) (val int64, err error) {
 	val, err = strconv.ParseInt(c.req.PostFormValue(key), 10, 64)
 	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+		val, err = defaultVal[0], nil
 	}
 	return
 }
 
-func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, res bool) {
-	var err  error
+func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, err error) {
 	val, err = strconv.ParseFloat(c.req.PostFormValue(key), 64)
 	if err != nil && len(defaultVal) > 0 {
-		val, res = defaultVal[0], true
+		val, err = defaultVal[0], nil
 	}
 	return
 }
@@ -319,36 +372,30 @@ func (c *Context) PostData() map[string][]string {
 }
 
 func (c *Context) PostStrings(key string) (val []string, ok bool) {
-	//like php style
-	val, ok = c.req.PostForm[key+"[]"]
+	val, ok = c.req.PostForm[key]
 	return
 }
 
-func (c *Context) Files(key string) (val []*multipart.FileHeader) {
-	val = c.req.MultipartForm.File[key]
-	return
+func (c *Context) Files(key string) (multipart.File, *multipart.FileHeader, error) {
+	return c.req.FormFile(key)
 }
 
-func (c *Context) Value(key interface{}) interface{} {
-	if keyAsString, ok := key.(string); ok {
-		if val, ok := c.keys[keyAsString]; ok {
-			return val
-		}
+func (c *Context) Value(key string) interface{} {
+	if val, ok := c.keys[key]; ok {
+		return val
 	}
 	return nil
 }
 
-// ********************************** COOKIE ************************************************** //
-func (c *Context) getCookiesHandler() ICookie {
+func (c *Context) cookies() *sessions.Cookie {
 	if c.cookie == nil {
-		c.cookie = NewCookie(c.Writer(), c.Request())
+		panic("Please use `cookies` middleware")
 	}
-	c.cookie.Reset(c.res, c.req)
 	return c.cookie
 }
 
 func (c *Context) SetCookie(name string, value string, maxAge int) {
-	c.getCookiesHandler().Set(name, value, maxAge)
+	c.cookies().Set(name, value, maxAge)
 }
 
 func (c *Context) ExistsCookie(name string) bool {
@@ -360,9 +407,9 @@ func (c *Context) ExistsCookie(name string) bool {
 }
 
 func (c *Context) GetCookie(name string) string {
-	return c.getCookiesHandler().Get(name)
+	return c.cookies().Get(name)
 }
 
 func (c *Context) RemoveCookie(name string) {
-	c.getCookiesHandler().Delete(name)
+	c.cookies().Delete(name)
 }
