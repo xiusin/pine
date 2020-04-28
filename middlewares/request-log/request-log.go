@@ -9,6 +9,10 @@ import (
 	"time"
 )
 
+/**
+请求日志记录
+注意: 建议只打印超出一定耗时的路由
+ */
 func RequestRecorder(minDuration ...time.Duration) pine.Handler {
 	red, green, yellow := color.FgRed.Render, color.FgGreen.Render, color.FgYellow.Render
 	return func(c *pine.Context) {

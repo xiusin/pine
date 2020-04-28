@@ -8,7 +8,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/http/pprof"
 	"os"
 	"path"
 	"reflect"
@@ -212,11 +211,11 @@ func (a *Application) gracefulShutdown(srv *http.Server, quit <-chan os.Signal) 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	srv.SetKeepAlivesEnabled(false)
+	for _, beforeHandler := range shutdownBeforeHandler {
+		srv.RegisterOnShutdown(beforeHandler)
+	}
 	if err := srv.Shutdown(ctx); err != nil {
 		panic(fmt.Sprintf("could not gracefully shutdown the server: %s", err.Error()))
-	}
-	for _, beforeHandler := range shutdownBeforeHandler {
-		beforeHandler()
 	}
 }
 
@@ -253,22 +252,7 @@ func (a *Application) parseForm(c *Context) {
 	}
 }
 
-func (a *Application) StartPProf() {
-	a.GET("/debug/pprof/:action", func(ctx *Context) {
-		switch ctx.Params().Get("action") {
-		case "profile":
-			pprof.Profile(ctx.Writer(), ctx.Request())
-		case "symbol":
-			pprof.Symbol(ctx.Writer(), ctx.Request())
-		case "trace":
-			pprof.Trace(ctx.Writer(), ctx.Request())
-		case "cmdline":
-			pprof.Cmdline(ctx.Writer(), ctx.Request())
-		default:
-			pprof.Index(ctx.Writer(), ctx.Request())
-		}
-	})
-}
+
 
 func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 	if len(opts) > 0 {

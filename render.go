@@ -81,6 +81,12 @@ func (c *Render) Bytes(v []byte) error {
 	return err
 }
 
+func (c *Render) HtmlBytes(v []byte) error  {
+	c.ContentType(contentTypeHTML)
+	_, err := c.writer.Write(v)
+	return err
+}
+
 func (c *Render) HTML(viewPath string) {
 	c.ContentType(contentTypeHTML)
 

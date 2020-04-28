@@ -13,7 +13,7 @@ var errCheckFailed = errors.New("check failed")
 var unixZero = time.Unix(0, 0)
 var prefixes = []string  {"/favicon.ico"}
 
-const timeFormat = "2006-01-02 13:04:05"
+const timeFormat = "2006-01-02 15:04:05"
 
 // https://developer.mozilla.org/zh-CN/docs/Web/HTTP/Headers/If-None-Match
 func Cache304(expires time.Duration, prefix ...string) pine.Handler {
