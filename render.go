@@ -54,7 +54,7 @@ func newRender(writer http.ResponseWriter, charset string) *Render {
 }
 
 func (c *Render) ContentType(typ string) {
-	c.writer.Header().Set("Content-Type", fmt.Sprintf("%s; Charset=%s", typ, c.charset))
+	c.writer.Header().Set("Content-Type", fmt.Sprintf("%s; charset=%s", typ, c.charset))
 }
 
 func (c *Render) reset(writer http.ResponseWriter) {
