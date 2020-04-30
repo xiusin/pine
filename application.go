@@ -173,12 +173,10 @@ func (r *Router) matchRegister(router AbstractRouter, path string, handle Handle
 		"Options": router.OPTIONS,
 	}
 
-	format := "matchRegister:[method: %s] %s%s"
-
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
 			route := fmt.Sprintf("%s%s", urlSeparator, upperCharToUnderLine(strings.TrimLeft(path, method)))
-			Logger().Printf(format, method, r.prefix, route)
+			Logger().Printf("matchRegister:[method: %s] %s%s", method, r.prefix, route)
 			routeMaker(route, handle)
 		}
 	}
@@ -264,7 +262,6 @@ func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 		srv = Addr(defaultAddressWithPort)
 	}
 
-	// Covert to readonly
 	a.ReadonlyConfiguration = AbstractReadonlyConfiguration(a.configuration)
 
 	if err := srv(a); err != nil && err != http.ErrServerClosed {
@@ -376,7 +373,6 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 		}
 	}
 
-	// pattern route
 	for _, pattern := range sortedPattern {
 		routes := patternRoutes[pattern]
 		reg := regexp.MustCompile(pattern)

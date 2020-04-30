@@ -61,12 +61,17 @@ func newContext(app *Application) *Context {
 func (c *Context) beginRequest(res http.ResponseWriter, req *http.Request) {
 	c.req = req
 	c.res = res
-	if c.cookie == nil {
-		c.cookie = sessions.NewCookie(req, res, c.app.configuration.CookieTranscoder)
-	} else {
-		c.cookie.Reset(req, res)
+	if c.app.configuration.useCookie {
+		if c.cookie == nil {
+			c.cookie = sessions.NewCookie(req, res, c.app.configuration.CookieTranscoder)
+		} else {
+			c.cookie.Reset(req, res)
+		}
+		c.sess = nil
 	}
-	c.reset()
+	if c.render != nil {
+		c.render.reset(c.res)
+	}
 	if len(c.app.configuration.serverName) > 0 {
 		res.Header().Set("Server", c.app.configuration.serverName)
 	}
@@ -77,16 +82,14 @@ func (c *Context) reset() {
 	c.middlewareIndex = -1
 	c.stopped = false
 	c.Msg = ""
-	c.keys = map[string]interface{}{}
-
+	if len(c.keys) > 0 {
+		for k := range c.keys {
+			delete(c.keys, k)
+		}
+	}
 	if c.params != nil {
 		c.params.reset()
 	}
-
-	if c.render != nil {
-		c.render.reset(c.res)
-	}
-	c.sess = nil
 }
 
 func (c *Context) endRequest(recoverHandler Handler) {
@@ -95,6 +98,7 @@ func (c *Context) endRequest(recoverHandler Handler) {
 		c.Msg = fmt.Sprintf("%s", err)
 		recoverHandler(c)
 	}
+	c.reset()
 }
 
 func (c *Context) WriteString(str string) error {
@@ -103,7 +107,7 @@ func (c *Context) WriteString(str string) error {
 
 func (c *Context) Render() *Render {
 	if c.render == nil {
-		c.render = newRender(c.res, c.app.configuration.charset)
+		c.render = newRender(c.res)
 	}
 	return c.render
 }

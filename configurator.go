@@ -9,17 +9,17 @@ import "github.com/xiusin/pine/sessions/cookie_transcoder"
 type Configuration struct {
 	maxMultipartMemory        int64
 	serverName                string
-	charset                   string
 	withoutStartupLog         bool
 	autoParseControllerResult bool
 	autoParseForm             bool
+	useCookie                 bool
 	CookieTranscoder          cookie_transcoder.AbstractCookieTranscoder
 }
 
 type AbstractReadonlyConfiguration interface {
 	GetServerName() string
-	GetCharset() string
 	GetAutoParseForm() bool
+	GetUseCookie() bool
 	GetMaxMultipartMemory() int64
 	GetAutoParseControllerResult() bool
 	GetCookieTranscoder() cookie_transcoder.AbstractCookieTranscoder
@@ -36,6 +36,12 @@ func WithServerName(srvName string) Configurator {
 func WithCookieTranscoder(transcoder cookie_transcoder.AbstractCookieTranscoder) Configurator {
 	return func(o *Configuration) {
 		o.CookieTranscoder = transcoder
+	}
+}
+
+func WithCookie(open bool) Configurator {
+	return func(o *Configuration) {
+		o.useCookie = open
 	}
 }
 
@@ -57,12 +63,6 @@ func WithoutStartupLog(hide bool) Configurator {
 	}
 }
 
-func WithCharset(charset string) Configurator {
-	return func(o *Configuration) {
-		o.charset = charset
-	}
-}
-
 func WithAutoParseControllerResult(auto bool) Configurator {
 	return func(o *Configuration) {
 		o.autoParseControllerResult = auto
@@ -73,8 +73,8 @@ func (c *Configuration) GetServerName() string {
 	return c.serverName
 }
 
-func (c *Configuration) GetCharset() string {
-	return c.charset
+func (c *Configuration) GetUseCookie() bool {
+	return c.useCookie
 }
 
 func (c *Configuration) GetAutoParseForm() bool {

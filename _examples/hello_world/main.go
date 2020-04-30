@@ -2,14 +2,13 @@ package main
 
 import (
 	"github.com/xiusin/pine"
-	request_log "github.com/xiusin/pine/middlewares/request-log"
 )
 
 func main() {
 	app := pine.New()
-	app.Use(request_log.RequestRecorder())
+	pine.StartPprof(app)
 	app.GET("/", func(ctx *pine.Context) {
-		ctx.Writer().Write([]byte("hello world"))
+		ctx.WriteString("hello world")
 	})
 	app.Run(pine.Addr(":9528"))
 }

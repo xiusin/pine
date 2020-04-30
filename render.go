@@ -8,7 +8,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
-	"fmt"
 	"io"
 	"net/http"
 	"path/filepath"
@@ -24,16 +23,15 @@ type Render struct {
 	engines map[string]render.AbstractRenderer
 	writer  http.ResponseWriter
 	tplData H
-	charset string
 
 	applied bool
 }
 
 const (
-	contentTypeJSON = "application/json"
-	contentTypeHTML = "text/html"
-	contentTypeText = "text/plain"
-	contentTypeXML  = "text/xml"
+	ContentTypeJSON = "application/json; charset=utf-8"
+	ContentTypeHTML = "text/html; charset=utf-8"
+	ContentTypeText = "text/plain; charset=utf-8"
+	ContentTypeXML  = "text/xml; charset=utf-8"
 )
 
 func RegisterViewEngine(engine render.AbstractRenderer) {
@@ -43,52 +41,43 @@ func RegisterViewEngine(engine render.AbstractRenderer) {
 	engines[engine.Ext()] = engine
 }
 
-func newRender(writer http.ResponseWriter, charset string) *Render {
+func newRender(writer http.ResponseWriter) *Render {
 	return &Render{
 		engines,
 		writer,
-		H{},
-		charset,
+		nil,
 		false,
 	}
 }
 
 func (c *Render) ContentType(typ string) {
-	c.writer.Header().Set("Content-Type", fmt.Sprintf("%s; charset=%s", typ, c.charset))
+	c.writer.Header().Set("Content-Type", typ)
 }
 
 func (c *Render) reset(writer http.ResponseWriter) {
 	c.writer = writer
-	c.tplData = H{}
+	for k := range c.tplData {
+		delete(c.tplData, k)
+	}
 	c.applied = false
 }
 func (c *Render) JSON(v interface{}) error {
-	c.ContentType(contentTypeJSON)
+	c.writer.Header().Set("Content-Type", ContentTypeJSON)
 
 	return responseJson(c.writer, v, "")
 }
 
 func (c *Render) Text(v string) error {
-	c.ContentType(contentTypeText)
-
 	return c.Bytes([]byte(v))
 }
 
 func (c *Render) Bytes(v []byte) error {
-	c.ContentType(contentTypeText)
-
-	_, err := c.writer.Write(v)
-	return err
-}
-
-func (c *Render) HtmlBytes(v []byte) error  {
-	c.ContentType(contentTypeHTML)
 	_, err := c.writer.Write(v)
 	return err
 }
 
 func (c *Render) HTML(viewPath string) {
-	c.ContentType(contentTypeHTML)
+	c.writer.Header().Set("Content-Type", ContentTypeHTML)
 
 	if err := c.engines[filepath.Ext(viewPath)].HTML(c.writer, viewPath, c.tplData); err != nil {
 		panic(err)
@@ -101,23 +90,25 @@ func (c *Render) GetEngine(ext string) render.AbstractRenderer {
 	return c.engines[ext]
 }
 
-
 func (c *Render) JSONP(callback string, v interface{}) error {
-	c.ContentType(contentTypeJSON)
+	c.writer.Header().Set("Content-Type", ContentTypeJSON)
 
 	return responseJson(c.writer, v, callback)
 }
 
 func (c *Render) ViewData(key string, val interface{}) {
+	if c.tplData == nil {
+		c.tplData = H{}
+	}
 	c.tplData[key] = val
 }
 
-func (c *Render) GetViewData() map[string]interface{}  {
+func (c *Render) GetViewData() map[string]interface{} {
 	return c.tplData
 }
 
 func (c *Render) XML(v interface{}) error {
-	c.ContentType(contentTypeXML)
+	c.writer.Header().Set("Content-Type", ContentTypeXML)
 
 	b, err := xml.MarshalIndent(v, "", " ")
 	if err == nil {
