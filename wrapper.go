@@ -43,18 +43,9 @@ func (cmr *routerWrapper) warpHandler(method string, controller IController) Han
 		// 使用反射类型构建一个新的控制器实例
 		// 每次请求都会构建一个新的实例, 请不要再控制器字段使用共享字段, 比如统计请求次数等功能
 		c := reflect.New(rvCtrl.Elem().Type())
-
-		// 给新的控制器赋值context, 利用unsafe设置ctx, 不开放api `SetCtx`，不允许修改
 		rf := reflect.Indirect(c).FieldByName("context")
-
-		// 获取context的地址
 		ptr := unsafe.Pointer(rf.UnsafeAddr())
-
-		// 赋值
 		*(**Context)(ptr) = context
-
-		// 处理请求
-		// 如果开启解析方法返回值参数, 会自动接收并分析渲染
 		cmr.result(c, rvCtrl.Elem().Type().Name(), method)
 	}
 }
@@ -69,18 +60,6 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 	// 转换为context实体实例
 	ctx := c.MethodByName("Ctx").Call(nil)[0].Interface().(*Context)
 
-	//// 请求前置操作, 可以用于初始化等功能
-	//beforeAction := c.MethodByName("BeforeAction")
-	//if beforeAction.IsValid() {
-	//	beforeAction.Call(ins)
-	//}
-	//
-	//// 请求后置操作, 可以用于关闭一些资源, 保存一些内容
-	//afterAction := c.MethodByName("AfterAction")
-	//if afterAction.IsValid() {
-	//	defer func() { afterAction.Call(ins) }()
-	//}
-
 	// 反射执行函数参数, 解析并设置可获取的参数类型
 	mt := c.MethodByName(method).Type()
 
@@ -88,29 +67,12 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 		for i := 0; i < numIn; i++ {
 			if in := mt.In(i); in.Kind() == reflect.Ptr || in.Kind() == reflect.Interface {
 				inType := in.String()
-				switch inType {
-				case "*http.Request":
-					ins = append(ins, reflect.ValueOf(ctx.req))
-				case "http.ResponseWriter":
-					ins = append(ins, reflect.ValueOf(ctx.res))
-				case "sessions.ISession":
-					ins = append(ins, reflect.ValueOf(ctx.Session()))
-				case "*pine.Params":
-					ins = append(ins, reflect.ValueOf(ctx.Params()))
-				case "sessions.ICookie":
-					ins = append(ins, reflect.ValueOf(ctx.cookies()))
-				case "*pine.Render":
-					ins = append(ins, reflect.ValueOf(ctx.Render()))
-				default:
-					// 在di容器内查找服务, 如果可以得到则加入参数列表, 否则终止程序
-					if di.Exists(inType) {
-						ins = append(ins, reflect.ValueOf(di.MustGet(inType)))
-					} else {
-						panic(fmt.Sprintf("con't resolve service `%s` in di", inType))
-					}
+				if di.Exists(inType) {
+					ins = append(ins, reflect.ValueOf(di.MustGet(inType)))
+				} else {
+					panic(fmt.Sprintf("con't resolve service `%s` in di", inType))
 				}
 			} else {
-				// unsupported
 				panic(fmt.Sprintf("controller %s method: %s params(NO.%d)(%s)  not support. only ptr or interface ", c.Type().String(), mt.Name(), i, in.String()))
 			}
 		}

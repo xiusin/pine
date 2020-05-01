@@ -26,7 +26,7 @@ func Cache304(expires time.Duration, prefix ...string) pine.Handler {
 				c.Stop()
 				return
 			}
-			c.Writer().Header().Set("Last-Modified", now.Format(timeFormat))
+			c.Response.Header.Set("Last-Modified", now.Format(timeFormat))
 		}
 		c.Next()
 	}
@@ -34,7 +34,7 @@ func Cache304(expires time.Duration, prefix ...string) pine.Handler {
 
 func needFilter(c *pine.Context) bool {
 	for _, prefix := range prefixes {
-		if strings.HasPrefix(c.Request().URL.Path, prefix) {
+		if strings.HasPrefix(string(c.Path()), prefix) {
 			return true
 		}
 	}
@@ -43,7 +43,7 @@ func needFilter(c *pine.Context) bool {
 
 
 func checkIfModifiedSince(c *pine.Context, modtime time.Time) (bool, error) {
-	if !c.IsGet() && c.Request().Method == http.MethodHead {
+	if !c.IsGet() && string(c.Method()) == http.MethodHead {
 		return false, fmt.Errorf("method: %w", errCheckFailed)
 	}
 	inm := c.Header("If-None-Match")

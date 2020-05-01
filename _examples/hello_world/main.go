@@ -1,14 +1,15 @@
 package main
 
 import (
+	"fmt"
 	"github.com/xiusin/pine"
 )
 
 func main() {
 	app := pine.New()
-	pine.StartPprof(app)
+	//pine.StartPprof(app)
 	app.GET("/", func(ctx *pine.Context) {
-		ctx.WriteString("hello world")
+		fmt.Println(ctx.GetData())
 	})
 	app.Run(pine.Addr(":9528"))
 }

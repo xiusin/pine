@@ -5,15 +5,14 @@
 package pine
 
 import (
-	"context"
 	"fmt"
+	"github.com/valyala/fasthttp"
 	"net/http"
 	"os"
 	"path"
 	"reflect"
 	"regexp"
 	"strings"
-	"time"
 )
 
 const Version = "dev 0.2.1"
@@ -116,13 +115,12 @@ func New() *Application {
 		return newContext(app)
 	})
 
-	app.handler = app
 	app.SetNotFound(func(c *Context) {
 		if len(c.Msg) == 0 {
 			c.Msg = defaultNotFoundMsg
 		}
 		err := DefaultErrTemplate.Execute(
-			c.Writer(), H{
+			c.Response.BodyWriter(), H{
 				"Message": c.Msg,
 				"Code":    http.StatusNotFound,
 			})
@@ -131,14 +129,6 @@ func New() *Application {
 		}
 	})
 	return app
-}
-
-func (a *Application) ServeHTTP(res http.ResponseWriter, req *http.Request) {
-	c := a.pool.Acquire().(*Context)
-	c.beginRequest(res, req)
-	defer a.pool.Release(c)
-	defer c.endRequest(a.recoverHandler)
-	a.handle(c)
 }
 
 func (r *Router) register(router AbstractRouter, controller IController) {
@@ -204,22 +194,18 @@ func (a *Application) SetNotFound(handler Handler) {
 	errCodeCallHandler[http.StatusNotFound] = handler
 }
 
-func (a *Application) gracefulShutdown(srv *http.Server, quit <-chan os.Signal) {
+func (a *Application) gracefulShutdown(srv *fasthttp.Server, quit <-chan os.Signal) {
 	<-quit
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-	srv.SetKeepAlivesEnabled(false)
 	for _, beforeHandler := range shutdownBeforeHandler {
-		srv.RegisterOnShutdown(beforeHandler)
+		beforeHandler()
 	}
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(); err != nil {
 		panic(fmt.Sprintf("could not gracefully shutdown the server: %s", err.Error()))
 	}
 }
 
 func (a *Application) handle(c *Context) {
 	if route := a.matchRoute(c); route != nil {
-		a.parseForm(c)
 		c.setRoute(route).Next()
 	} else {
 		if handler, ok := errCodeCallHandler[http.StatusNotFound]; ok {
@@ -234,24 +220,6 @@ func (a *Application) handle(c *Context) {
 	}
 }
 
-func (a *Application) parseForm(c *Context) {
-	if a.configuration.autoParseForm {
-		if c.IsPost() {
-			var err error
-			if strings.Contains(c.Header("Content-Type"), "multipart/form-data") {
-				err = c.req.ParseMultipartForm(a.configuration.maxMultipartMemory)
-			} else {
-				err = c.req.ParseForm()
-			}
-			if err != nil {
-				panic(err)
-			}
-		}
-	}
-}
-
-
-
 func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 	if len(opts) > 0 {
 		for _, opt := range opts {
@@ -264,7 +232,7 @@ func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 
 	a.ReadonlyConfiguration = AbstractReadonlyConfiguration(a.configuration)
 
-	if err := srv(a); err != nil && err != http.ErrServerClosed {
+	if err := srv(a); err != nil {
 		panic(err)
 	}
 }
@@ -339,10 +307,10 @@ func (r *Router) getPattern(str string, any bool) (paramName, pattern string) {
 func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 	var host string
 	if r.hostname != zeroIP {
-		host = strings.Replace(strings.Split(ctx.req.Host, ":")[0], r.hostname, "", 1)
+		host = strings.Replace(strings.Split(string(ctx.Host()), ":")[0], r.hostname, "", 1)
 	}
 	var ok bool
-	method := ctx.Request().Method
+	method := string(ctx.Method())
 	// 查看是否有注册域名路由
 	if len(host) != 0 {
 		if r, ok = r.registeredSubdomains[host]; !ok {
@@ -351,7 +319,7 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 	}
 
 	// 优先匹配完整路由
-	fullPath := ctx.req.URL.Path
+	fullPath := ctx.Path()
 	if route, ok := r.methodRoutes[method][fullPath]; ok {
 		if !route.resolved {
 			route.ExtendsMiddleWare = r.middleWares
@@ -360,7 +328,7 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 		return route
 	}
 
-	pathInfo := strings.Split(ctx.req.URL.Path, urlSeparator)
+	pathInfo := strings.Split(fullPath, urlSeparator)
 
 	l := len(pathInfo)
 	for i := 1; i <= l; i++ {
@@ -376,7 +344,7 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 	for _, pattern := range sortedPattern {
 		routes := patternRoutes[pattern]
 		reg := regexp.MustCompile(pattern)
-		matchedStrings := reg.FindAllStringSubmatch(ctx.req.URL.Path, -1)
+		matchedStrings := reg.FindAllStringSubmatch(string(ctx.Path()), -1)
 		for _, route := range routes {
 			if len(matchedStrings) == 0 || len(matchedStrings[0]) == 0 || route.Method != method {
 				continue
@@ -439,13 +407,13 @@ func (r *Router) Use(middleWares ...Handler) {
 
 // 注意: 会走全局中间件
 func (r *Router) Static(urlPath, dir string) {
-	fileServer := http.FileServer(http.Dir(dir))
+	fileServer := fasthttp.FSHandler(dir, 1)
 	handler := func(c *Context) {
 		if c.Params().Get("filepath") == "" {
 			c.Abort(http.StatusNotFound)
 			return
 		}
-		http.StripPrefix(urlPath, fileServer).ServeHTTP(c.Writer(), c.Request())
+		fileServer(c.RequestCtx)
 	}
 	routePath := path.Join(urlPath, "*filepath")
 	r.GET(routePath, handler)
@@ -453,7 +421,7 @@ func (r *Router) Static(urlPath, dir string) {
 }
 
 func (r *Router) StaticFile(path, file string, mws ...Handler) {
-	r.GET(path, func(c *Context) { http.ServeFile(c.Writer(), c.Request(), file) }, mws...)
+	r.GET(path, func(c *Context) { fasthttp.ServeFile(c.RequestCtx, file) }, mws...)
 }
 
 func (r *Router) GET(path string, handle Handler, mws ...Handler) {

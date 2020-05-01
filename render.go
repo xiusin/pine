@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"github.com/valyala/fasthttp"
 	"io"
-	"net/http"
 	"path/filepath"
 
 	"github.com/xiusin/pine/render"
@@ -21,7 +21,7 @@ var engines = map[string]render.AbstractRenderer{}
 
 type Render struct {
 	engines map[string]render.AbstractRenderer
-	writer  http.ResponseWriter
+	writer  *fasthttp.RequestCtx
 	tplData H
 
 	applied bool
@@ -41,28 +41,28 @@ func RegisterViewEngine(engine render.AbstractRenderer) {
 	engines[engine.Ext()] = engine
 }
 
-func newRender(writer http.ResponseWriter) *Render {
+func newRender(ctx *fasthttp.RequestCtx) *Render {
 	return &Render{
 		engines,
-		writer,
+		ctx,
 		nil,
 		false,
 	}
 }
 
 func (c *Render) ContentType(typ string) {
-	c.writer.Header().Set("Content-Type", typ)
+	c.writer.Response.Header.Set("Content-Type", typ)
 }
 
-func (c *Render) reset(writer http.ResponseWriter) {
-	c.writer = writer
+func (c *Render) reset(ctx *fasthttp.RequestCtx) {
+	c.writer = ctx
 	for k := range c.tplData {
 		delete(c.tplData, k)
 	}
 	c.applied = false
 }
 func (c *Render) JSON(v interface{}) error {
-	c.writer.Header().Set("Content-Type", ContentTypeJSON)
+	c.writer.Response.Header.Set("Content-Type", ContentTypeJSON)
 
 	return responseJson(c.writer, v, "")
 }
@@ -77,7 +77,7 @@ func (c *Render) Bytes(v []byte) error {
 }
 
 func (c *Render) HTML(viewPath string) {
-	c.writer.Header().Set("Content-Type", ContentTypeHTML)
+	c.writer.Response.Header.Set("Content-Type", ContentTypeHTML)
 
 	if err := c.engines[filepath.Ext(viewPath)].HTML(c.writer, viewPath, c.tplData); err != nil {
 		panic(err)
@@ -91,7 +91,7 @@ func (c *Render) GetEngine(ext string) render.AbstractRenderer {
 }
 
 func (c *Render) JSONP(callback string, v interface{}) error {
-	c.writer.Header().Set("Content-Type", ContentTypeJSON)
+	c.writer.Response.Header.Set("Content-Type", ContentTypeJSON)
 
 	return responseJson(c.writer, v, callback)
 }
@@ -108,7 +108,7 @@ func (c *Render) GetViewData() map[string]interface{} {
 }
 
 func (c *Render) XML(v interface{}) error {
-	c.writer.Header().Set("Content-Type", ContentTypeXML)
+	c.writer.Response.Header.Set("Content-Type", ContentTypeXML)
 
 	b, err := xml.MarshalIndent(v, "", " ")
 	if err == nil {

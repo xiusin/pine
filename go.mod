@@ -13,6 +13,7 @@ require (
 	github.com/gookit/color v1.2.3
 	github.com/gorilla/schema v1.1.0
 	github.com/satori/go.uuid v1.2.0
+	github.com/valyala/fasthttp v1.12.0
 	github.com/xiusin/logger v0.0.1
 	go.etcd.io/bbolt v1.3.4
 )

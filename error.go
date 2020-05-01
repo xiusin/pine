@@ -76,8 +76,8 @@ func RegisterErrorCodeHandler(status int, handler Handler)  {
 
 func defaultRecoverHandler(c *Context) {
 	stackInfo, strFmt := debug.Stack(), "msg: %s  method: %s  path: %s\n stack: %s"
-	c.Logger().Errorf(strFmt, c.Msg, c.Request().Method, c.Request().URL.RequestURI(), stackInfo)
-	err := DefaultErrTemplate.Execute(c.Writer(), H{"Message": c.Msg, "Code": http.StatusInternalServerError})
+	c.Logger().Errorf(strFmt, c.Msg, c.Method(), c.RequestURI(), stackInfo)
+	err := DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": http.StatusInternalServerError})
 	if err != nil {
 		panic(err)
 	}

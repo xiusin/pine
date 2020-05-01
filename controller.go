@@ -28,7 +28,6 @@ type IController interface {
 	Cookie() *sessions.Cookie
 }
 
-// 自动映射controller需要忽略的方法, 阻止自动注册路由时注册对应的函数
 var reflectingNeedIgnoreMethods = map[string]struct{}{}
 
 func init() {
@@ -55,7 +54,7 @@ func (c *Controller) Param() params {
 }
 
 func (c *Controller) View(name string) {
-	c.context.Render().HTML(name)
+	c.Render().HTML(name)
 }
 
 func (c *Controller) Logger() logger.AbstractLogger {
@@ -67,5 +66,5 @@ func (c *Controller) Session() sessions.AbstractSession {
 }
 
 func (c *Controller) ViewData(key string, val interface{}) {
-	c.context.Render().ViewData(key, val)
+	c.Render().ViewData(key, val)
 }
