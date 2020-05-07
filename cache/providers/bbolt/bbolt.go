@@ -14,6 +14,8 @@ import (
 
 var keyNotExistsErr = errors.New("key not exists or expired")
 
+const defaultBucketName = "MyBucket"
+
 type Option struct {
 	TTL             int // sec
 	Path            string
@@ -23,7 +25,7 @@ type Option struct {
 	CleanupInterval int
 }
 
-type PineBoltdb struct {
+type PineBolt struct {
 	*bolt.DB
 	*Option
 }
@@ -34,19 +36,19 @@ type Entry struct {
 }
 
 func (e *Entry) isExpired() bool {
-	return !e.LifeTime.IsZero() && time.Now().Sub(e.LifeTime) >= 0
+	return e.LifeTime.Unix() == 0 || (!e.LifeTime.IsZero() && time.Now().Sub(e.LifeTime) >= 0)
 }
 
-func New(opt Option) *PineBoltdb {
+func New(opt Option) *PineBolt {
 	var err error
 	if opt.Path == "" {
 		panic("path params must be set")
 	}
 	if opt.BucketName == "" {
-		opt.BucketName = "MyBucket"
+		opt.BucketName = defaultBucketName
 	}
 	if opt.CleanupInterval == 0 {
-		opt.CleanupInterval = 30
+		opt.CleanupInterval = 5
 	}
 	db, err := bolt.Open(opt.Path, 0666, opt.BoltOpt)
 	if err != nil {
@@ -59,18 +61,18 @@ func New(opt Option) *PineBoltdb {
 	if err != nil {
 		panic(err)
 	}
-	b := PineBoltdb{
-		DB: db,
+	b := PineBolt{
+		DB:     db,
 		Option: &opt,
 	}
 	go b.cleanup()
 	return &b
 }
 
-func (b *PineBoltdb) Get(key string) (val []byte, err error) {
+func (b *PineBolt) Get(key string) (val []byte, err error) {
 	err = b.View(func(tx *bolt.Tx) error {
 		buck := tx.Bucket([]byte(b.BucketName))
-		valByte:= buck.Get(b.getKey(key))
+		valByte := buck.Get(b.getKey(key))
 		var e Entry
 		if err = json.Unmarshal(valByte, &e); err != nil {
 			return err
@@ -85,7 +87,7 @@ func (b *PineBoltdb) Get(key string) (val []byte, err error) {
 	return
 }
 
-func (b *PineBoltdb) GetWithUnmarshal(key string, receiver interface{}) error {
+func (b *PineBolt) GetWithUnmarshal(key string, receiver interface{}) error {
 	data, err := b.Get(key)
 	if err != nil {
 		return err
@@ -94,7 +96,7 @@ func (b *PineBoltdb) GetWithUnmarshal(key string, receiver interface{}) error {
 	return err
 }
 
-func (b *PineBoltdb) Set(key string, val []byte, ttl ...int) error {
+func (b *PineBolt) Set(key string, val []byte, ttl ...int) error {
 	return b.Update(func(tx *bolt.Tx) error {
 		var e = Entry{LifeTime: b.getTime(ttl...), Val: string(val)}
 		var err error
@@ -105,17 +107,15 @@ func (b *PineBoltdb) Set(key string, val []byte, ttl ...int) error {
 	})
 }
 
-
-func (b *PineBoltdb) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
+func (b *PineBolt) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
 	data, err := json.Marshal(structData)
 	if err != nil {
-		return  err
+		return err
 	}
 	return b.Set(key, data, ttl...)
 }
 
-
-func (b *PineBoltdb) Delete(key string) error {
+func (b *PineBolt) Delete(key string) error {
 	return b.Update(func(tx *bolt.Tx) error {
 		if err := tx.Bucket([]byte(b.BucketName)).Delete(b.getKey(key)); err != nil {
 			return err
@@ -124,7 +124,7 @@ func (b *PineBoltdb) Delete(key string) error {
 	})
 }
 
-func (b *PineBoltdb) Exists(key string) bool {
+func (b *PineBolt) Exists(key string) bool {
 	if err := b.View(func(tx *bolt.Tx) error {
 		if val := tx.Bucket([]byte(b.BucketName)).Get(b.getKey(key)); val == nil {
 			return keyNotExistsErr
@@ -145,28 +145,26 @@ func (b *PineBoltdb) Exists(key string) bool {
 	return true
 }
 
-func (b *PineBoltdb) GetBoltDB() *bolt.DB {
+func (b *PineBolt) BoltDB() *bolt.DB {
 	return b.DB
 }
 
-func (b *PineBoltdb) getTime(ttl ...int) time.Time {
+func (b *PineBolt) getTime(ttl ...int) time.Time {
 	if len(ttl) == 0 {
 		ttl = append(ttl, b.TTL)
 	}
 	var t time.Time
-	if ttl[0] == 0 {
-		t = time.Time{}
-	} else {
+	if ttl[0] != 0 {
 		t = time.Now().Add(time.Duration(ttl[0]) * time.Second)
 	}
 	return t
 }
 
-func (b *PineBoltdb) getKey(key string) []byte  {
-	return []byte(b.Option.Prefix+key)
+func (b *PineBolt) getKey(key string) []byte {
+	return []byte(b.Option.Prefix + key)
 }
 
-func (b *PineBoltdb) cleanup() {
+func (b *PineBolt) cleanup() {
 	for range time.Tick(time.Second * time.Duration(b.CleanupInterval)) {
 		if err := b.Batch(func(tx *bolt.Tx) error {
 			b := tx.Bucket([]byte(b.BucketName))

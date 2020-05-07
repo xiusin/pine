@@ -115,6 +115,6 @@ func (c *PineBadger) getKey(key string) []byte {
 	return []byte(c.Option.Prefix + key)
 }
 
-func (c *PineBadger) GetBadgerDB() *badgerDB.DB {
+func (c *PineBadger) Badger() *badgerDB.DB {
 	return c.DB
 }

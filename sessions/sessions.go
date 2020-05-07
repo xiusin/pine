@@ -34,9 +34,16 @@ type Config struct {
 	Expires    time.Duration
 }
 
+const defaultSessionCookieName = "pine_sessionid"
+
+var defaultSessionLiftTime = time.Second * 604800 // 默认最长为7天
+
 func New(provider AbstractSessionStore, cfg *Config) *Sessions {
 	if len(cfg.CookieName) == 0 {
-		cfg.CookieName = defaultSessionName
+		cfg.CookieName = defaultSessionCookieName
+	}
+	if cfg.Expires.Seconds() == 0 {
+		cfg.Expires = defaultSessionLiftTime
 	}
 	return &Sessions{
 		provider: provider,

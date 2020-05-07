@@ -145,6 +145,6 @@ func (r *PineRedis) Exists(key string) bool {
 	return false
 }
 
-func (r *PineRedis) GetRedisPool() *redisgo.Pool  {
+func (r *PineRedis) RedisPool() *redisgo.Pool  {
 	return r.pool
 }

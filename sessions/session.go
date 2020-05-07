@@ -8,16 +8,14 @@ import (
 	"fmt"
 )
 
-const defaultSessionName = "pine_sessionid"
-
 type Session struct {
 	id    string
 	store AbstractSessionStore
 }
 
 type entry struct {
-	Val            string
-	Flush          bool
+	Val   string
+	Flush bool
 }
 
 func newSession(id string, store AbstractSessionStore) (*Session, error) {
@@ -43,7 +41,7 @@ func (sess *Session) Get(key string) string {
 }
 
 func (sess *Session) AddFlush(key string, val string) {
-	 sess.store.Save(sess.makeKey(key), &entry{Val: val, Flush: true})
+	sess.store.Save(sess.makeKey(key), &entry{Val: val, Flush: true})
 }
 
 func (sess *Session) Remove(key string) {
