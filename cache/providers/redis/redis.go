@@ -25,18 +25,15 @@ type Option struct {
 	WriteTimeout   int
 	Wait           bool
 	TTL            int
-	Prefix         string
 }
 
 type PineRedis struct {
-	option *Option
-	prefix string
 	ttl    int
 	pool   *redisgo.Pool
 }
 
-func DefaultOption() Option {
-	return Option{
+func DefaultOption() *Option {
+	return &Option{
 		MaxIdle:        10,
 		MaxActive:      50,
 		MaxIdleTimeout: 10,
@@ -46,16 +43,17 @@ func DefaultOption() Option {
 	}
 }
 
-func New(opt Option) *PineRedis {
-	if opt.Host == "" {
+func New(opt *Option) *PineRedis {
+	if opt == nil {
+		opt = DefaultOption()
+	}
+	if len(opt.Host) == 0 {
 		opt.Host = "127.0.0.1"
 	}
 	if opt.Port == 0 {
 		opt.Port = 6379
 	}
 	b := PineRedis{
-		prefix: opt.Prefix,
-		option: &opt,
 		ttl:    opt.TTL,
 		pool: &redisgo.Pool{
 			MaxIdle:     opt.MaxIdle,
@@ -63,14 +61,15 @@ func New(opt Option) *PineRedis {
 			IdleTimeout: time.Duration(opt.MaxIdleTimeout) * time.Second,
 			Wait:        opt.Wait,
 			Dial: func() (redisgo.Conn, error) {
-				con, err := redisgo.Dial("tcp", fmt.Sprintf("%s:%d", opt.Host, opt.Port),
+				con, err := redisgo.Dial("tcp",
+					fmt.Sprintf("%s:%d", opt.Host, opt.Port),
 					redisgo.DialPassword(opt.Password),
 					redisgo.DialDatabase(opt.DbIndex),
 					redisgo.DialConnectTimeout(time.Duration(opt.ConnectTimeout)*time.Second),
 					redisgo.DialReadTimeout(time.Duration(opt.ReadTimeout)*time.Second),
 					redisgo.DialWriteTimeout(time.Duration(opt.WriteTimeout)*time.Second))
 				if err != nil {
-					pine.Logger().Errorf("Dial error: %s", err.Error())
+					pine.Logger().Errorf("Dial error:", err.Error())
 					return nil, err
 				}
 				return con, nil
@@ -80,17 +79,13 @@ func New(opt Option) *PineRedis {
 	return &b
 }
 
-func (r *PineRedis) getCacheKey(key string) string {
-	return r.prefix + key
-}
-
 func (r *PineRedis) Pool() *redisgo.Pool {
 	return r.pool
 }
 
 func (r *PineRedis) Get(key string) ([]byte, error) {
 	client := r.pool.Get()
-	s, err := redisgo.Bytes(client.Do("GET", r.getCacheKey(key)))
+	s, err := redisgo.Bytes(client.Do("GET", key))
 	_ = client.Close()
 	return s, err
 }
@@ -106,7 +101,7 @@ func (r *PineRedis) GetWithUnmarshal(key string, receiver interface{}) error {
 
 
 func (r *PineRedis) Set(key string, val []byte, ttl ...int) error {
-	params := []interface{}{r.getCacheKey(key), val}
+	params := []interface{}{key, val}
 	if len(ttl) == 0 {
 		ttl = []int{r.ttl}
 	}
@@ -130,21 +125,17 @@ func (r *PineRedis) SetWithMarshal(key string, structData interface{}, ttl ...in
 
 func (r *PineRedis) Delete(key string) error {
 	client := r.pool.Get()
-	_, err := client.Do("DEL", r.getCacheKey(key))
+	_, err := client.Do("DEL", key)
 	_ = client.Close()
 	return err
 }
 
 func (r *PineRedis) Exists(key string) bool {
 	client := r.pool.Get()
-	isKeyExit, _ := redisgo.Bool(client.Do("EXISTS", r.getCacheKey(key)))
+	isKeyExit, _ := redisgo.Bool(client.Do("EXISTS", key))
 	_ = client.Close()
 	if isKeyExit {
 		return true
 	}
 	return false
-}
-
-func (r *PineRedis) RedisPool() *redisgo.Pool  {
-	return r.pool
 }
