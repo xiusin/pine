@@ -25,7 +25,6 @@ type IController interface {
 
 	Logger() logger.AbstractLogger
 	Session() sessions.AbstractSession
-	Cookie() *sessions.Cookie
 }
 
 var reflectingNeedIgnoreMethods = map[string]struct{}{}
@@ -41,16 +40,8 @@ func (c *Controller) Ctx() *Context {
 	return c.context
 }
 
-func (c *Controller) Cookie() *sessions.Cookie {
-	return c.context.cookie
-}
-
 func (c *Controller) Render() *Render {
 	return c.context.Render()
-}
-
-func (c *Controller) Param() params {
-	return c.context.params
 }
 
 func (c *Controller) View(name string) {

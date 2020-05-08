@@ -45,6 +45,7 @@ type Context struct {
 	Msg string
 	// Binding some value to context
 	keys           map[string]interface{}
+
 	autoParseValue bool
 }
 
@@ -59,10 +60,12 @@ func newContext(app *Application) *Context {
 
 func (c *Context) beginRequest(ctx *fasthttp.RequestCtx) {
 	c.RequestCtx = ctx
-	if c.cookie == nil {
-		c.cookie = sessions.NewCookie(ctx, c.app.configuration.CookieTranscoder)
-	} else {
-		c.cookie.Reset(ctx)
+	if c.app.ReadonlyConfiguration.GetUseCookie() {
+		if c.cookie == nil {
+			c.cookie = sessions.NewCookie(ctx, c.app.configuration.CookieTranscoder)
+		} else {
+			c.cookie.Reset(ctx)
+		}
 	}
 	if c.render != nil {
 		c.render.reset(c.RequestCtx)
@@ -70,7 +73,7 @@ func (c *Context) beginRequest(ctx *fasthttp.RequestCtx) {
 }
 
 func (c *Context) reset() {
-	//c.route = nil
+	c.route = nil
 	c.sess = nil
 	c.middlewareIndex = -1
 	c.stopped = false
@@ -96,6 +99,19 @@ func (c *Context) endRequest(recoverHandler Handler) {
 
 func (c *Context) WriteString(str string) error {
 	return c.Render().Text(str)
+}
+
+func (c *Context) Write(data []byte) error  {
+	return c.Render().Bytes(data)
+}
+
+func (c *Context) WriteJSON(v interface{}) error {
+	return c.Render().JSON(v)
+}
+
+func (c *Context) WriteHTMLBytes(data []byte) error {
+	c.Response.Header.Set("Content-Type", ContentTypeHTML)
+	return c.Render().Bytes(data)
 }
 
 func (c *Context) Render() *Render {
@@ -157,7 +173,7 @@ func (c *Context) Next() {
 	}
 }
 
-// skip all middleware to exec router handler
+// skip all middleware to exec handler
 func (c *Context) Handle() {
 	c.route.Handle(c)
 }
@@ -350,21 +366,14 @@ func (c *Context) Value(key string) interface{} {
 	return nil
 }
 
-func (c *Context) cookies() *sessions.Cookie {
-	if c.cookie == nil {
-		panic("Please use `cookies` middleware")
-	}
-	return c.cookie
-}
-
 func (c *Context) SetCookie(name string, value string, maxAge int) {
-	c.cookies().Set(name, value, maxAge)
+	c.cookie.Set(name, value, maxAge)
 }
 
 func (c *Context) GetCookie(name string) string {
-	return string(c.Request.Header.Cookie(name))
+	return  c.cookie.Get(name)
 }
 
 func (c *Context) RemoveCookie(name string) {
-	c.Request.Header.DelCookie(name)
+	c.cookie.Delete(name)
 }

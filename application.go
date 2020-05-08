@@ -54,6 +54,7 @@ type RouteEntry struct {
 
 type AbstractRouter interface {
 	AddRoute(method, path string, handle Handler, mws ...Handler)
+
 	ANY(path string, handle Handler, mws ...Handler)
 	GET(path string, handle Handler, mws ...Handler)
 	POST(path string, handle Handler, mws ...Handler)

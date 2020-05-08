@@ -6,75 +6,20 @@ package redis
 
 import (
 	"encoding/json"
-	"fmt"
+
 	redisgo "github.com/gomodule/redigo/redis"
-	"github.com/xiusin/pine"
-	"time"
 )
 
-type Option struct {
-	MaxIdle        int
-	MaxActive      int
-	MaxIdleTimeout int
-	Host           string
-	Port           uint
-	Password       string
-	DbIndex        int
-	ConnectTimeout int
-	ReadTimeout    int
-	WriteTimeout   int
-	Wait           bool
-	TTL            int
-}
 
 type PineRedis struct {
 	ttl    int
 	pool   *redisgo.Pool
 }
 
-func DefaultOption() *Option {
-	return &Option{
-		MaxIdle:        10,
-		MaxActive:      50,
-		MaxIdleTimeout: 10,
-		Host:           "127.0.0.1",
-		Port:           6379,
-		Wait:           false,
-	}
-}
-
-func New(opt *Option) *PineRedis {
-	if opt == nil {
-		opt = DefaultOption()
-	}
-	if len(opt.Host) == 0 {
-		opt.Host = "127.0.0.1"
-	}
-	if opt.Port == 0 {
-		opt.Port = 6379
-	}
+func New(pool *redisgo.Pool, ttl int) *PineRedis {
 	b := PineRedis{
-		ttl:    opt.TTL,
-		pool: &redisgo.Pool{
-			MaxIdle:     opt.MaxIdle,
-			MaxActive:   opt.MaxActive,
-			IdleTimeout: time.Duration(opt.MaxIdleTimeout) * time.Second,
-			Wait:        opt.Wait,
-			Dial: func() (redisgo.Conn, error) {
-				con, err := redisgo.Dial("tcp",
-					fmt.Sprintf("%s:%d", opt.Host, opt.Port),
-					redisgo.DialPassword(opt.Password),
-					redisgo.DialDatabase(opt.DbIndex),
-					redisgo.DialConnectTimeout(time.Duration(opt.ConnectTimeout)*time.Second),
-					redisgo.DialReadTimeout(time.Duration(opt.ReadTimeout)*time.Second),
-					redisgo.DialWriteTimeout(time.Duration(opt.WriteTimeout)*time.Second))
-				if err != nil {
-					pine.Logger().Errorf("Dial error:", err.Error())
-					return nil, err
-				}
-				return con, nil
-			},
-		},
+		ttl:    ttl,
+		pool: pool,
 	}
 	return &b
 }
