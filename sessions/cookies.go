@@ -10,7 +10,9 @@ type Cookie struct {
 	transcoder cookie_transcoder.AbstractCookieTranscoder
 }
 
-func NewCookie(ctx *fasthttp.RequestCtx, transcoder cookie_transcoder.AbstractCookieTranscoder) *Cookie {
+func NewCookie(ctx *fasthttp.RequestCtx,
+	transcoder cookie_transcoder.AbstractCookieTranscoder) *Cookie {
+
 	return &Cookie{
 		ctx:        ctx,
 		transcoder: transcoder,
@@ -45,18 +47,10 @@ func (c *Cookie) Set(name string, value string, maxAge int) {
 	cookie.SetValue(value)
 	cookie.SetPath("/")
 	cookie.SetMaxAge(maxAge)
+
 	c.ctx.Response.Header.SetCookie(cookie)
 }
 
 func (c *Cookie) Delete(name string) {
 	c.ctx.Response.Header.Del(name)
-	//http.SetCookie(
-	//	c.w,
-	//	&http.Cookie{
-	//		Name:   name,
-	//		Path:   "/", //must set
-	//		Value:  "",
-	//		MaxAge: -1,
-	//	},
-	//)
 }

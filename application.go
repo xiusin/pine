@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-const Version = "dev 0.2.1"
+const Version = "dev 0.0.5"
 
 const logo = `
    ___  _         
@@ -132,8 +132,8 @@ func New() *Application {
 	return app
 }
 
-func (r *Router) register(router AbstractRouter, controller IController) {
-	wrapper := newRouterWrapper(router, controller)
+func (r *Router) register(controller IController) {
+	wrapper := newRouterWrapper(r, controller)
 	if v, implemented := interface{}(controller).(IRegisterHandler); implemented {
 		v.RegisterRoute(wrapper)
 	} else {
@@ -144,24 +144,24 @@ func (r *Router) register(router AbstractRouter, controller IController) {
 			_, ok := reflectingNeedIgnoreMethods[name]
 			if !ok && val.MethodByName(name).IsValid() {
 				r.matchRegister(
-					router,
 					name,
 					routeWrapper.warpHandler(name, controller),
 				)
 			}
+
 		}
 		reflectingNeedIgnoreMethods = nil
 	}
 }
 
-func (r *Router) matchRegister(router AbstractRouter, path string, handle Handler) {
+func (r *Router) matchRegister(path string, handle Handler) {
 	var methods = map[string]routeMaker{
-		"Get":     router.GET,
-		"Put":     router.PUT,
-		"Post":    router.POST,
-		"Head":    router.HEAD,
-		"Delete":  router.DELETE,
-		"Options": router.OPTIONS,
+		"Get":     r.GET,
+		"Put":     r.PUT,
+		"Post":    r.POST,
+		"Head":    r.HEAD,
+		"Delete":  r.DELETE,
+		"Options": r.OPTIONS,
 	}
 
 	for method, routeMaker := range methods {
@@ -200,6 +200,7 @@ func (a *Application) gracefulShutdown(srv *fasthttp.Server, quit <-chan os.Sign
 	for _, beforeHandler := range shutdownBeforeHandler {
 		beforeHandler()
 	}
+
 	if err := srv.Shutdown(); err != nil {
 		panic(fmt.Sprintf("could not gracefully shutdown the server: %s", err.Error()))
 	}
@@ -211,6 +212,7 @@ func (a *Application) handle(c *Context) {
 	} else {
 		if handler, ok := errCodeCallHandler[http.StatusNotFound]; ok {
 			c.SetStatus(http.StatusNotFound)
+
 			c.setRoute(&RouteEntry{
 				ExtendsMiddleWare: a.middleWares,
 				Handle:            handler,
@@ -239,7 +241,7 @@ func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 }
 
 func (r *Router) Handle(c IController) *Router {
-	r.register(r, c)
+	r.register(c)
 	return r
 }
 

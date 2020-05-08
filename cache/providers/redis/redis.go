@@ -5,7 +5,7 @@
 package redis
 
 import (
-	"encoding/json"
+	"github.com/xiusin/pine/cache"
 
 	redisgo "github.com/gomodule/redigo/redis"
 )
@@ -40,7 +40,7 @@ func (r *PineRedis) GetWithUnmarshal(key string, receiver interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(data, receiver)
+	err = cache.DefaultTranscoder.UnMarshal(data, receiver)
 	return err
 }
 
@@ -60,7 +60,7 @@ func (r *PineRedis) Set(key string, val []byte, ttl ...int) error {
 }
 
 func (r *PineRedis) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
-	data, err := json.Marshal(structData)
+	data, err := cache.DefaultTranscoder.Marshal(structData)
 	if err != nil {
 		return  err
 	}

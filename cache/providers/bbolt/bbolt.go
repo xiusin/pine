@@ -5,22 +5,23 @@
 package bbolt
 
 import (
-	"encoding/json"
 	"errors"
 	"github.com/xiusin/pine"
+	"github.com/xiusin/pine/cache"
 	bolt "go.etcd.io/bbolt"
+	"os"
 	"time"
 )
 
 var keyNotExistsErr = errors.New("key not exists or expired")
 
-const defaultBucketName = "MyBucket"
+var defaultBucketName = []byte("MyBucket")
 
 type Option struct {
 	TTL             int // sec
 	Path            string
-	Prefix          string
-	BucketName      string
+	BucketName      []byte
+	Mode            os.FileMode
 	BoltOpt         *bolt.Options
 	CleanupInterval int
 }
@@ -30,51 +31,54 @@ type PineBolt struct {
 	*Option
 }
 
-type Entry struct {
-	LifeTime time.Time `json:"life_time"`
-	Val      string    `json:"val"`
+type entry struct {
+	LifeTime time.Time `json:"t"`
+	Val      string    `json:"v"`
 }
 
-func (e *Entry) isExpired() bool {
-	return e.LifeTime.Unix() == 0 || (!e.LifeTime.IsZero() && time.Now().Sub(e.LifeTime) >= 0)
+func (e *entry) isExpired() bool {
+	return !e.LifeTime.IsZero() && time.Now().Sub(e.LifeTime) >= 0
 }
 
-func New(opt Option) *PineBolt {
+func New(opt *Option) *PineBolt {
 	var err error
 	if opt.Path == "" {
 		panic("path params must be set")
 	}
-	if opt.BucketName == "" {
+	if len(opt.BucketName) == 0 {
 		opt.BucketName = defaultBucketName
 	}
 	if opt.CleanupInterval == 0 {
-		opt.CleanupInterval = 5
+		opt.CleanupInterval = 30
 	}
-	db, err := bolt.Open(opt.Path, 0666, opt.BoltOpt)
+	if opt.Mode == 0 {
+		opt.Mode = 0666
+	}
+	db, err := bolt.Open(opt.Path, opt.Mode, opt.BoltOpt)
 	if err != nil {
 		panic(err)
 	}
 	err = db.Update(func(tx *bolt.Tx) error {
-		_, err := tx.CreateBucketIfNotExists([]byte(opt.BucketName))
+		_, err := tx.CreateBucketIfNotExists(opt.BucketName)
 		return err
 	})
 	if err != nil {
 		panic(err)
 	}
-	b := PineBolt{
-		DB:     db,
-		Option: &opt,
-	}
+	b := PineBolt{DB: db, Option: opt}
 	go b.cleanup()
 	return &b
 }
 
+func (b *PineBolt) bucket(tx *bolt.Tx) *bolt.Bucket {
+	return tx.Bucket(b.BucketName)
+}
+
 func (b *PineBolt) Get(key string) (val []byte, err error) {
 	err = b.View(func(tx *bolt.Tx) error {
-		buck := tx.Bucket([]byte(b.BucketName))
-		valByte := buck.Get(b.getKey(key))
-		var e Entry
-		if err = json.Unmarshal(valByte, &e); err != nil {
+		valByte := tx.Bucket(b.BucketName).Get([]byte(key))
+		var e entry
+		if err = cache.DefaultTranscoder.UnMarshal(valByte, &e); err != nil {
 			return err
 		}
 		if e.isExpired() {
@@ -92,23 +96,23 @@ func (b *PineBolt) GetWithUnmarshal(key string, receiver interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(data, receiver)
+	err = cache.DefaultTranscoder.UnMarshal(data, receiver)
 	return err
 }
 
 func (b *PineBolt) Set(key string, val []byte, ttl ...int) error {
 	return b.Update(func(tx *bolt.Tx) error {
-		var e = Entry{LifeTime: b.getTime(ttl...), Val: string(val)}
+		var e = entry{LifeTime: b.getExpireTime(ttl...), Val: string(val)}
 		var err error
-		if val, err = json.Marshal(&e); err != nil {
+		if val, err = cache.DefaultTranscoder.Marshal(&e); err != nil {
 			return err
 		}
-		return tx.Bucket([]byte(b.BucketName)).Put(b.getKey(key), val)
+		return tx.Bucket(b.BucketName).Put([]byte(key), val)
 	})
 }
 
 func (b *PineBolt) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
-	data, err := json.Marshal(structData)
+	data, err := cache.DefaultTranscoder.Marshal(structData)
 	if err != nil {
 		return err
 	}
@@ -117,7 +121,7 @@ func (b *PineBolt) SetWithMarshal(key string, structData interface{}, ttl ...int
 
 func (b *PineBolt) Delete(key string) error {
 	return b.Update(func(tx *bolt.Tx) error {
-		if err := tx.Bucket([]byte(b.BucketName)).Delete(b.getKey(key)); err != nil {
+		if err := tx.Bucket(b.BucketName).Delete([]byte(key)); err != nil {
 			return err
 		}
 		return nil
@@ -126,11 +130,11 @@ func (b *PineBolt) Delete(key string) error {
 
 func (b *PineBolt) Exists(key string) bool {
 	if err := b.View(func(tx *bolt.Tx) error {
-		if val := tx.Bucket([]byte(b.BucketName)).Get(b.getKey(key)); val == nil {
+		if val := tx.Bucket(b.BucketName).Get([]byte(key)); val == nil {
 			return keyNotExistsErr
 		} else {
-			var e Entry
-			if err := json.Unmarshal(val, &e); err != nil {
+			var e entry
+			if err := cache.DefaultTranscoder.UnMarshal(val, &e); err != nil {
 				return err
 			}
 			if !e.isExpired() {
@@ -149,29 +153,25 @@ func (b *PineBolt) BoltDB() *bolt.DB {
 	return b.DB
 }
 
-func (b *PineBolt) getTime(ttl ...int) time.Time {
+func (b *PineBolt) getExpireTime(ttl ...int) time.Time {
 	if len(ttl) == 0 {
 		ttl = append(ttl, b.TTL)
 	}
 	var t time.Time
-	if ttl[0] != 0 {
+	if ttl[0] > 0 {
 		t = time.Now().Add(time.Duration(ttl[0]) * time.Second)
 	}
 	return t
 }
 
-func (b *PineBolt) getKey(key string) []byte {
-	return []byte(b.Option.Prefix + key)
-}
-
 func (b *PineBolt) cleanup() {
 	for range time.Tick(time.Second * time.Duration(b.CleanupInterval)) {
 		if err := b.Batch(func(tx *bolt.Tx) error {
-			b := tx.Bucket([]byte(b.BucketName))
+			b := tx.Bucket(b.BucketName)
 			return b.ForEach(func(k, v []byte) error {
-				var e Entry
+				var e entry
 				var err error
-				if err = json.Unmarshal(v, &e); err != nil {
+				if err = cache.DefaultTranscoder.UnMarshal(v, &e); err != nil {
 					return err
 				}
 				if e.isExpired() {

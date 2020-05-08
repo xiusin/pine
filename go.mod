@@ -17,5 +17,3 @@ require (
 	github.com/xiusin/logger v0.0.1
 	go.etcd.io/bbolt v1.3.4
 )
-
-replace github.com/xiusin/debug => ../debug

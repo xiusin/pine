@@ -14,8 +14,8 @@ type Session struct {
 }
 
 type entry struct {
-	Val   string
-	Flush bool
+	Val   string `json:"v"`
+	Flush bool   `json:"f"`
 }
 
 func newSession(id string, store AbstractSessionStore) (*Session, error) {

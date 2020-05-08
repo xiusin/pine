@@ -51,7 +51,7 @@ func New(provider AbstractSessionStore, cfg *Config) *Sessions {
 	}
 }
 
-func GetSessionId() string {
+func sessionId() string {
 	hash := md5.New()
 	hash.Write(uuid.NewV4().Bytes())
 	bytes := hash.Sum(nil)
@@ -61,7 +61,7 @@ func GetSessionId() string {
 func (m *Sessions) Session(cookie *Cookie) (sess AbstractSession, err error) {
 	sessID := cookie.Get(m.cfg.CookieName)
 	if len(sessID) == 0 {
-		sessID = GetSessionId()
+		sessID = sessionId()
 		cookie.Set(
 			m.cfg.CookieName,
 			sessID,

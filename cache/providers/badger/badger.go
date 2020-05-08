@@ -5,7 +5,7 @@
 package badger
 
 import (
-	"encoding/json"
+	"github.com/xiusin/pine/cache"
 	"time"
 
 	"github.com/xiusin/pine"
@@ -36,12 +36,12 @@ func (c *PineBadger) GetWithUnmarshal(key string, receiver interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal(data, receiver)
+	err = cache.DefaultTranscoder.UnMarshal(data, receiver)
 	return err
 }
 
 func (c *PineBadger) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
-	data, err := json.Marshal(structData)
+	data, err := cache.DefaultTranscoder.Marshal(structData)
 	if err != nil {
 		return  err
 	}
