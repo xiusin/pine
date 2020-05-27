@@ -44,6 +44,9 @@ func Addr(addr string) ServerHandler {
 			a.printSetupInfo(addr)
 		}
 		quitCh := make(chan os.Signal)
+		if a.configuration.maxMultipartMemory > 0 {
+			s.MaxRequestBodySize = int(a.configuration.maxMultipartMemory)
+		}
 		s.Handler = func(ctx *fasthttp.RequestCtx) {
 			c := a.pool.Acquire().(*Context)
 			c.beginRequest(ctx)

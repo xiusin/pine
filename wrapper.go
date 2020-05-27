@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"github.com/xiusin/pine/di"
 	"reflect"
-	"strings"
 	"unsafe"
 )
 
@@ -83,30 +82,24 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 	// 查看是否设置了解析返回值
 	// 只接收返回值  error, interface, string , int , map struct 等.
 	// 具体查看函数: parseValue
-	if ctx.autoParseValue {
-		if len(values) > 0 {
-			var body []byte
-			for _, val := range values {
-				if !val.IsValid() || val.IsNil() {
-					continue
-				}
-				body, err = cmr.parseValue(val)
+	if ctx.autoParseValue && len(values) > 0 {
+		var body []byte
+		for _, val := range values {
+			skip := false
+			switch val.Kind() {
+			case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
+				skip = val.IsNil()
+			default:
+				skip = !val.IsValid()
 			}
-			if err == nil && len(body) > 0 {
-				err = ctx.Render().Bytes(body)
+			if skip {
+				continue
 			}
-		} else if !ctx.Render().applied {
-			// 如果是异步请求渲染json
-			if ctx.IsAjax() {
-				err = ctx.Render().JSON(ctx.Render().tplData)
-			} else {
-				// 没有返回值视为需要渲染指定的模板内容
-				ctx.Render().HTML(
-					strings.ToLower(
-						fmt.Sprintf(
-							"%s/%s",
-							strings.Replace(ctrlName, ControllerSuffix, "", 1), method)))
-			}
+			body, err = cmr.parseValue(val)
+		}
+		if err == nil && len(body) > 0 {
+			ctx.Render().ContentType(ContentTypeJSON)
+			ctx.Render().Bytes(body)
 		}
 	}
 }

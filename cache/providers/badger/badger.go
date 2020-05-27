@@ -36,12 +36,12 @@ func (c *PineBadger) GetWithUnmarshal(key string, receiver interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = cache.DefaultTranscoder.UnMarshal(data, receiver)
+	err = cache.UnMarshal(data, receiver)
 	return err
 }
 
 func (c *PineBadger) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
-	data, err := cache.DefaultTranscoder.Marshal(structData)
+	data, err := cache.Marshal(structData)
 	if err != nil {
 		return  err
 	}

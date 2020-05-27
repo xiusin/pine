@@ -40,7 +40,7 @@ func (r *PineRedis) GetWithUnmarshal(key string, receiver interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = cache.DefaultTranscoder.UnMarshal(data, receiver)
+	err = cache.UnMarshal(data, receiver)
 	return err
 }
 
@@ -60,7 +60,7 @@ func (r *PineRedis) Set(key string, val []byte, ttl ...int) error {
 }
 
 func (r *PineRedis) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
-	data, err := cache.DefaultTranscoder.Marshal(structData)
+	data, err := cache.Marshal(structData)
 	if err != nil {
 		return  err
 	}

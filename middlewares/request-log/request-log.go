@@ -5,7 +5,6 @@ import (
 	"github.com/gookit/color"
 	"github.com/xiusin/pine"
 	"net/http"
-	"reflect"
 	"time"
 )
 
@@ -25,11 +24,7 @@ func RequestRecorder(minDuration ...time.Duration) pine.Handler {
 			}
 		}
 		statusInfo := ""
-
-		writerRef := reflect.ValueOf(c.Writer())
-
-		status := reflect.Indirect(writerRef).FieldByName("status").Int()
-
+		status := c.Response.StatusCode()
 		if status == 0 || status == http.StatusOK {
 			statusInfo = green(http.StatusOK)
 		} else if status > http.StatusBadRequest && status < http.StatusInternalServerError {
@@ -40,9 +35,9 @@ func RequestRecorder(minDuration ...time.Duration) pine.Handler {
 		c.Logger().Debugf(
 			"[RQLOG] %s | %s | %s | path: %s",
 			statusInfo,
-			color.BgBlue.Render(fmt.Sprintf("%5s", c.Request().Method)),
+			color.BgBlue.Render(fmt.Sprintf("%5s", c.Method())),
 			usedTime.String(),
-			c.Request().URL.Path,
+			c.Path(),
 		)
 	}
 }

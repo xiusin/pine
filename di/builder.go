@@ -72,7 +72,6 @@ func ResolveServiceName(service interface{}) string {
 		ty := reflect.TypeOf(service)
 		if ty.Kind() == reflect.Ptr {
 			// todo 解决统一接口类型反射, 暂时使用输入字符串的方式解决
-			//fmt.Println(ty.String())
 			return ty.String()
 		}
 		panic(fmt.Sprintf("serviceName type(%s) is not support", ty.String()))

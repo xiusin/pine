@@ -78,7 +78,7 @@ func (b *PineBolt) Get(key string) (val []byte, err error) {
 	err = b.View(func(tx *bolt.Tx) error {
 		valByte := tx.Bucket(b.BucketName).Get([]byte(key))
 		var e entry
-		if err = cache.DefaultTranscoder.UnMarshal(valByte, &e); err != nil {
+		if err = cache.UnMarshal(valByte, &e); err != nil {
 			return err
 		}
 		if e.isExpired() {
@@ -96,7 +96,7 @@ func (b *PineBolt) GetWithUnmarshal(key string, receiver interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = cache.DefaultTranscoder.UnMarshal(data, receiver)
+	err = cache.UnMarshal(data, receiver)
 	return err
 }
 
@@ -104,7 +104,7 @@ func (b *PineBolt) Set(key string, val []byte, ttl ...int) error {
 	return b.Update(func(tx *bolt.Tx) error {
 		var e = entry{LifeTime: b.getExpireTime(ttl...), Val: string(val)}
 		var err error
-		if val, err = cache.DefaultTranscoder.Marshal(&e); err != nil {
+		if val, err = cache.Marshal(&e); err != nil {
 			return err
 		}
 		return tx.Bucket(b.BucketName).Put([]byte(key), val)
@@ -112,7 +112,7 @@ func (b *PineBolt) Set(key string, val []byte, ttl ...int) error {
 }
 
 func (b *PineBolt) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
-	data, err := cache.DefaultTranscoder.Marshal(structData)
+	data, err := cache.Marshal(structData)
 	if err != nil {
 		return err
 	}
@@ -134,7 +134,7 @@ func (b *PineBolt) Exists(key string) bool {
 			return keyNotExistsErr
 		} else {
 			var e entry
-			if err := cache.DefaultTranscoder.UnMarshal(val, &e); err != nil {
+			if err := cache.UnMarshal(val, &e); err != nil {
 				return err
 			}
 			if !e.isExpired() {
@@ -165,22 +165,24 @@ func (b *PineBolt) getExpireTime(ttl ...int) time.Time {
 }
 
 func (b *PineBolt) cleanup() {
-	for range time.Tick(time.Second * time.Duration(b.CleanupInterval)) {
-		if err := b.Batch(func(tx *bolt.Tx) error {
-			b := tx.Bucket(b.BucketName)
-			return b.ForEach(func(k, v []byte) error {
-				var e entry
-				var err error
-				if err = cache.DefaultTranscoder.UnMarshal(v, &e); err != nil {
-					return err
-				}
-				if e.isExpired() {
-					return b.Delete(k)
-				}
-				return nil
-			})
-		}); err != nil {
-			pine.Logger().Errorf("boltdb cleanup err: %s", err)
+	if b.CleanupInterval > 0 {
+		for range time.Tick(time.Second * time.Duration(b.CleanupInterval)) {
+			if err := b.Batch(func(tx *bolt.Tx) error {
+				b := tx.Bucket(b.BucketName)
+				return b.ForEach(func(k, v []byte) error {
+					var e entry
+					var err error
+					if err = cache.UnMarshal(v, &e); err != nil {
+						return err
+					}
+					if e.isExpired() {
+						return b.Delete(k)
+					}
+					return nil
+				})
+			}); err != nil {
+				pine.Logger().Errorf("boltdb cleanup err: %s", err)
+			}
 		}
 	}
 }

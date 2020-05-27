@@ -17,25 +17,25 @@ type AbstractCache interface {
 	Exists(string) bool
 }
 
-type transcoder struct {
-	Marshal func(interface{}) ([]byte, error)
+var defaultTranscoder = struct {
+	Marshal   func(interface{}) ([]byte, error)
 	UnMarshal func([]byte, interface{}) error
-}
-
-
-var DefaultTranscoder = transcoder{
-	Marshal: json.Marshal,
+}{
+	Marshal:   json.Marshal,
 	UnMarshal: json.Unmarshal,
 }
 
-func SetMarshal(marshaller func(interface{}) ([]byte, error))  {
-	if marshaller != nil {
-		DefaultTranscoder.Marshal = marshaller
+func SetTranscoderFunc(marshaller func(interface{}) ([]byte, error), unMarshaller func([]byte, interface{}) error) {
+	if marshaller != nil && unMarshaller != nil {
+		defaultTranscoder.Marshal = marshaller
+		defaultTranscoder.UnMarshal = unMarshaller
 	}
 }
 
-func SetUnMarshal(unMarshaller func([]byte, interface{}) error)  {
-	if unMarshaller != nil {
-		DefaultTranscoder.UnMarshal = unMarshaller
-	}
+func Marshal(data interface{}) ([]byte, error) {
+	return defaultTranscoder.Marshal(data)
+}
+
+func UnMarshal(data []byte, receiver interface{}) error {
+	return defaultTranscoder.UnMarshal(data, receiver)
 }
