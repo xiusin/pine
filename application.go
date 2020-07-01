@@ -37,7 +37,7 @@ var (
 	patternMap = map[string]string{
 		":int":    "<\\d+>",
 		":string": "<[\\w0-9\\_\\.\\+\\-]+>",
-		":any":    "<[/\\w0-9\\_\\.\\+\\-]+>", // *
+		":any":    "<[/\\w0-9\\_\\.\\+\\-~]+>", // *
 	}
 	_ AbstractRouter = (*Application)(nil)
 )
@@ -93,6 +93,7 @@ type Router struct {
 type Application struct {
 	*Router
 
+	quitCh				  chan os.Signal
 	recoverHandler        Handler
 	pool                  *Pool
 	configuration         *Configuration
@@ -193,6 +194,10 @@ func (a *Application) SetRecoverHandler(handler Handler) {
 
 func (a *Application) SetNotFound(handler Handler) {
 	errCodeCallHandler[http.StatusNotFound] = handler
+}
+
+func (a *Application) Close() {
+	a.quitCh <- os.Interrupt
 }
 
 func (a *Application) gracefulShutdown(srv *fasthttp.Server, quit <-chan os.Signal) {

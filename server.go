@@ -43,7 +43,7 @@ func Addr(addr string) ServerHandler {
 		if !a.configuration.withoutStartupLog {
 			a.printSetupInfo(addr)
 		}
-		quitCh := make(chan os.Signal)
+		a.quitCh = make(chan os.Signal)
 		if a.configuration.maxMultipartMemory > 0 {
 			s.MaxRequestBodySize = int(a.configuration.maxMultipartMemory)
 		}
@@ -55,8 +55,8 @@ func Addr(addr string) ServerHandler {
 			defer c.endRequest(a.recoverHandler)
 			a.handle(c)
 		}
-		signal.Notify(quitCh, os.Interrupt, os.Kill)
-		go a.gracefulShutdown(s, quitCh)
+		signal.Notify(a.quitCh, os.Interrupt, os.Kill)
+		go a.gracefulShutdown(s, a.quitCh)
 		return s.ListenAndServe(addr)
 	}
 }
