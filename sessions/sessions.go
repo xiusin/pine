@@ -18,6 +18,7 @@ type AbstractSessionStore interface {
 }
 
 type AbstractSession interface {
+	GetId() string
 	Set(string, string)
 	Get(string) string
 	AddFlush(string, string)

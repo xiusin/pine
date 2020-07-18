@@ -21,7 +21,6 @@ type IRouterWrapper interface {
 	PUT(path string, handle string, mws ...Handler)
 	HEAD(path string, handle string, mws ...Handler)
 	DELETE(path string, handle string, mws ...Handler)
-	OPTIONS(path string, handle string, mws ...Handler)
 }
 
 // 控制器映射路由
@@ -179,8 +178,4 @@ func (cmr *routerWrapper) HEAD(path, method string, mws ...Handler) {
 
 func (cmr *routerWrapper) DELETE(path, method string, mws ...Handler) {
 	cmr.router.DELETE(path, cmr.warpHandler(method, cmr.controller), mws...)
-}
-
-func (cmr *routerWrapper) OPTIONS(path, method string, mws ...Handler) {
-	cmr.router.OPTIONS(path, cmr.warpHandler(method, cmr.controller), mws...)
 }

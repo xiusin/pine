@@ -434,10 +434,12 @@ func (r *Router) StaticFile(path, file string, mws ...Handler) {
 
 func (r *Router) GET(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(http.MethodGet, path, handle, mws...)
+	r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) PUT(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(http.MethodPut, path, handle, mws...)
+	r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) ANY(path string, handle Handler, mws ...Handler) {
@@ -451,14 +453,17 @@ func (r *Router) ANY(path string, handle Handler, mws ...Handler) {
 
 func (r *Router) POST(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(http.MethodPost, path, handle, mws...)
+	r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) HEAD(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(http.MethodHead, path, handle, mws...)
+	r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) DELETE(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(http.MethodDelete, path, handle, mws...)
+	r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) OPTIONS(path string, handle Handler, mws ...Handler) {

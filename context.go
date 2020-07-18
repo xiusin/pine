@@ -44,7 +44,7 @@ type Context struct {
 	// Temporary recording error information
 	Msg string
 	// Binding some value to context
-	keys           map[string]interface{}
+	keys map[string]interface{}
 
 	autoParseValue bool
 }
@@ -101,7 +101,7 @@ func (c *Context) WriteString(str string) error {
 	return c.Render().Text(str)
 }
 
-func (c *Context) Write(data []byte) error  {
+func (c *Context) Write(data []byte) error {
 	return c.Render().Bytes(data)
 }
 
@@ -147,13 +147,17 @@ func (c *Context) sessions() *sessions.Sessions {
 	return Make(di.ServicePineSessions).(*sessions.Sessions)
 }
 
-func (c *Context) Session() sessions.AbstractSession {
+func (c *Context) Session(sessIns ...sessions.AbstractSession) sessions.AbstractSession {
 	if c.sess == nil {
-		sess, err := c.sessions().Session(c.cookie)
-		if err != nil {
-			panic(fmt.Sprintf("Get sessionInstance failed: %s", err.Error()))
+		if len(sessIns) > 0 {
+			c.sess = sessIns[0]
+		} else {
+			sess, err := c.sessions().Session(c.cookie)
+			if err != nil {
+				panic(fmt.Sprintf("Get sessionInstance failed: %s", err.Error()))
+			}
+			c.sess = sess
 		}
-		c.sess = sess
 	}
 	return c.sess
 }
@@ -311,6 +315,14 @@ func (c *Context) PostInt(key string, defaultVal ...int) (val int, err error) {
 	return
 }
 
+func (c *Context) PostBool(key string, defaultVal ...bool) (val bool, err error) {
+	val, err = strconv.ParseBool(string(c.RequestCtx.FormValue(key)))
+	if err != nil && len(defaultVal) > 0 {
+		val, err = defaultVal[0], nil
+	}
+	return
+}
+
 func (c *Context) PostValue(key string) string {
 	return c.PostString(key)
 }
@@ -343,16 +355,10 @@ func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, e
 	return
 }
 
+// @todo 测试PostArgs 和 MultipartForm的区别
 func (c *Context) PostData() map[string][]string {
-	postData := map[string][]string{}
-	c.PostArgs().VisitAll(func(key, _ []byte) {
-		values := c.PostArgs().PeekMultiBytes(key)
-		postData[string(key)] = []string{}
-		for _, value := range values {
-			postData[string(key)] = append(postData[string(key)], string(value))
-		}
-	})
-	return postData
+	forms, _ := c.MultipartForm()
+	return forms.Value
 }
 
 func (c *Context) Files(key string) (*multipart.FileHeader, error) {
@@ -371,7 +377,7 @@ func (c *Context) SetCookie(name string, value string, maxAge int) {
 }
 
 func (c *Context) GetCookie(name string) string {
-	return  c.cookie.Get(name)
+	return c.cookie.Get(name)
 }
 
 func (c *Context) RemoveCookie(name string) {

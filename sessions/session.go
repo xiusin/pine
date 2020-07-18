@@ -26,6 +26,10 @@ func newSession(id string, store AbstractSessionStore) (*Session, error) {
 	return sess, nil
 }
 
+func (sess *Session) GetId() string  {
+	return sess.id
+}
+
 func (sess *Session) Set(key string, val string) {
 	sess.store.Save(sess.makeKey(key), &entry{Val: val})
 }

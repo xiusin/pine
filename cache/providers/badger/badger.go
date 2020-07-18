@@ -19,7 +19,7 @@ type PineBadger struct {
 }
 
 func New(defaultTTL int, path string) *PineBadger {
-	if len(path) > 0 {
+	if len(path) == 0 {
 		panic("path params must be set")
 	}
 	db, err := badgerDB.Open(badgerDB.DefaultOptions(path))
