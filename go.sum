@@ -101,6 +101,8 @@ github.com/valyala/fasthttp v1.12.0/go.mod h1:229t1eWu9UXTPmoUkbpN/fctKPBY4IJoFX
 github.com/valyala/tcplisten v0.0.0-20161114210144-ceec8f93295a/go.mod h1:v3UYOV9WzVtRmSR+PDvWpU/qWl4Wa5LApYYX4ZtKbio=
 github.com/xiusin/logger v0.0.1 h1:d4T7vo34VFXfoAjfVSy76FaDM5VQidzJmvqqqdOn0kA=
 github.com/xiusin/logger v0.0.1/go.mod h1:Cpe36We6KxRDbq643JbTm7hL5TgHWzCgrizLvteZ82Q=
+github.com/xiusin/logger v0.0.3 h1:bNODuZAfu18dbTBC0FX7T7OgFJGBejRy8QRgOVo6nqU=
+github.com/xiusin/logger v0.0.3/go.mod h1:Cpe36We6KxRDbq643JbTm7hL5TgHWzCgrizLvteZ82Q=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
 go.etcd.io/bbolt v1.3.4 h1:hi1bXHMVrlQh6WwxAy+qZCV/SYIlqo+Ushwdpa4tAKg=
 go.etcd.io/bbolt v1.3.4/go.mod h1:G5EMThwa9y8QZGBClrRx5EY+Yw9kAhnjy3bSjsnlVTQ=

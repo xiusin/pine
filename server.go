@@ -6,7 +6,7 @@ package pine
 
 import (
 	"fmt"
-	"github.com/fatih/color"
+	"github.com/gookit/color"
 	"github.com/valyala/fasthttp"
 	"os"
 	"os/signal"
@@ -22,9 +22,8 @@ func (a *Application) printSetupInfo(addr string) {
 	if strings.HasPrefix(addr, ":") {
 		addr = fmt.Sprintf("%s%s", a.hostname, addr)
 	}
-	addr = color.GreenString(addr)
-	fmt.Println(color.GreenString("%s", logo))
-	fmt.Println(color.New(color.Bold).Sprintf("\nServer now listening on: %s\n", addr))
+	color.Green.Println(logo)
+	color.Red.Println("\nServer now listening on: " + addr)
 }
 
 func Addr(addr string) ServerHandler {
