@@ -94,7 +94,7 @@ type Router struct {
 type Application struct {
 	*Router
 
-	quitCh				  chan os.Signal
+	quitCh                chan os.Signal
 	recoverHandler        Handler
 	pool                  *Pool
 	configuration         *Configuration
@@ -168,7 +168,7 @@ func (r *Router) matchRegister(path string, handle Handler) {
 
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
-			route := fmt.Sprintf("%s%s", urlSeparator, upperCharToUnderLine(strings.TrimLeft(path, method)))
+			route := fmt.Sprintf("%s%s", urlSeparator, upperCharToUnderLine(strings.TrimPrefix(path, method)))
 			Logger().Printf("matchRegister:[method: %s] %s%s", method, r.prefix, route)
 			routeMaker(route, handle)
 		}
