@@ -58,6 +58,17 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 	// 转换为context实体实例
 	ctx := c.MethodByName("Ctx").Call(nil)[0].Interface().(*Context)
 
+	// 请求前置操作, 可以用于初始化等功能
+	construct := c.MethodByName("Construct")
+	if construct.IsValid() {
+		construct.Call(nil)
+	}
+
+	destruct := c.MethodByName("Destruct")
+	if destruct.IsValid() {
+		defer func() { destruct.Call(nil) }()
+	}
+
 	// 反射执行函数参数, 解析并设置可获取的参数类型
 	mt := c.MethodByName(method).Type()
 

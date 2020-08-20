@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
-
-	"github.com/xiusin/logger"
 )
 
 type AbstractBuilder interface {
@@ -38,14 +36,6 @@ const ServicePineRender = "pine.render"
 const formatErrServiceNotExists = "service %s not exists"
 
 var ServiceSingletonErr = errors.New("service is singleton, cannot use it with GetWithParams")
-
-func init() {
-	di.Set(ServicePineLogger, func(builder AbstractBuilder) (i interface{}, e error) {
-		l := logger.New()
-		l.SetLogLevel(logger.DebugLevel)
-		return l, nil
-	}, true)
-}
 
 func (b *builder) GetDefinition(serviceAny interface{}) (*Definition, error) {
 	serviceName := ResolveServiceName(serviceAny)
