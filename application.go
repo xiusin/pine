@@ -122,6 +122,7 @@ func New() *Application {
 		if len(c.Msg) == 0 {
 			c.Msg = defaultNotFoundMsg
 		}
+		c.Response.Header.SetContentType(ContentTypeHTML)
 		err := DefaultErrTemplate.Execute(
 			c.Response.BodyWriter(), H{
 				"Message": c.Msg,
@@ -134,7 +135,7 @@ func New() *Application {
 	return app
 }
 
-func (r *Router) register(controller IController) {
+func (r *Router) register(controller IController, prefix string) {
 	wrapper := newRouterWrapper(r, controller)
 	if v, implemented := interface{}(controller).(IRegisterHandler); implemented {
 		v.RegisterRoute(wrapper)
@@ -147,6 +148,7 @@ func (r *Router) register(controller IController) {
 			if !ok && val.MethodByName(name).IsValid() {
 				r.matchRegister(
 					name,
+					prefix,
 					routeWrapper.warpHandler(name, controller),
 				)
 			}
@@ -156,7 +158,7 @@ func (r *Router) register(controller IController) {
 	}
 }
 
-func (r *Router) matchRegister(path string, handle Handler) {
+func (r *Router) matchRegister(path, prefix string, handle Handler) {
 	var methods = map[string]routeMaker{
 		"Get":     r.GET,
 		"Put":     r.PUT,
@@ -168,7 +170,7 @@ func (r *Router) matchRegister(path string, handle Handler) {
 
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
-			route := fmt.Sprintf("%s%s", urlSeparator, upperCharToUnderLine(strings.TrimPrefix(path, method)))
+			route := fmt.Sprintf("%s%s%s", prefix, urlSeparator, upperCharToUnderLine(strings.TrimPrefix(path, method)))
 			Logger().Printf("matchRegister:[method: %s] %s%s", method, r.prefix, route)
 			routeMaker(route, handle)
 		}
@@ -246,8 +248,11 @@ func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 	}
 }
 
-func (r *Router) Handle(c IController) *Router {
-	r.register(c)
+func (r *Router) Handle(c IController, prefix ...string) *Router {
+	if len(prefix) == 0 {
+		prefix = []string{""}
+	}
+	r.register(c, prefix[0])
 	return r
 }
 
