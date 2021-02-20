@@ -65,7 +65,7 @@ type AbstractRouter interface {
 	DELETE(path string, handle Handler, mws ...Handler)
 
 	StaticFile(string, string, ...Handler)
-	Static(string, string)
+	Static(string, string, ...int)
 }
 
 type IRegisterHandler interface {
@@ -420,8 +420,11 @@ func (r *Router) Use(middleWares ...Handler) {
 }
 
 // 注意: 会走全局中间件
-func (r *Router) Static(urlPath, dir string) {
-	fileServer := fasthttp.FSHandler(dir, 1)
+func (r *Router) Static(urlPath, dir string, stripSlashes ...int) {
+	if len(stripSlashes) == 0 {
+		stripSlashes = []int{0}
+	}
+	fileServer := fasthttp.FSHandler(dir, stripSlashes[0])
 	handler := func(c *Context) {
 		if c.Params().Get("filepath") == "" {
 			c.Abort(http.StatusNotFound)
