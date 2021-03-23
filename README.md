@@ -16,9 +16,9 @@
 > (发现有些数据无法解析出来pkgPath, 现在只有类型名称)服务注册名称更为`interface{}`,  如果注册服务类型实例, 自动绑定字符串文件路径和`pkgPath`,
 `controller`自动解析参数是对比参数pkgPath,以确定是否为真实参数类型.  
 
-
-# todo #
-- [ ] session cache 组件重构
-- [ ] pprof组件迁移出框架
+# cache设计方法 #
+Cache::remember($this->cacheKey() . ':comments', 15, function () {
+        return $this->comments;
+})
 
 
