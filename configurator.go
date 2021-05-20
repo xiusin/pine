@@ -10,6 +10,7 @@ type Configuration struct {
 	maxMultipartMemory        int64
 	serverName                string
 	withoutStartupLog         bool
+	gracefulShutdown          bool
 	autoParseControllerResult bool
 	useCookie                 bool
 	CookieTranscoder          cookie_transcoder.AbstractCookieTranscoder
@@ -24,6 +25,12 @@ type AbstractReadonlyConfiguration interface {
 }
 
 type Configurator func(o *Configuration)
+
+func WithGracefulShutdown() Configurator {
+	return func(o *Configuration) {
+		o.gracefulShutdown = true
+	}
+}
 
 func WithServerName(srvName string) Configurator {
 	return func(o *Configuration) {
@@ -42,7 +49,6 @@ func WithCookie(open bool) Configurator {
 		o.useCookie = open
 	}
 }
-
 
 func WithMaxMultipartMemory(mem int64) Configurator {
 	return func(o *Configuration) {
