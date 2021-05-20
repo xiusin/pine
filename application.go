@@ -15,7 +15,7 @@ import (
 	"strings"
 )
 
-const Version = "dev 0.0.5"
+const Version = "dev 0.0.6"
 
 const logo = `
   ____  _            
