@@ -72,6 +72,23 @@ func (c *PineBadger) Set(key string, val []byte, ttl ...int) error {
 	})
 }
 
+func (c *PineBadger) Remeber(key string, receiver interface{}, call func() []byte, ttl ...int) error {
+	c.Lock()
+	defer c.Unlock()
+	val, err := c.Get(key)
+	if err != nil {
+		return err
+	}
+	if len(val) == 0 {
+		val = call()
+		err = c.Set(key, val, ttl...)
+		if err != nil {
+			return err
+		}
+	}
+	return cache.UnMarshal(val, receiver)
+}
+
 func (c *PineBadger) Delete(key string) error {
 	return c.Update(func(tx *badgerDB.Txn) error {
 		if err := tx.Delete([]byte(key)); err != nil {

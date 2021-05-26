@@ -5,9 +5,8 @@
 package redis
 
 import (
-	"github.com/xiusin/pine/cache"
-
 	redisgo "github.com/gomodule/redigo/redis"
+	"github.com/xiusin/pine/cache"
 )
 
 
@@ -73,6 +72,27 @@ func (r *PineRedis) Delete(key string) error {
 	_, err := client.Do("DEL", key)
 	_ = client.Close()
 	return err
+}
+
+func (r *PineRedis) Remeber(key string, receiver interface{}, call func() []byte, ttl ...int) error {
+	val, err := r.Get(key)
+	if err != nil {
+		return err
+	}
+	if len(val) == 0 {
+		val = call()
+		params := []interface{}{key, val}
+		if len(ttl) == 0 {
+			ttl = []int{r.ttl}
+		}
+		if ttl[0] > 0 {
+			params = append(params, "EX", ttl[0])
+		}
+		client := r.pool.Get()
+		_, err = client.Do("SET", params...)
+		_ = client.Close()
+	}
+	return cache.UnMarshal(val, receiver)
 }
 
 func (r *PineRedis) Exists(key string) bool {

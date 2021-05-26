@@ -10,6 +10,7 @@ import (
 	"github.com/xiusin/pine/cache"
 	bolt "go.etcd.io/bbolt"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -18,11 +19,12 @@ var keyNotExistsErr = errors.New("key not exists or expired")
 var defaultBucketName = []byte("MyBucket")
 
 type Option struct {
-	TTL             int // sec
-	Path            string
-	BucketName      []byte
-	Mode            os.FileMode
-	BoltOpt         *bolt.Options
+	TTL        int // sec
+	Path       string
+	BucketName []byte
+	Mode       os.FileMode
+	BoltOpt    *bolt.Options
+	sync.RWMutex
 	CleanupInterval int
 }
 
@@ -147,6 +149,23 @@ func (b *PineBolt) Exists(key string) bool {
 		return false
 	}
 	return true
+}
+
+func (b *PineBolt) Remeber(key string, receiver interface{}, call func() []byte, ttl ...int) error {
+	b.Lock()
+	defer b.Unlock()
+	val, err := b.Get(key)
+	if err != nil {
+		return err
+	}
+	if len(val) == 0 {
+		val = call()
+		err = b.Set(key, val, ttl...)
+		if err != nil {
+			return err
+		}
+	}
+	return cache.UnMarshal(val, receiver)
 }
 
 func (b *PineBolt) BoltDB() *bolt.DB {

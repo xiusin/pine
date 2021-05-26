@@ -232,13 +232,13 @@ func (a *Application) handle(c *Context) {
 }
 
 func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
+	if srv == nil {
+		panic("ServerHandler can't nil")
+	}
 	if len(opts) > 0 {
 		for _, opt := range opts {
 			opt(a.configuration)
 		}
-	}
-	if srv == nil {
-		srv = Addr(defaultAddressWithPort)
 	}
 
 	a.ReadonlyConfiguration = AbstractReadonlyConfiguration(a.configuration)
@@ -378,9 +378,9 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 }
 
 func (r *Router) lookupGroupRoute(i int, method string, pathInfo []string) *RouteEntry {
-	path := urlSeparator + strings.Join(pathInfo[i:], urlSeparator)
+	p := urlSeparator + strings.Join(pathInfo[i:], urlSeparator)
 	for routePath, route := range r.methodRoutes[method] {
-		if routePath != path || route.Method != method {
+		if routePath != p || route.Method != method {
 			continue
 		}
 		if !route.resolved {

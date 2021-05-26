@@ -16,14 +16,13 @@ import (
 type ServerHandler func(*Application) error
 
 const zeroIP = "0.0.0.0"
-const defaultAddressWithPort = zeroIP + ":9528"
 
 func (a *Application) printSetupInfo(addr string) {
 	if strings.HasPrefix(addr, ":") {
 		addr = fmt.Sprintf("%s%s", a.hostname, addr)
 	}
 	color.Green.Println(logo)
-	color.Red.Println("\nServer now listening on: " + addr)
+	color.Red.Printf("\nServer now listening on: %s\n", addr)
 }
 
 func Addr(addr string) ServerHandler {
@@ -32,7 +31,7 @@ func Addr(addr string) ServerHandler {
 		s.Logger = Logger()
 		s.Name = a.configuration.serverName
 		if len(addr) == 0 {
-			addr = defaultAddressWithPort
+			addr = fmt.Sprintf("%s:%d", zeroIP, 9528)
 		}
 		addrInfo := strings.Split(addr, ":")
 		if len(addrInfo[0]) == 0 {

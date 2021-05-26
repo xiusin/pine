@@ -109,7 +109,7 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 		}
 		if err == nil && len(body) > 0 {
 			ctx.Render().ContentType(ContentTypeJSON)
-			ctx.Render().Bytes(body)
+			_ = ctx.Render().Bytes(body)
 		}
 	}
 }
