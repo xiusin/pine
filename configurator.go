@@ -14,6 +14,7 @@ type Configuration struct {
 	autoParseControllerResult bool
 	useCookie                 bool
 	CookieTranscoder          cookie_transcoder.AbstractCookieTranscoder
+	defaultResponseType       string
 }
 
 type AbstractReadonlyConfiguration interface {
@@ -22,6 +23,7 @@ type AbstractReadonlyConfiguration interface {
 	GetMaxMultipartMemory() int64
 	GetAutoParseControllerResult() bool
 	GetCookieTranscoder() cookie_transcoder.AbstractCookieTranscoder
+	GetDefaultResponseType() string
 }
 
 type Configurator func(o *Configuration)
@@ -29,6 +31,12 @@ type Configurator func(o *Configuration)
 func WithGracefulShutdown() Configurator {
 	return func(o *Configuration) {
 		o.gracefulShutdown = true
+	}
+}
+
+func WithDefaultResponseType(responseType string) Configurator {
+	return func(o *Configuration) {
+		o.defaultResponseType = responseType
 	}
 }
 
@@ -86,4 +94,9 @@ func (c *Configuration) GetCookieTranscoder() cookie_transcoder.AbstractCookieTr
 
 func (c *Configuration) GetMaxMultipartMemory() int64 {
 	return c.maxMultipartMemory
+}
+
+
+func (c *Configuration) GetDefaultResponseType() string {
+	return c.defaultResponseType
 }

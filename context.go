@@ -177,7 +177,6 @@ func (c *Context) Next() {
 	}
 }
 
-// skip all middleware to exec handler
 func (c *Context) Handle() {
 	c.route.Handle(c)
 }
@@ -355,7 +354,6 @@ func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, e
 	return
 }
 
-// @todo 测试PostArgs 和 MultipartForm的区别
 func (c *Context) PostData() map[string][]string {
 	forms, _ := c.MultipartForm()
 	return forms.Value

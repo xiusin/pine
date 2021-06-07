@@ -108,7 +108,7 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 			body, err = cmr.parseValue(val)
 		}
 		if err == nil && len(body) > 0 {
-			ctx.Render().ContentType(ContentTypeJSON)
+			ctx.Render().ContentType(ctx.app.ReadonlyConfiguration.GetDefaultResponseType())
 			_ = ctx.Render().Bytes(body)
 		}
 	}
