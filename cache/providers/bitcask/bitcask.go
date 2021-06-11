@@ -26,7 +26,7 @@ func New(ttl int, path string, mergeTickTime time.Duration, opt ...bitcask.Optio
 	}
 	go func() {
 		if mergeTickTime > 0 {
-			for range time.Tick(mergeTickTime){
+			for range time.Tick(mergeTickTime) {
 				if err := bc.Merge(); err != nil {
 					pine.Logger().Error(err)
 				}

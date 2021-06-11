@@ -11,7 +11,7 @@ import (
 /**
 请求日志记录
 注意: 建议只打印超出一定耗时的路由
- */
+*/
 func RequestRecorder(minDuration ...time.Duration) pine.Handler {
 	return func(c *pine.Context) {
 		var start = time.Now()
@@ -33,11 +33,12 @@ func RequestRecorder(minDuration ...time.Duration) pine.Handler {
 		}
 		if !c.IsOptions() {
 			c.Logger().Debugf(
-				"[RQLOG] %s | %s | %s | path: %s",
+				"[RQLOG] %s | %s | %s | path: %s | params: %s",
 				statusInfo,
 				fmt.Sprintf("%5s", c.Method()),
 				usedTime.String(),
-				c.Path(),
+				c.Request.RequestURI(),
+				c.PostBody(),
 			)
 			color.Unset()
 		}
