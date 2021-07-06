@@ -17,6 +17,14 @@
 `controller`自动解析参数是对比参数pkgPath,以确定是否为真实参数类型.  
 
 # cache设计方法 #
+
+```bigquery
+$ go run main.go
+METHOD | PATH | ALIASES | NAME     | HANDLER
+------ | ---- | ------- | ----     | -------
+GET    | /    |         | rootPath | path/to/routes_error/actions.HomeHandler
+```
+
 Cache::remember($this->cacheKey() . ':comments', 15, function () {
         return $this->comments;
 })

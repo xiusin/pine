@@ -5,11 +5,14 @@
 package pine
 
 import (
+	"embed"
 	"fmt"
+	gomime "github.com/cubewise-code/go-mime"
 	"github.com/valyala/fasthttp"
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"reflect"
 	"regexp"
 	"strings"
@@ -40,6 +43,9 @@ var (
 		":string": "<[\\w0-9\\_\\.\\+\\-]+>",
 		":any":    "<[/\\w0-9\\_\\.\\+\\-~]+>", // *
 	}
+
+	localServer = map[string]struct{}{zeroIP: {}, "127.0.0.1": {}, "localhost": {}}
+
 	_ AbstractRouter = (*Application)(nil)
 )
 
@@ -171,7 +177,7 @@ func (r *Router) matchRegister(path, prefix string, handle Handler) {
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
 			route := fmt.Sprintf("%s%s%s", prefix, urlSeparator, upperCharToUnderLine(strings.TrimPrefix(path, method)))
-			Logger().Printf("matchRegister:[method: %s] %s%s", method, r.prefix, route)
+			//Logger().Printf("matchRegister:[method: %s] %s%s", method, r.prefix, route)
 			routeMaker(route, handle)
 		}
 	}
@@ -319,19 +325,16 @@ func (r *Router) getPattern(str string, any bool) (paramName, pattern string) {
 
 // 匹配路由  非匹配路由的时候不可直接
 func (r *Router) matchRoute(ctx *Context) *RouteEntry {
-	var host string
-	if r.hostname != zeroIP {
-		host = strings.Replace(strings.Split(string(ctx.Host()), ":")[0], r.hostname, "", 1)
-	}
-	var ok bool
-	method := string(ctx.Method())
+	ok, host := false, strings.Replace(strings.Split(string(ctx.Host()), ":")[0], r.hostname, "", 1)
+
 	// 查看是否有注册域名路由
-	if len(host) != 0 {
+	if _, exist := localServer[host]; !exist {
 		if r, ok = r.registeredSubdomains[host]; !ok {
 			return nil
 		}
 	}
 
+	method := string(ctx.Method())
 	// 优先匹配完整路由
 	fullPath := ctx.Path()
 	if route, ok := r.methodRoutes[method][fullPath]; ok {
@@ -419,14 +422,37 @@ func (r *Router) Use(middleWares ...Handler) {
 	r.middleWares = append(r.middleWares, middleWares...)
 }
 
-// 注意: 会走全局中间件
+func (r *Router) StaticFS(urlPath string, fs embed.FS, prefix string) {
+	handler := func(c *Context) {
+		fName := c.params.Get("filepath")
+		if len(fName) == 0 {
+			c.Abort(http.StatusNotFound)
+			return
+		}
+		content, err := fs.ReadFile(filepath.Join(prefix, fName))
+		if err != nil {
+			c.Abort(http.StatusInternalServerError, err.Error())
+			return
+		}
+		mimeType := gomime.TypeByExtension(filepath.Ext(fName))
+		if len(mimeType) > 0 {
+			c.Response.Header.Set("content-type", mimeType)
+		}
+		c.Response.SetBodyRaw(content)
+	}
+	routePath := path.Join(urlPath, "*filepath")
+	r.GET(routePath, handler)
+	r.HEAD(routePath, handler)
+}
+
 func (r *Router) Static(urlPath, dir string, stripSlashes ...int) {
 	if len(stripSlashes) == 0 {
 		stripSlashes = []int{0}
 	}
 	fileServer := fasthttp.FSHandler(dir, stripSlashes[0])
 	handler := func(c *Context) {
-		if c.Params().Get("filepath") == "" {
+		fName := c.params.Get("filepath")
+		if len(fName) == 0 {
 			c.Abort(http.StatusNotFound)
 			return
 		}

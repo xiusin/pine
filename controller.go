@@ -10,8 +10,6 @@ import (
 	"reflect"
 )
 
-const ControllerSuffix = "Controller"
-
 type Controller struct {
 	context *Context
 }
