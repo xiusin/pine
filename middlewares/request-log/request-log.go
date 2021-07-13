@@ -32,7 +32,7 @@ func RequestRecorder(minDuration ...time.Duration) pine.Handler {
 				"%s | %s | %s | path: %s",
 				statusInfo,
 				fmt.Sprintf("%5s", c.Method()),
-				usedTime.String(),
+				fmt.Sprintf("%.4fs", usedTime.Seconds()),
 				c.Request.RequestURI(),
 			)
 			color.Unset()

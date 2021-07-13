@@ -105,7 +105,6 @@ type Application struct {
 	pool                  *Pool
 	configuration         *Configuration
 	ReadonlyConfiguration AbstractReadonlyConfiguration
-	started               bool
 }
 
 func New() *Application {
@@ -177,7 +176,6 @@ func (r *Router) matchRegister(path, prefix string, handle Handler) {
 	for method, routeMaker := range methods {
 		if strings.HasPrefix(path, method) {
 			route := fmt.Sprintf("%s%s%s", prefix, urlSeparator, upperCharToUnderLine(strings.TrimPrefix(path, method)))
-			//Logger().Printf("matchRegister:[method: %s] %s%s", method, r.prefix, route)
 			routeMaker(route, handle)
 		}
 	}
@@ -361,7 +359,7 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 	for _, pattern := range sortedPattern {
 		routes := patternRoutes[pattern]
 		reg := regexp.MustCompile(pattern)
-		matchedStrings := reg.FindAllStringSubmatch(string(ctx.Path()), -1)
+		matchedStrings := reg.FindAllStringSubmatch(ctx.Path(), -1)
 		for _, route := range routes {
 			if len(matchedStrings) == 0 || len(matchedStrings[0]) == 0 || route.Method != method {
 				continue
