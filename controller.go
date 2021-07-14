@@ -18,7 +18,7 @@ var _ IController = (*Controller)(nil)
 
 type IController interface {
 	Ctx() *Context
-
+	Input() *input
 	Render() *Render
 
 	Logger() logger.AbstractLogger
@@ -52,6 +52,13 @@ func (c *Controller) Logger() logger.AbstractLogger {
 
 func (c *Controller) Session() sessions.AbstractSession {
 	return c.context.Session()
+}
+
+func (c *Controller) Input() *input {
+	if c.Ctx().input == nil {
+		c.Ctx().input = newInput(c.context)
+	}
+	return c.Ctx().input
 }
 
 func (c *Controller) ViewData(key string, val interface{}) {

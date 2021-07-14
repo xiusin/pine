@@ -45,7 +45,7 @@ type Context struct {
 	Msg string
 	// Binding some value to context
 	keys map[string]interface{}
-
+	input *input
 	autoParseValue bool
 }
 
@@ -75,6 +75,7 @@ func (c *Context) beginRequest(ctx *fasthttp.RequestCtx) {
 func (c *Context) reset() {
 	c.route = nil
 	c.sess = nil
+	c.input = nil
 	c.middlewareIndex = -1
 	c.stopped = false
 	c.Msg = ""
@@ -255,7 +256,6 @@ func (c *Context) BindForm(rev interface{}) error {
 	if len(values) == 0 {
 		return nil
 	}
-
 	return schemaDecoder.Decode(rev, values)
 }
 

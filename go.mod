@@ -19,6 +19,7 @@ require (
 	github.com/prologic/bitcask v0.3.11-0.20210601204730-e7c649076233
 	github.com/satori/go.uuid v1.2.0
 	github.com/valyala/fasthttp v1.27.0
+	github.com/valyala/fastjson v1.6.3 // indirect
 	github.com/xiusin/logger v0.0.5
 	go.etcd.io/bbolt v1.3.4
 	golang.org/x/exp v0.0.0-20210603111838-86dd7ad88cc9 // indirect

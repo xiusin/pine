@@ -27,7 +27,9 @@ type Render struct {
 	applied bool
 }
 
+
 const (
+	HeaderContentType = fasthttp.HeaderContentType
 	ContentTypeJSON = "application/json; charset=utf-8"
 	ContentTypeHTML = "text/html; charset=utf-8"
 	ContentTypeText = "text/plain; charset=utf-8"
@@ -51,7 +53,7 @@ func newRender(ctx *fasthttp.RequestCtx) *Render {
 }
 
 func (c *Render) ContentType(typ string) {
-	c.writer.Response.Header.Set("Content-Type", typ)
+	c.writer.Response.Header.Set(HeaderContentType, typ)
 }
 
 func (c *Render) reset(ctx *fasthttp.RequestCtx) {
@@ -62,7 +64,7 @@ func (c *Render) reset(ctx *fasthttp.RequestCtx) {
 	c.applied = false
 }
 func (c *Render) JSON(v interface{}) error {
-	c.writer.Response.Header.Set("Content-Type", ContentTypeJSON)
+	c.writer.Response.Header.Set(HeaderContentType, ContentTypeJSON)
 
 	return responseJson(c.writer, v, "")
 }
@@ -77,7 +79,7 @@ func (c *Render) Bytes(v []byte) error {
 }
 
 func (c *Render) HTML(viewPath string) {
-	c.writer.Response.Header.Set("Content-Type", ContentTypeHTML)
+	c.writer.Response.Header.Set(HeaderContentType, ContentTypeHTML)
 
 	if err := c.engines[filepath.Ext(viewPath)].HTML(c.writer, viewPath, c.tplData); err != nil {
 		panic(err)
@@ -91,7 +93,7 @@ func (c *Render) GetEngine(ext string) render.AbstractRenderer {
 }
 
 func (c *Render) JSONP(callback string, v interface{}) error {
-	c.writer.Response.Header.Set("Content-Type", ContentTypeJSON)
+	c.writer.Response.Header.Set(HeaderContentType, ContentTypeJSON)
 
 	return responseJson(c.writer, v, callback)
 }
@@ -108,7 +110,7 @@ func (c *Render) GetViewData() map[string]interface{} {
 }
 
 func (c *Render) XML(v interface{}) error {
-	c.writer.Response.Header.Set("Content-Type", ContentTypeXML)
+	c.writer.Response.Header.Set(HeaderContentType, ContentTypeXML)
 
 	b, err := xml.MarshalIndent(v, "", " ")
 	if err == nil {

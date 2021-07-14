@@ -45,9 +45,9 @@ func Addr(addr string) ServerHandler {
 			s.MaxRequestBodySize = int(a.configuration.maxMultipartMemory)
 		}
 		s.Handler = func(ctx *fasthttp.RequestCtx) {
-			c := a.pool.Acquire().(*Context)
+			c := a.pool.Get().(*Context)
 			c.beginRequest(ctx)
-			defer a.pool.Release(c)
+			defer a.pool.Put(c)
 			defer func() { c.RequestCtx = nil }()
 			defer c.endRequest(a.recoverHandler)
 			a.handle(c)

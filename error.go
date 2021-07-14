@@ -154,6 +154,9 @@ func RegisterOnInterrupt(handler func()) {
 }
 
 func RegisterErrorCodeHandler(status int, handler Handler) {
+	if status == http.StatusOK {
+		return
+	}
 	errCodeCallHandler[status] = handler
 }
 
@@ -161,9 +164,5 @@ func defaultRecoverHandler(c *Context) {
 	stackInfo, strFmt := debug.Stack(), "msg: %s  method: %s  path: %s\n stack: %s"
 	c.Logger().Errorf(strFmt, c.Msg, c.Method(), c.RequestURI(), stackInfo)
 	c.Response.Header.SetContentType(ContentTypeHTML)
-	err := DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": http.StatusInternalServerError})
-
-	if err != nil {
-		c.Logger().Error(err)
-	}
+	_ = DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": http.StatusInternalServerError})
 }

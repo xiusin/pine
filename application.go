@@ -16,6 +16,7 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+	"sync"
 )
 
 const Version = "dev 0.0.6"
@@ -99,10 +100,9 @@ type Router struct {
 
 type Application struct {
 	*Router
-
+	pool sync.Pool
 	quitCh                chan os.Signal
 	recoverHandler        Handler
-	pool                  *Pool
 	configuration         *Configuration
 	ReadonlyConfiguration AbstractReadonlyConfiguration
 }
@@ -119,9 +119,9 @@ func New() *Application {
 		recoverHandler: defaultRecoverHandler,
 	}
 
-	app.pool = NewPool(func() interface{} {
+	app.pool.New = func() interface{} {
 		return newContext(app)
-	})
+	}
 
 	app.SetNotFound(func(c *Context) {
 		if len(c.Msg) == 0 {
@@ -321,7 +321,6 @@ func (r *Router) getPattern(str string, any bool) (paramName, pattern string) {
 	return
 }
 
-// 匹配路由  非匹配路由的时候不可直接
 func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 	ok, host := false, strings.Replace(strings.Split(string(ctx.Host()), ":")[0], r.hostname, "", 1)
 
