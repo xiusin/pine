@@ -16,7 +16,7 @@ require (
 	github.com/klauspost/compress v1.13.1 // indirect
 	github.com/landoop/tableprinter v0.0.0-20201125135848-89e81fc956e7 // indirect
 	github.com/mattn/go-isatty v0.0.13 // indirect
-	github.com/prologic/bitcask v0.3.11-0.20210601204730-e7c649076233
+	git.mills.io/prologic/bitcask v0.3.11-0.20210601204730-e7c649076233
 	github.com/satori/go.uuid v1.2.0
 	github.com/valyala/fasthttp v1.27.0
 	github.com/valyala/fastjson v1.6.3 // indirect
