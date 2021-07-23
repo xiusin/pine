@@ -100,7 +100,7 @@ type Router struct {
 
 type Application struct {
 	*Router
-	pool sync.Pool
+	pool                  sync.Pool
 	quitCh                chan os.Signal
 	recoverHandler        Handler
 	configuration         *Configuration
