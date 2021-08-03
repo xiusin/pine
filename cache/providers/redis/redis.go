@@ -7,12 +7,14 @@ package redis
 import (
 	redisgo "github.com/gomodule/redigo/redis"
 	"github.com/xiusin/pine/cache"
+	"sync"
 )
 
 
 type PineRedis struct {
 	ttl    int
 	pool   *redisgo.Pool
+	sync.Mutex
 }
 
 func New(pool *redisgo.Pool, ttl int) *PineRedis {
@@ -75,6 +77,8 @@ func (r *PineRedis) Delete(key string) error {
 }
 
 func (r *PineRedis) Remember(key string, receiver interface{}, call func() ([]byte, error), ttl ...int) error {
+	r.Lock()
+	defer r.Unlock()
 	val, err := r.Get(key)
 	if err != nil {
 		return err

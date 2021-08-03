@@ -8,12 +8,14 @@ import (
 	"github.com/prologic/bitcask"
 	"github.com/xiusin/pine"
 	"github.com/xiusin/pine/cache"
+	"sync"
 	"time"
 )
 
 type PineBitCask struct {
 	*bitcask.Bitcask
 	ttl int
+	sync.Mutex
 }
 
 func New(ttl int, path string, mergeTickTime time.Duration, opt ...bitcask.Option) *PineBitCask {
@@ -73,6 +75,8 @@ func (r *PineBitCask) Delete(key string) error {
 }
 
 func (r *PineBitCask) Remember(key string, receiver interface{}, call func() ([]byte, error), ttl ...int) error {
+	r.Lock()
+	defer r.Unlock()
 	val, err := r.Get(key)
 	if err != nil {
 		return err
