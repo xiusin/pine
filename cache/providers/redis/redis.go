@@ -74,13 +74,15 @@ func (r *PineRedis) Delete(key string) error {
 	return err
 }
 
-func (r *PineRedis) Remeber(key string, receiver interface{}, call func() []byte, ttl ...int) error {
+func (r *PineRedis) Remember(key string, receiver interface{}, call func() ([]byte, error), ttl ...int) error {
 	val, err := r.Get(key)
 	if err != nil {
 		return err
 	}
 	if len(val) == 0 {
-		val = call()
+		if val, err = call(); err != nil {
+			return nil
+		}
 		params := []interface{}{key, val}
 		if len(ttl) == 0 {
 			ttl = []int{r.ttl}

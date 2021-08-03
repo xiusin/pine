@@ -151,7 +151,7 @@ func (b *PineBolt) Exists(key string) bool {
 	return true
 }
 
-func (b *PineBolt) Remeber(key string, receiver interface{}, call func() []byte, ttl ...int) error {
+func (b *PineBolt) Remember(key string, receiver interface{}, call func() ([]byte, error), ttl ...int) error {
 	b.Lock()
 	defer b.Unlock()
 	val, err := b.Get(key)
@@ -159,7 +159,9 @@ func (b *PineBolt) Remeber(key string, receiver interface{}, call func() []byte,
 		return err
 	}
 	if len(val) == 0 {
-		val = call()
+		if val, err = call(); err != nil {
+			return err
+		}
 		err = b.Set(key, val, ttl...)
 		if err != nil {
 			return err

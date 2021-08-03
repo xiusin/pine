@@ -72,13 +72,15 @@ func (r *PineBitCask) Delete(key string) error {
 	return r.Bitcask.Delete([]byte(key))
 }
 
-func (r *PineBitCask) Remeber(key string, receiver interface{}, call func() []byte, ttl ...int) error {
+func (r *PineBitCask) Remember(key string, receiver interface{}, call func() ([]byte, error), ttl ...int) error {
 	val, err := r.Get(key)
 	if err != nil {
 		return err
 	}
 	if len(val) == 0 {
-		val = call()
+		if val, err = call(); err != nil {
+			return err
+		}
 		if err := r.Set(key, val, ttl...); err != nil {
 			return err
 		}
