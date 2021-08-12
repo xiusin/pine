@@ -16,7 +16,7 @@ type AbstractCache interface {
 	Delete(string) error
 	Exists(string) bool
 
-	Remember(string, interface{}, func() ([]byte, error), ...int) error
+	Remember(string, interface{}, func() (interface{}, error), ...int) error
 }
 
 var defaultTranscoder = struct {

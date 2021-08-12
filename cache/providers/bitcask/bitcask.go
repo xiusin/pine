@@ -8,14 +8,12 @@ import (
 	"github.com/prologic/bitcask"
 	"github.com/xiusin/pine"
 	"github.com/xiusin/pine/cache"
-	"sync"
 	"time"
 )
 
 type PineBitCask struct {
 	*bitcask.Bitcask
 	ttl int
-	sync.Mutex
 }
 
 func New(ttl int, path string, mergeTickTime time.Duration, opt ...bitcask.Option) *PineBitCask {
@@ -47,8 +45,7 @@ func (r *PineBitCask) GetWithUnmarshal(key string, receiver interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = cache.UnMarshal(data, receiver)
-	return err
+	return cache.UnMarshal(data, receiver)
 }
 
 func (r *PineBitCask) Set(key string, val []byte, ttl ...int) error {
@@ -74,22 +71,20 @@ func (r *PineBitCask) Delete(key string) error {
 	return r.Bitcask.Delete([]byte(key))
 }
 
-func (r *PineBitCask) Remember(key string, receiver interface{}, call func() ([]byte, error), ttl ...int) error {
-	r.Lock()
-	defer r.Unlock()
-	val, err := r.Get(key)
-	if err != nil && bitcask.ErrKeyNotFound != err && bitcask.ErrKeyExpired != err {
-		return err
-	}
-	if len(val) == 0 {
-		if val, err = call(); err != nil {
+func (r *PineBitCask) Remember(key string, receiver interface{}, call func() (interface{}, error), ttl ...int) error {
+	err := r.GetWithUnmarshal(key, receiver)
+
+	if bitcask.ErrKeyNotFound == err || bitcask.ErrKeyExpired == err {
+		if v, err := call(); err != nil {
 			return err
-		}
-		if err := r.Set(key, val, ttl...); err != nil {
-			return err
+		} else {
+			if err := r.SetWithMarshal(key, v, ttl...); err != nil {
+				return err
+			}
+			receiver = v
 		}
 	}
-	return cache.UnMarshal(val, receiver)
+	return err
 }
 
 func (r *PineBitCask) Exists(key string) bool {
