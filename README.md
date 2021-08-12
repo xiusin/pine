@@ -17,16 +17,16 @@
 `controller`自动解析参数是对比参数pkgPath,以确定是否为真实参数类型.  
 
 # cache设计方法 #
+- 布隆过滤器: github.com/bits-and-blooms/bloom@master
 
-```bigquery
+# 路由
+- 可动态注册替换删除
+- 可打印路由 如下
+```shell
 $ go run main.go
 METHOD | PATH | ALIASES | NAME     | HANDLER
 ------ | ---- | ------- | ----     | -------
 GET    | /    |         | rootPath | path/to/routes_error/actions.HomeHandler
 ```
-
-Cache::remember($this->cacheKey() . ':comments', 15, function () {
-        return $this->comments;
-})
 
 

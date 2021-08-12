@@ -78,7 +78,7 @@ func (r *PineBitCask) Remember(key string, receiver interface{}, call func() ([]
 	r.Lock()
 	defer r.Unlock()
 	val, err := r.Get(key)
-	if err != nil {
+	if err != nil && bitcask.ErrKeyNotFound != err && bitcask.ErrKeyExpired != err {
 		return err
 	}
 	if len(val) == 0 {
