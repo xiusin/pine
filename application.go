@@ -322,14 +322,14 @@ func (r *Router) getPattern(str string, any bool) (paramName, pattern string) {
 }
 
 func (r *Router) matchRoute(ctx *Context) *RouteEntry {
-	ok, host := false, strings.Replace(strings.Split(string(ctx.Host()), ":")[0], r.hostname, "", 1)
-
-	// 查看是否有注册域名路由
-	if _, exist := localServer[host]; !exist {
-		if r, ok = r.registeredSubdomains[host]; !ok {
-			return nil
-		}
-	}
+	//ok, host := false, strings.Replace(strings.Split(string(ctx.Host()), ":")[0], r.hostname, "", 1)
+	//fmt.Println(localServer, r.registeredSubdomains)
+	//// 查看是否有注册域名路由
+	//if _, exist := localServer[host]; !exist {
+	//	if r, ok = r.registeredSubdomains[host]; !ok {
+	//		return nil
+	//	}
+	//}
 
 	method := string(ctx.Method())
 	// 优先匹配完整路由
