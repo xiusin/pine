@@ -79,15 +79,16 @@ func (r *PineBitCask) Remember(key string, receiver interface{}, call func() (in
 	err := r.GetWithUnmarshal(key, receiver)
 
 	if bitcask.ErrKeyNotFound == err || bitcask.ErrKeyExpired == err {
-		if v, err := call(); err != nil {
+		err = nil
+		if receiver, err = call(); err != nil {
 			return err
 		} else {
-			if err := r.SetWithMarshal(key, v, ttl...); err != nil {
+			if err := r.SetWithMarshal(key, receiver, ttl...); err != nil {
 				return err
 			}
-			receiver = v
 		}
 	}
+
 	return err
 }
 
