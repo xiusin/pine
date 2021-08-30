@@ -21,9 +21,12 @@ func New(ttl int, path string, mergeTickTime time.Duration, opt ...bitcask.Optio
 	if err != nil {
 		panic(err)
 	}
+
+	// 启动时先合并一次数据
 	if err := bc.Merge(); err != nil {
-		panic(err)
+		pine.Logger().Error(err)
 	}
+
 	go func() {
 		if mergeTickTime > 0 {
 			for range time.Tick(mergeTickTime) {
@@ -33,6 +36,7 @@ func New(ttl int, path string, mergeTickTime time.Duration, opt ...bitcask.Optio
 			}
 		}
 	}()
+
 	return &PineBitCask{ttl: ttl, Bitcask: bc}
 }
 
