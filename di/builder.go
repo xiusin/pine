@@ -138,7 +138,7 @@ func (b *builder) Exists(serviceAny interface{}) bool {
 
 var di = &builder{}
 
-func GetDefaultDI() *builder {
+func GetDefaultDI() AbstractBuilder {
 	return di
 }
 
