@@ -138,6 +138,10 @@ func (b *builder) Exists(serviceAny interface{}) bool {
 
 var di = &builder{}
 
+func GetDefaultDI() *builder {
+	return di
+}
+
 func Get(serviceAny interface{}) (interface{}, error) {
 	return di.Get(serviceAny)
 }
