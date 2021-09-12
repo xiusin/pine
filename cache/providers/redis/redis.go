@@ -10,16 +10,15 @@ import (
 	"sync"
 )
 
-
 type PineRedis struct {
-	ttl    int
-	pool   *redisgo.Pool
+	ttl  int
+	pool *redisgo.Pool
 	sync.Mutex
 }
 
 func New(pool *redisgo.Pool, ttl int) *PineRedis {
 	b := PineRedis{
-		ttl:    ttl,
+		ttl:  ttl,
 		pool: pool,
 	}
 	return &b
@@ -45,7 +44,6 @@ func (r *PineRedis) GetWithUnmarshal(key string, receiver interface{}) error {
 	return err
 }
 
-
 func (r *PineRedis) Set(key string, val []byte, ttl ...int) error {
 	params := []interface{}{key, val}
 	if len(ttl) == 0 {
@@ -63,11 +61,10 @@ func (r *PineRedis) Set(key string, val []byte, ttl ...int) error {
 func (r *PineRedis) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
 	data, err := cache.Marshal(structData)
 	if err != nil {
-		return  err
+		return err
 	}
 	return r.Set(key, data, ttl...)
 }
-
 
 func (r *PineRedis) Delete(key string) error {
 	client := r.pool.Get()
@@ -76,29 +73,17 @@ func (r *PineRedis) Delete(key string) error {
 	return err
 }
 
-func (r *PineRedis) Remember(key string, receiver interface{}, call func() ([]byte, error), ttl ...int) error {
+func (r *PineRedis) Remember(key string, receiver interface{}, call func() (interface{}, error), ttl ...int) error {
 	r.Lock()
 	defer r.Unlock()
-	val, err := r.Get(key)
-	if err != nil {
+	var err error
+	if err = r.GetWithUnmarshal(key, receiver); err == nil {
+		return nil
+	}
+	if receiver, err = call(); err != nil {
 		return err
 	}
-	if len(val) == 0 {
-		if val, err = call(); err != nil {
-			return nil
-		}
-		params := []interface{}{key, val}
-		if len(ttl) == 0 {
-			ttl = []int{r.ttl}
-		}
-		if ttl[0] > 0 {
-			params = append(params, "EX", ttl[0])
-		}
-		client := r.pool.Get()
-		_, err = client.Do("SET", params...)
-		_ = client.Close()
-	}
-	return cache.UnMarshal(val, receiver)
+	return r.SetWithMarshal(key, receiver, ttl...)
 }
 
 func (r *PineRedis) Exists(key string) bool {
