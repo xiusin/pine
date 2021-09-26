@@ -5,53 +5,86 @@
 package sessions
 
 import (
-	"fmt"
+	"sync"
 )
 
 type Session struct {
+	sync.RWMutex
 	id    string
+	data  map[string]entry
 	store AbstractSessionStore
 }
 
 type entry struct {
-	Val   string `json:"v"`
-	Flush bool   `json:"f"`
+	Value string `json:"value"`
+	Flush bool   `json:"flush"`
 }
 
 func newSession(id string, store AbstractSessionStore) (*Session, error) {
-	sess := &Session{
-		store: store,
-		id:    id,
+	d := map[string]entry{}
+	sess := &Session{id: id, store: store}
+
+	if err := store.Get(sess.key(), &d); err != nil {
+		return nil, err
 	}
+	sess.data = d
 	return sess, nil
 }
 
-func (sess *Session) GetId() string  {
+func (sess *Session) GetId() string {
 	return sess.id
 }
 
 func (sess *Session) Set(key string, val string) {
-	sess.store.Save(sess.makeKey(key), &entry{Val: val})
+	sess.Lock()
+	defer sess.Unlock()
+
+	sess.data[key] = entry{Value: val}
 }
 
 func (sess *Session) Get(key string) string {
+	sess.RLock()
+	defer sess.RUnlock()
+
 	var val entry
-	if err := sess.store.Get(sess.makeKey(key), &val); err == nil {
-		if val.Flush {
-			sess.Remove(key)
-		}
+	if val = sess.data[key]; val.Flush {
+		sess.Remove(key)
 	}
-	return val.Val
+	return val.Value
 }
 
 func (sess *Session) AddFlush(key string, val string) {
-	sess.store.Save(sess.makeKey(key), &entry{Val: val, Flush: true})
+	sess.Lock()
+	defer sess.Unlock()
+
+	sess.data[key] = entry{Value: val, Flush: true}
 }
 
+// 移除某个key
 func (sess *Session) Remove(key string) {
-	sess.store.Delete(sess.makeKey(key))
+	sess.Lock()
+	defer sess.Unlock()
+
+	delete(sess.data, key)
 }
 
-func (sess *Session) makeKey(key string) string {
-	return fmt.Sprintf("%s_%s", sess.id, key)
+func (sess *Session) Save() {
+	sess.store.Save(sess.key(), &sess.data)
+	for k := range sess.data {
+		delete(sess.data, k)
+	}
+	sess.data = nil
+}
+
+// Destroy 销毁客户整个session信息
+func (sess *Session) Destroy() {
+	sess.Lock()
+	defer sess.Unlock()
+
+	sess.store.Delete(sess.key())
+}
+
+// makeKey 存储session的key
+func (sess *Session) key() string {
+	return "sess_" + sess.id
 }

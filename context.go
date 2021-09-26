@@ -44,8 +44,8 @@ type Context struct {
 	// Temporary recording error information
 	Msg string
 	// Binding some value to context
-	keys map[string]interface{}
-	input *input
+	keys           map[string]interface{}
+	input          *input
 	autoParseValue bool
 }
 
@@ -164,7 +164,7 @@ func (c *Context) Session(sessIns ...sessions.AbstractSession) sessions.Abstract
 }
 
 func (c *Context) Next() {
-	if c.stopped == true {
+	if c.stopped {
 		return
 	}
 	c.middlewareIndex++

@@ -6,11 +6,13 @@ package pine
 
 import (
 	"fmt"
-	"github.com/gookit/color"
-	"github.com/valyala/fasthttp"
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
+
+	"github.com/gookit/color"
+	"github.com/valyala/fasthttp"
 )
 
 type ServerHandler func(*Application) error
@@ -54,7 +56,7 @@ func Addr(addr string) ServerHandler {
 		}
 		if a.configuration.gracefulShutdown {
 			a.quitCh = make(chan os.Signal)
-			signal.Notify(a.quitCh, os.Interrupt, os.Kill)
+			signal.Notify(a.quitCh, os.Interrupt, syscall.SIGTERM)
 			go a.gracefulShutdown(s, a.quitCh)
 		}
 		return s.ListenAndServe(addr)

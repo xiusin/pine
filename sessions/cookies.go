@@ -41,6 +41,7 @@ func (c *Cookie) Set(name string, value string, maxAge int) {
 			panic(err)
 		}
 	}
+
 	cookie := fasthttp.AcquireCookie()
 	fasthttp.ReleaseCookie(cookie)
 	cookie.SetKey(name)

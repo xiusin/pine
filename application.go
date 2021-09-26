@@ -7,8 +7,6 @@ package pine
 import (
 	"embed"
 	"fmt"
-	gomime "github.com/cubewise-code/go-mime"
-	"github.com/valyala/fasthttp"
 	"net/http"
 	"os"
 	"path"
@@ -17,6 +15,9 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	gomime "github.com/cubewise-code/go-mime"
+	"github.com/valyala/fasthttp"
 )
 
 const Version = "dev 0.0.6"
@@ -220,7 +221,14 @@ func (a *Application) gracefulShutdown(srv *fasthttp.Server, quit <-chan os.Sign
 
 func (a *Application) handle(c *Context) {
 	if route := a.matchRoute(c); route != nil {
-		c.setRoute(route).Next()
+		c.setRoute(route)
+		defer func() {
+			if c.sess != nil {
+				c.sess.Save()
+			}
+		}()
+
+		c.Next()
 	} else {
 		if handler, ok := errCodeCallHandler[http.StatusNotFound]; ok {
 			c.SetStatus(http.StatusNotFound)
