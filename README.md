@@ -10,6 +10,7 @@
 2. 如果返回`inerface{}` , 会自动打印部分能兼容的数据, 返回结果为字符串类型 `text/html`
 3. 如果返回一个非nil的错误, 会直接`panic`(不包括复合类型里的error)
 4. 如果返回 string,int 等类型,显示为`text`
+5. 实现controller的结构属性全局静态变量共享(加锁/引用), 需要共享的参数(名称以share切为引用类型)
 
 
 # di # 
@@ -25,9 +26,12 @@
 - 可打印路由 如下
 ```shell
 $ go run main.go
-METHOD | PATH | ALIASES | NAME     | HANDLER
+METHOD | PATH | ALIASES | NAME     | HANDLE
 ------ | ---- | ------- | ----     | -------
 GET    | /    |         | rootPath | path/to/routes_error/actions.HomeHandler
 ```
 
 
+# TODO 
+- 支持非Post或Get开始的方法名称, 支持任何方式请求
+- 自动反射出来的路由需要修改成小驼峰名称

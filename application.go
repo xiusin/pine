@@ -87,8 +87,6 @@ type Handler func(ctx *Context)
 type routerMap map[string]map[string]*RouteEntry
 
 type Router struct {
-	handler http.Handler
-
 	prefix       string
 	methodRoutes routerMap
 	middleWares  []Handler
@@ -166,12 +164,12 @@ func (r *Router) register(controller IController, prefix string) {
 
 func (r *Router) matchRegister(path, prefix string, handle Handler) {
 	var methods = map[string]routeMaker{
-		"Get":     r.GET,
-		"Put":     r.PUT,
-		"Post":    r.POST,
-		"Head":    r.HEAD,
-		"Delete":  r.DELETE,
-		"Options": r.OPTIONS,
+		"":       r.ANY,
+		"Get":    r.GET,
+		"Put":    r.PUT,
+		"Post":   r.POST,
+		"Head":   r.HEAD,
+		"Delete": r.DELETE,
 	}
 
 	for method, routeMaker := range methods {
@@ -368,7 +366,7 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 		reg := regexp.MustCompile(pattern)
 		matchedStrings := reg.FindAllStringSubmatch(ctx.Path(), -1)
 		for _, route := range routes {
-			if len(matchedStrings) == 0 || len(matchedStrings[0]) == 0 || route.Method != method {
+			if len(matchedStrings) == 0 || len(matchedStrings[0]) == 0 || route.Method != method { //TODO 自动放行 OPTIONS
 				continue
 			}
 			matchedValues := matchedStrings[0][1:]

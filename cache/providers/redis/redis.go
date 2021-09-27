@@ -5,9 +5,10 @@
 package redis
 
 import (
+	"sync"
+
 	redisgo "github.com/gomodule/redigo/redis"
 	"github.com/xiusin/pine/cache"
-	"sync"
 )
 
 type PineRedis struct {
@@ -30,9 +31,13 @@ func (r *PineRedis) Pool() *redisgo.Pool {
 
 func (r *PineRedis) Get(key string) ([]byte, error) {
 	client := r.pool.Get()
+	defer client.Close()
+
 	s, err := redisgo.Bytes(client.Do("GET", key))
-	_ = client.Close()
-	return s, err
+	if err != nil && err != redisgo.ErrNil {
+		return nil, err
+	}
+	return s, nil
 }
 
 func (r *PineRedis) GetWithUnmarshal(key string, receiver interface{}) error {
@@ -40,7 +45,9 @@ func (r *PineRedis) GetWithUnmarshal(key string, receiver interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = cache.UnMarshal(data, receiver)
+	if len(data) != 0 {
+		err = cache.UnMarshal(data, receiver)
+	}
 	return err
 }
 
@@ -53,8 +60,9 @@ func (r *PineRedis) Set(key string, val []byte, ttl ...int) error {
 		params = append(params, "EX", ttl[0])
 	}
 	client := r.pool.Get()
+	defer client.Close()
+
 	_, err := client.Do("SET", params...)
-	_ = client.Close()
 	return err
 }
 
@@ -68,8 +76,10 @@ func (r *PineRedis) SetWithMarshal(key string, structData interface{}, ttl ...in
 
 func (r *PineRedis) Delete(key string) error {
 	client := r.pool.Get()
+	defer client.Close()
+
 	_, err := client.Do("DEL", key)
-	_ = client.Close()
+
 	return err
 }
 
@@ -88,10 +98,8 @@ func (r *PineRedis) Remember(key string, receiver interface{}, call func() (inte
 
 func (r *PineRedis) Exists(key string) bool {
 	client := r.pool.Get()
+	defer client.Close()
+
 	isKeyExit, _ := redisgo.Bool(client.Do("EXISTS", key))
-	_ = client.Close()
-	if isKeyExit {
-		return true
-	}
-	return false
+	return isKeyExit
 }

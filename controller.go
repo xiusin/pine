@@ -5,9 +5,10 @@
 package pine
 
 import (
+	"reflect"
+
 	"github.com/xiusin/logger"
 	"github.com/xiusin/pine/sessions"
-	"reflect"
 )
 
 type Controller struct {

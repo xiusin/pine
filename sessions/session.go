@@ -5,6 +5,7 @@
 package sessions
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -25,6 +26,7 @@ func newSession(id string, store AbstractSessionStore) (*Session, error) {
 	sess := &Session{id: id, store: store}
 
 	if err := store.Get(sess.key(), &d); err != nil {
+		fmt.Println("sess val", err)
 		return nil, err
 	}
 	sess.data = d
