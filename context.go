@@ -8,11 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/gorilla/schema"
-	"github.com/valyala/fasthttp"
-	"github.com/xiusin/logger"
-	"github.com/xiusin/pine/di"
-	"github.com/xiusin/pine/sessions"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -20,6 +15,12 @@ import (
 	"strconv"
 	"strings"
 	"unsafe"
+
+	"github.com/gorilla/schema"
+	"github.com/valyala/fasthttp"
+	"github.com/xiusin/logger"
+	"github.com/xiusin/pine/di"
+	"github.com/xiusin/pine/sessions"
 )
 
 var schemaDecoder = schema.NewDecoder()
@@ -76,6 +77,7 @@ func (c *Context) reset() {
 	c.route = nil
 	c.sess = nil
 	c.input = nil
+
 	c.middlewareIndex = -1
 	c.stopped = false
 	c.Msg = ""
@@ -84,6 +86,7 @@ func (c *Context) reset() {
 			delete(c.keys, k)
 		}
 	}
+
 	if c.params != nil {
 		c.params.reset()
 	}
@@ -188,10 +191,6 @@ func (c *Context) Stop() {
 
 func (c *Context) IsStopped() bool {
 	return c.stopped
-}
-
-func (c *Context) getRoute() *RouteEntry {
-	return c.route
 }
 
 func (c *Context) setRoute(route *RouteEntry) *Context {
@@ -328,6 +327,12 @@ func (c *Context) PostValue(key string) string {
 
 func (c *Context) FormValue(key string) string {
 	return c.PostString(key)
+}
+
+func (c *Context) FormValues(key string) []string {
+	data := c.PostData()
+	arr, _ := data[key]
+	return arr
 }
 
 func (c *Context) PostString(key string, defaultVal ...string) string {

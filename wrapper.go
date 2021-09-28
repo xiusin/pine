@@ -64,7 +64,7 @@ func (cmr *routerWrapper) warpHandler(method string, controller IController) Han
 					// 自动构建指针对应的类型
 					autoConstructValue := reflect.New(rtCtrl.Elem().Field(i).Type.Elem())
 					rvCtrl.Elem().Field(i).Set(autoConstructValue)
-					fmt.Println(rtCtrl.Elem().Field(i).Name, rtCtrl.Elem().Field(i).Type.Elem())
+					// fmt.Println(rtCtrl.Elem().Field(i).Name, rtCtrl.Elem().Field(i).Type.Elem())
 					cmr.share.Store(field.Name, rvCtrl.Elem().Field(i))
 				}()
 			}
