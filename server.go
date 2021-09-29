@@ -19,11 +19,15 @@ type ServerHandler func(*Application) error
 
 const zeroIP = "0.0.0.0"
 
+var HideLogo = false
+
 func (a *Application) printSetupInfo(addr string) {
 	if strings.HasPrefix(addr, ":") {
 		addr = fmt.Sprintf("%s%s", a.hostname, addr)
 	}
-	color.Green.Println(logo)
+	if !a.configuration.withoutStartupLog {
+		color.Green.Println(logo)
+	}
 	color.Red.Printf("\nServer now listening on: %s\n", addr)
 }
 
@@ -40,9 +44,7 @@ func Addr(addr string) ServerHandler {
 			addrInfo[0] = zeroIP
 		}
 		a.hostname = addrInfo[0]
-		if !a.configuration.withoutStartupLog {
-			a.printSetupInfo(addr)
-		}
+		a.printSetupInfo(addr)
 		if a.configuration.maxMultipartMemory > 0 {
 			s.MaxRequestBodySize = int(a.configuration.maxMultipartMemory)
 		}

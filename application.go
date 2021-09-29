@@ -38,7 +38,7 @@ var (
 	// 按照注册顺序保存匹配路由内容, 防止map迭代出现随机匹配的情况
 	sortedPattern []string
 
-	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_/]+)(<.+?>)?")
+	patternRouteCompiler = regexp.MustCompile(`[:*](\w[A-Za-z0-9_/]+)(<.+?>)?`)
 
 	patternMap = map[string]string{
 		":int":    "<\\d+>",
@@ -46,7 +46,7 @@ var (
 		":any":    "<[/\\w0-9\\_\\.\\+\\-~]+>", // *
 	}
 
-	localServer = map[string]struct{}{zeroIP: {}, "127.0.0.1": {}, "localhost": {}}
+	// localServer = map[string]struct{}{zeroIP: {}, "127.0.0.1": {}, "localhost": {}}
 
 	_ AbstractRouter = (*Application)(nil)
 )

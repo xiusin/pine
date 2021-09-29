@@ -331,7 +331,10 @@ func (c *Context) FormValue(key string) string {
 
 func (c *Context) FormValues(key string) []string {
 	data := c.PostData()
-	arr, _ := data[key]
+	var arr []string
+	if data != nil {
+		arr = data[key]
+	}
 	return arr
 }
 
@@ -360,7 +363,10 @@ func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, e
 }
 
 func (c *Context) PostData() map[string][]string {
-	forms, _ := c.MultipartForm()
+	forms, err := c.MultipartForm()
+	if err != nil {
+		return nil
+	}
 	return forms.Value
 }
 
