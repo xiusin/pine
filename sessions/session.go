@@ -5,15 +5,16 @@
 package sessions
 
 import (
-	"fmt"
 	"sync"
 )
 
 type Session struct {
 	sync.RWMutex
-	id    string
-	data  map[string]entry
-	store AbstractSessionStore
+	id      string
+	data    map[string]entry
+
+	changed bool
+	store   AbstractSessionStore
 }
 
 type entry struct {
@@ -22,14 +23,13 @@ type entry struct {
 }
 
 func newSession(id string, store AbstractSessionStore) (*Session, error) {
-	d := map[string]entry{}
+	entity := map[string]entry{}
 	sess := &Session{id: id, store: store}
 
-	if err := store.Get(sess.key(), &d); err != nil {
-		fmt.Println("sess val", err)
+	if err := store.Get(sess.key(), &entity); err != nil {
 		return nil, err
 	}
-	sess.data = d
+	sess.data = entity
 	return sess, nil
 }
 
@@ -39,51 +39,52 @@ func (sess *Session) GetId() string {
 
 func (sess *Session) Set(key string, val string) {
 	sess.Lock()
-	defer sess.Unlock()
-
+	sess.changed = true
 	sess.data[key] = entry{Value: val}
+	sess.Unlock()
 }
 
 func (sess *Session) Get(key string) string {
 	sess.RLock()
-	defer sess.RUnlock()
-
 	var val entry
 	if val = sess.data[key]; val.Flush {
 		sess.Remove(key)
+		sess.changed = true
 	}
+	sess.RUnlock()
 	return val.Value
 }
 
 func (sess *Session) AddFlush(key string, val string) {
 	sess.Lock()
-	defer sess.Unlock()
-
 	sess.data[key] = entry{Value: val, Flush: true}
+	sess.changed = true
+	sess.Unlock()
 }
 
-// 移除某个key
+// Remove 移除某个key
 func (sess *Session) Remove(key string) {
 	sess.Lock()
-	defer sess.Unlock()
-
+	sess.changed = true
 	delete(sess.data, key)
+	sess.Unlock()
 }
 
-func (sess *Session) Save() {
-	sess.store.Save(sess.key(), &sess.data)
+func (sess *Session) Save() error {
+	err := sess.store.Save(sess.key(), &sess.data)
 	for k := range sess.data {
 		delete(sess.data, k)
 	}
 	sess.data = nil
+	return err
 }
 
-// Destroy 销毁客户整个session信息
+// Destroy 销毁整个sess信息
 func (sess *Session) Destroy() {
 	sess.Lock()
-	defer sess.Unlock()
-
+	sess.changed = true
 	sess.store.Delete(sess.key())
+	sess.Unlock()
 }
 
 // makeKey 存储session的key

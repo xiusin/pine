@@ -19,8 +19,6 @@ type ServerHandler func(*Application) error
 
 const zeroIP = "0.0.0.0"
 
-var HideLogo = false
-
 func (a *Application) printSetupInfo(addr string) {
 	if strings.HasPrefix(addr, ":") {
 		addr = fmt.Sprintf("%s%s", a.hostname, addr)

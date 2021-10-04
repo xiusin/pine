@@ -23,6 +23,7 @@
 
 # 路由
 - 可动态注册替换删除
+- `app.SetRecoverHandler()` 设置无效
 - 可打印路由 如下
 ```shell
 $ go run main.go

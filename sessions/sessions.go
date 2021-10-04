@@ -25,7 +25,7 @@ type AbstractSession interface {
 	AddFlush(string, string)
 	Remove(string)
 	Destroy()
-	Save()
+	Save() error
 }
 
 type Sessions struct {
