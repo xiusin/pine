@@ -6,12 +6,14 @@ package sessions
 
 import (
 	"sync"
+
+	"github.com/xiusin/pine/cache"
 )
 
 type Session struct {
 	sync.RWMutex
-	id      string
-	data    map[string]entry
+	id   string
+	data map[string]entry
 
 	changed bool
 	store   AbstractSessionStore
@@ -26,9 +28,10 @@ func newSession(id string, store AbstractSessionStore) (*Session, error) {
 	entity := map[string]entry{}
 	sess := &Session{id: id, store: store}
 
-	if err := store.Get(sess.key(), &entity); err != nil {
+	if err := store.Get(sess.key(), &entity); err != nil && err != cache.ErrKeyNotFound {
 		return nil, err
 	}
+
 	sess.data = entity
 	return sess, nil
 }

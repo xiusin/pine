@@ -4,7 +4,10 @@
 
 package cache
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"errors"
+)
 
 type AbstractCache interface {
 	Get(string) ([]byte, error)
@@ -17,7 +20,11 @@ type AbstractCache interface {
 	Exists(string) bool
 
 	Remember(string, interface{}, func() (interface{}, error), ...int) error
+
+	GetCacheHandler() interface{}
 }
+
+var ErrKeyNotFound = errors.New("key not found or expired")
 
 var defaultTranscoder = struct {
 	Marshal   func(interface{}) ([]byte, error)

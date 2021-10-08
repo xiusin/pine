@@ -14,7 +14,6 @@
 
 
 # di # 
-- pine记录函数参数反射缓存
 > (发现有些数据无法解析出来pkgPath, 现在只有类型名称)服务注册名称更为`interface{}`,  如果注册服务类型实例, 自动绑定字符串文件路径和`pkgPath`,
 `controller`自动解析参数是对比参数pkgPath,以确定是否为真实参数类型.  
 
@@ -22,8 +21,6 @@
 - 布隆过滤器: github.com/bits-and-blooms/bloom@master
 
 # 路由
-- 可动态注册替换删除
-- `app.SetRecoverHandler()` 设置无效
 - 可打印路由 如下
 ```shell
 $ go run main.go

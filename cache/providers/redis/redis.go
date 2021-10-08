@@ -25,7 +25,7 @@ func New(pool *redisgo.Pool, ttl int) *PineRedis {
 	return &b
 }
 
-func (r *PineRedis) Pool() *redisgo.Pool {
+func (r *PineRedis) GetCacheHandler() interface{} {
 	return r.pool
 }
 
@@ -35,9 +35,10 @@ func (r *PineRedis) Get(key string) ([]byte, error) {
 
 	s, err := redisgo.Bytes(client.Do("GET", key))
 	if err != nil && err != redisgo.ErrNil {
-		return nil, err
+		err = cache.ErrKeyNotFound
 	}
-	return s, nil
+
+	return s, err
 }
 
 func (r *PineRedis) GetWithUnmarshal(key string, receiver interface{}) error {
@@ -87,19 +88,19 @@ func (r *PineRedis) Remember(key string, receiver interface{}, call func() (inte
 	r.Lock()
 	defer r.Unlock()
 	var err error
-	if err = r.GetWithUnmarshal(key, receiver); err == nil {
-		return nil
-	}
-	if receiver, err = call(); err != nil {
+	if err = r.GetWithUnmarshal(key, receiver); err != cache.ErrKeyNotFound {
 		return err
 	}
-	return r.SetWithMarshal(key, receiver, ttl...)
+	if receiver, err = call(); err == nil {
+		err = r.SetWithMarshal(key, receiver, ttl...)
+	}
+	return err
 }
 
 func (r *PineRedis) Exists(key string) bool {
 	client := r.pool.Get()
 	defer client.Close()
 
-	isKeyExit, _ := redisgo.Bool(client.Do("EXISTS", key))
-	return isKeyExit
+	exist, _ := redisgo.Bool(client.Do("EXISTS", key))
+	return exist
 }

@@ -5,10 +5,11 @@
 package bitcask
 
 import (
+	"time"
+
 	"github.com/prologic/bitcask"
 	"github.com/xiusin/pine"
 	"github.com/xiusin/pine/cache"
-	"time"
 )
 
 type PineBitCask struct {
@@ -22,26 +23,29 @@ func New(ttl int, path string, mergeTickTime time.Duration, opt ...bitcask.Optio
 		panic(err)
 	}
 
-	// 启动时先合并一次数据
 	if err := bc.Merge(); err != nil {
 		pine.Logger().Error(err)
 	}
-
-	go func() {
-		if mergeTickTime > 0 {
-			for range time.Tick(mergeTickTime) {
+	if mergeTickTime > 0 {
+		go func() {
+			var ticker = time.NewTicker(mergeTickTime)
+			for range ticker.C {
 				if err := bc.Merge(); err != nil {
 					pine.Logger().Error(err)
 				}
 			}
-		}
-	}()
+		}()
+	}
 
 	return &PineBitCask{ttl: ttl, Bitcask: bc}
 }
 
 func (r *PineBitCask) Get(key string) ([]byte, error) {
-	return r.Bitcask.Get([]byte(key))
+	byts, err := r.Bitcask.Get([]byte(key))
+	if err == bitcask.ErrKeyNotFound || err == bitcask.ErrKeyExpired {
+		err = cache.ErrKeyNotFound
+	}
+	return byts, err
 }
 
 func (r *PineBitCask) GetWithUnmarshal(key string, receiver interface{}) error {
@@ -76,20 +80,18 @@ func (r *PineBitCask) Delete(key string) error {
 }
 
 func (r *PineBitCask) Remember(key string, receiver interface{}, call func() (interface{}, error), ttl ...int) error {
-	err := r.GetWithUnmarshal(key, receiver)
-
-	if bitcask.ErrKeyNotFound == err || bitcask.ErrKeyExpired == err {
-		err = nil
-		if receiver, err = call(); err != nil {
-			return err
-		} else {
-			if err := r.SetWithMarshal(key, receiver, ttl...); err != nil {
-				return err
-			}
-		}
+	var err error
+	if err = r.GetWithUnmarshal(key, receiver); err != cache.ErrKeyNotFound {
+		return err
 	}
-
+	if receiver, err = call(); err == nil {
+		err = r.SetWithMarshal(key, receiver, ttl...)
+	}
 	return err
+}
+
+func (r *PineBitCask) GetCacheHandler() interface{} {
+	return r.Bitcask
 }
 
 func (r *PineBitCask) Exists(key string) bool {

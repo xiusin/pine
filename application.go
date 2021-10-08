@@ -196,6 +196,7 @@ func (r *Router) Subdomain(subdomain string) *Router {
 
 func (a *Application) SetRecoverHandler(handler Handler) {
 	a.recoverHandler = handler
+	errCodeCallHandler[http.StatusInternalServerError] = handler
 }
 
 func (a *Application) SetNotFound(handler Handler) {
@@ -506,6 +507,10 @@ func (r *Router) DELETE(path string, handle Handler, mws ...Handler) {
 
 func (r *Router) OPTIONS(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(http.MethodOptions, path, handle, mws...)
+}
+
+func (r *Router) Delete(method string, path string) {
+	panic("delete route")
 }
 
 func initRouteMap() map[string]map[string]*RouteEntry {

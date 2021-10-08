@@ -5,16 +5,14 @@
 package bbolt
 
 import (
-	"errors"
-	"github.com/xiusin/pine"
-	"github.com/xiusin/pine/cache"
-	bolt "go.etcd.io/bbolt"
 	"os"
 	"sync"
 	"time"
-)
 
-var keyNotExistsErr = errors.New("key not exists or expired")
+	"github.com/xiusin/pine"
+	"github.com/xiusin/pine/cache"
+	bolt "go.etcd.io/bbolt"
+)
 
 var defaultBucketName = []byte("MyBucket")
 
@@ -39,7 +37,7 @@ type entry struct {
 }
 
 func (e *entry) isExpired() bool {
-	return !e.LifeTime.IsZero() && time.Now().Sub(e.LifeTime) >= 0
+	return !e.LifeTime.IsZero() && time.Since(e.LifeTime) >= 0
 }
 
 func New(opt *Option) *PineBolt {
@@ -72,8 +70,8 @@ func New(opt *Option) *PineBolt {
 	return &b
 }
 
-func (b *PineBolt) bucket(tx *bolt.Tx) *bolt.Bucket {
-	return tx.Bucket(b.BucketName)
+func (b *PineBolt) GetCacheHandler() interface{} {
+	return b.DB
 }
 
 func (b *PineBolt) Get(key string) (val []byte, err error) {
@@ -84,7 +82,7 @@ func (b *PineBolt) Get(key string) (val []byte, err error) {
 			return err
 		}
 		if e.isExpired() {
-			err = keyNotExistsErr
+			err = cache.ErrKeyNotFound
 		} else {
 			val = []byte(e.Val)
 		}
@@ -133,7 +131,7 @@ func (b *PineBolt) Delete(key string) error {
 func (b *PineBolt) Exists(key string) bool {
 	if err := b.View(func(tx *bolt.Tx) error {
 		if val := tx.Bucket(b.BucketName).Get([]byte(key)); val == nil {
-			return keyNotExistsErr
+			return cache.ErrKeyNotFound
 		} else {
 			var e entry
 			if err := cache.UnMarshal(val, &e); err != nil {
@@ -142,7 +140,7 @@ func (b *PineBolt) Exists(key string) bool {
 			if !e.isExpired() {
 				return nil
 			} else {
-				return keyNotExistsErr
+				return cache.ErrKeyNotFound
 			}
 		}
 	}); err != nil {
@@ -154,16 +152,17 @@ func (b *PineBolt) Exists(key string) bool {
 func (b *PineBolt) Remember(key string, receiver interface{}, call func() ([]byte, error), ttl ...int) error {
 	b.Lock()
 	defer b.Unlock()
-	val, err := b.Get(key)
-	if err != nil {
+
+	var val []byte
+	var err error
+
+	if val, err = b.Get(key); err != nil && err != cache.ErrKeyNotFound {
 		return err
-	}
-	if len(val) == 0 {
+	} else if err == cache.ErrKeyNotFound {
 		if val, err = call(); err != nil {
 			return err
 		}
-		err = b.Set(key, val, ttl...)
-		if err != nil {
+		if err = b.Set(key, val, ttl...); err != nil {
 			return err
 		}
 	}
@@ -187,7 +186,8 @@ func (b *PineBolt) getExpireTime(ttl ...int) time.Time {
 
 func (b *PineBolt) cleanup() {
 	if b.CleanupInterval > 0 {
-		for range time.Tick(time.Second * time.Duration(b.CleanupInterval)) {
+		ticker := time.NewTicker(time.Second * time.Duration(b.CleanupInterval))
+		for range ticker.C {
 			if err := b.Batch(func(tx *bolt.Tx) error {
 				b := tx.Bucket(b.BucketName)
 				return b.ForEach(func(k, v []byte) error {

@@ -35,13 +35,13 @@ const ServicePineRender = "pine.render"
 
 const formatErrServiceNotExists = "service %s not exists"
 
-var ServiceSingletonErr = errors.New("service is singleton, cannot use it with GetWithParams")
+var ErrServiceSingleton = errors.New("service is singleton, cannot use it with GetWithParams")
 
 func (b *builder) GetDefinition(serviceAny interface{}) (*Definition, error) {
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf(formatErrServiceNotExists, serviceName))
+		return nil, fmt.Errorf(formatErrServiceNotExists, serviceName)
 	}
 	return service.(*Definition), nil
 }
@@ -55,9 +55,9 @@ func (b *builder) Set(serviceAny interface{}, handler BuildHandler, singleton bo
 }
 
 func ResolveServiceName(service interface{}) string {
-	switch service.(type) {
+	switch service := service.(type) {
 	case string:
-		return service.(string)
+		return service
 	default:
 		ty := reflect.TypeOf(service)
 		if ty.Kind() == reflect.Ptr {
@@ -83,7 +83,7 @@ func (b *builder) Get(serviceAny interface{}) (interface{}, error) {
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf(formatErrServiceNotExists, serviceName))
+		return nil, fmt.Errorf(formatErrServiceNotExists, serviceName)
 	}
 	s, err := service.(*Definition).resolve(b)
 	if err != nil {
@@ -96,10 +96,10 @@ func (b *builder) GetWithParams(serviceAny interface{}, params ...interface{}) (
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf(formatErrServiceNotExists, serviceName))
+		return nil, fmt.Errorf(formatErrServiceNotExists, serviceName)
 	}
 	if service.(*Definition).IsSingleton() {
-		return nil, ServiceSingletonErr
+		return nil, ErrServiceSingleton
 	}
 	s, err := service.(*Definition).resolveWithParams(b, params...)
 	if err != nil {

@@ -5,8 +5,9 @@
 package badger
 
 import (
-	"github.com/xiusin/pine/cache"
 	"time"
+
+	"github.com/xiusin/pine/cache"
 
 	"github.com/xiusin/pine"
 
@@ -27,7 +28,7 @@ func New(defaultTTL int, path string) *PineBadger {
 		panic(err)
 	}
 
-	b := PineBadger{defaultTTL,  db}
+	b := PineBadger{defaultTTL, db}
 	return &b
 }
 
@@ -43,7 +44,7 @@ func (c *PineBadger) GetWithUnmarshal(key string, receiver interface{}) error {
 func (c *PineBadger) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
 	data, err := cache.Marshal(structData)
 	if err != nil {
-		return  err
+		return err
 	}
 	return c.Set(key, data, ttl...)
 }
@@ -112,7 +113,7 @@ func (c *PineBadger) Exists(key string) bool {
 	return true
 }
 
-func (c *PineBadger) getEntry(key string,val []byte,  ttl []int) *badgerDB.Entry  {
+func (c *PineBadger) getEntry(key string, val []byte, ttl []int) *badgerDB.Entry {
 	if len(ttl) == 0 {
 		ttl = append(ttl, c.ttl)
 	}
@@ -123,6 +124,6 @@ func (c *PineBadger) getEntry(key string,val []byte,  ttl []int) *badgerDB.Entry
 	return e
 }
 
-func (c *PineBadger) Badger() *badgerDB.DB {
+func (c *PineBadger) GetCacheHandler() interface{} {
 	return c.DB
 }
