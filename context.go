@@ -6,7 +6,6 @@ package pine
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"mime/multipart"
 	"net"
@@ -204,10 +203,9 @@ func (c *Context) Abort(statusCode int, msg ...string) {
 	if len(msg) > 0 {
 		c.Msg = msg[0]
 	}
+	c.ResetBody()
 	if handler, ok := errCodeCallHandler[statusCode]; ok {
 		handler(c)
-	} else {
-		panic(errors.New(c.Msg))
 	}
 }
 

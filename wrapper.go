@@ -7,6 +7,7 @@ package pine
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strings"
 	"sync"
@@ -31,7 +32,7 @@ type routerWrapper struct {
 	sync.Mutex
 	reflectMethod map[string][]reflect.Value
 	share         *sync.Map
-	hasShare      bool
+	hasShareField bool
 	router        AbstractRouter
 	controller    IController
 }
@@ -69,7 +70,7 @@ func (cmr *routerWrapper) warpHandler(method string, controller IController) Han
 				}()
 			}
 			cmr.share.Store(field.Name, rvCtrl.Elem().Field(i))
-			cmr.hasShare = true
+			cmr.hasShareField = true
 		}
 	}
 	return func(context *Context) {
@@ -93,7 +94,7 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 	// 转换为context实体实例
 	ctx := c.MethodByName("Ctx").Call(nil)[0].Interface().(*Context)
 
-	if cmr.hasShare {
+	if cmr.hasShareField {
 		cmr.share.Range(func(key, value interface{}) bool {
 			c.Elem().FieldByName(key.(string)).Set(value.(reflect.Value))
 			return true
@@ -112,6 +113,7 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 	}
 
 	cmr.Lock()
+	defer cmr.Unlock()
 	var exist bool
 	if ins, exist = cmr.reflectMethod[method]; !exist {
 		// 反射执行函数参数, 解析并设置可获取的参数类型
@@ -124,25 +126,26 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 					if di.Exists(inType) {
 						ins = append(ins, reflect.ValueOf(di.MustGet(inType)))
 					} else {
-						cmr.Unlock()
 						panic(fmt.Sprintf("con't resolve service `%s` in di", inType))
 					}
 				} else {
-					cmr.Unlock()
 					panic(fmt.Sprintf("controller %s method: %s params(NO.%d)(%s)  not support. only ptr or interface ", c.Type().String(), mt.Name(), i, in.String()))
 				}
 			}
 			cmr.reflectMethod[method] = ins
 		}
 	}
-	cmr.Unlock()
 
 	values := c.MethodByName(method).Call(ins)
+
+	if len(values) > 1 {
+		Logger().Warning("cann't support auto parse mulit values")
+	}
 
 	// 查看是否设置了解析返回值
 	// 只接收返回值  error, interface, string , int , map struct 等.
 	// 具体查看函数: parseValue
-	if ctx.autoParseValue && len(values) > 0 {
+	if ctx.autoParseValue && len(values) == 1 {
 		var body []byte
 		for _, val := range values {
 			skip := false
@@ -157,9 +160,13 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 			}
 			body, err = cmr.parseValue(val)
 		}
-		if err == nil && len(body) > 0 {
+		if err == nil {
 			ctx.Render().ContentType(ctx.app.ReadonlyConfiguration.GetDefaultResponseType())
 			_ = ctx.Render().Bytes(body)
+		} else {
+			ctx.ResetBody()
+			ctx.Response.SetStatusCode(http.StatusInternalServerError)
+			panic(err)
 		}
 	}
 }
@@ -169,28 +176,21 @@ func (cmr *routerWrapper) parseValue(val reflect.Value) ([]byte, error) {
 	var err error
 	var valInterface = val.Interface()
 	switch val.Type().Kind() {
-
-	// 如果参数为Func 终止程序
-	case reflect.Func:
-		panic("return value not supported type func()")
-
-		// 如果是字符串直接返回
+	// 如果是字符串直接返回
 	case reflect.String:
 		value = []byte(val.String())
 
-		// 如果返回的为切片
+	// 如果返回的为切片
 	case reflect.Slice:
-
 		//字节切片直接返回, 其他切片进行json转换
 		if val, ok := valInterface.([]byte); ok {
 			value = val
-		} else if value, err = cmr.returnValToJSON(valInterface); err != nil {
+		} else if value, err = json.Marshal(valInterface); err != nil {
 			return nil, err
 		}
 
 	// 如果是interface
 	case reflect.Interface:
-
 		// 判断是不是err类型
 		if errVal, ok := val.Interface().(error); ok {
 			err = errVal
@@ -199,22 +199,13 @@ func (cmr *routerWrapper) parseValue(val reflect.Value) ([]byte, error) {
 			value, err = cmr.parseValue(val.Elem())
 		}
 	default:
-		// 其他类型, 如果为err类型返回错误, 其他的转换为json
 		if val.Type().Name() == "error" {
 			err = valInterface.(error)
-		} else if value, err = cmr.returnValToJSON(valInterface); err != nil {
-			return nil, err
+		} else {
+			value, err = json.Marshal(valInterface)
 		}
 	}
 	return value, err
-}
-
-func (cmr *routerWrapper) returnValToJSON(valInterface interface{}) ([]byte, error) {
-	body, err := json.Marshal(valInterface)
-	if err != nil {
-		return nil, err
-	}
-	return body, nil
 }
 
 func (cmr *routerWrapper) GET(path, method string, mws ...Handler) {

@@ -7,6 +7,8 @@ package cache
 import (
 	"encoding/json"
 	"errors"
+
+	"github.com/bits-and-blooms/bloom"
 )
 
 type AbstractCache interface {
@@ -25,6 +27,8 @@ type AbstractCache interface {
 }
 
 var ErrKeyNotFound = errors.New("key not found or expired")
+
+var filter = bloom.NewWithEstimates(1000000, 0.01)
 
 var defaultTranscoder = struct {
 	Marshal   func(interface{}) ([]byte, error)
@@ -47,4 +51,12 @@ func Marshal(data interface{}) ([]byte, error) {
 
 func UnMarshal(data []byte, receiver interface{}) error {
 	return defaultTranscoder.UnMarshal(data, receiver)
+}
+
+func BloomFilterAdd(key string) {
+	filter.Add([]byte(key))
+}
+
+func BloomCacheKeyCheck(key string) bool {
+	return filter.Test([]byte(key))
 }

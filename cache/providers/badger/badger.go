@@ -7,11 +7,9 @@ package badger
 import (
 	"time"
 
-	"github.com/xiusin/pine/cache"
-
-	"github.com/xiusin/pine"
-
 	badgerDB "github.com/dgraph-io/badger/v2"
+	"github.com/xiusin/pine"
+	"github.com/xiusin/pine/cache"
 )
 
 type PineBadger struct {
@@ -27,7 +25,6 @@ func New(defaultTTL int, path string) *PineBadger {
 	if err != nil {
 		panic(err)
 	}
-
 	b := PineBadger{defaultTTL, db}
 	return &b
 }
@@ -69,6 +66,7 @@ func (c *PineBadger) Set(key string, val []byte, ttl ...int) error {
 		if err != nil {
 			pine.Logger().Error(err)
 		}
+		cache.BloomFilterAdd(key)
 		return err
 	})
 }
@@ -76,20 +74,15 @@ func (c *PineBadger) Set(key string, val []byte, ttl ...int) error {
 func (c *PineBadger) Remember(key string, receiver interface{}, call func() ([]byte, error), ttl ...int) error {
 	c.Lock()
 	defer c.Unlock()
-	val, err := c.Get(key)
-	if err != nil {
+	var err error
+	var byts []byte
+	if err = c.GetWithUnmarshal(key, receiver); err != nil && err != cache.ErrKeyNotFound {
 		return err
 	}
-	if len(val) == 0 {
-		if val, err = call(); err != nil {
-			return err
-		}
-		err = c.Set(key, val, ttl...)
-		if err != nil {
-			return err
-		}
+	if byts, err = call(); err == nil {
+		err = c.SetWithMarshal(key, byts, ttl...)
 	}
-	return cache.UnMarshal(val, receiver)
+	return err
 }
 
 func (c *PineBadger) Delete(key string) error {
@@ -102,15 +95,14 @@ func (c *PineBadger) Delete(key string) error {
 }
 
 func (c *PineBadger) Exists(key string) bool {
-	if err := c.View(func(tx *badgerDB.Txn) error {
-		if _, err := tx.Get([]byte(key)); err != nil {
+	var err error
+	if cache.BloomCacheKeyCheck(key) {
+		err = c.View(func(tx *badgerDB.Txn) error {
+			_, err := tx.Get([]byte(key))
 			return err
-		}
-		return nil
-	}); err != nil {
-		return false
+		})
 	}
-	return true
+	return err == nil
 }
 
 func (c *PineBadger) getEntry(key string, val []byte, ttl []int) *badgerDB.Entry {

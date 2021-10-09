@@ -71,7 +71,11 @@ func (r *PineOlric) GetWithUnmarshal(key string, receiver interface{}) error {
 }
 
 func (r *PineOlric) Set(key string, val []byte, ttl ...int) error {
-	return r.dMap.Put(key, val)
+	var err error
+	if err := r.dMap.Put(key, val); err != nil {
+		cache.BloomFilterAdd(key)
+	}
+	return err
 }
 func (r *PineOlric) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
 	if byts, err := cache.Marshal(structData); err != nil {
@@ -87,7 +91,7 @@ func (r *PineOlric) Delete(key string) error {
 
 func (r *PineOlric) Remember(key string, receiver interface{}, call func() (interface{}, error), ttl ...int) error {
 	var err error
-	if err = r.GetWithUnmarshal(key, receiver); err != cache.ErrKeyNotFound {
+	if err = r.GetWithUnmarshal(key, receiver); err != nil && err != cache.ErrKeyNotFound {
 		return err
 	}
 	if receiver, err = call(); err == nil {
@@ -101,6 +105,9 @@ func (r *PineOlric) GetCacheHandler() interface{} {
 }
 
 func (r *PineOlric) Exists(key string) bool {
-	_, err := r.dMap.Get(key)
+	var err error
+	if cache.BloomCacheKeyCheck(key) {
+		_, err = r.dMap.Get(key)
+	}
 	return err == nil
 }

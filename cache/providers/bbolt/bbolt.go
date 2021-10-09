@@ -107,7 +107,10 @@ func (b *PineBolt) Set(key string, val []byte, ttl ...int) error {
 		if val, err = cache.Marshal(&e); err != nil {
 			return err
 		}
-		return tx.Bucket(b.BucketName).Put([]byte(key), val)
+		if err = tx.Bucket(b.BucketName).Put([]byte(key), val); err == nil {
+			cache.BloomFilterAdd(key)
+		}
+		return err
 	})
 }
 
@@ -129,48 +132,44 @@ func (b *PineBolt) Delete(key string) error {
 }
 
 func (b *PineBolt) Exists(key string) bool {
-	if err := b.View(func(tx *bolt.Tx) error {
-		if val := tx.Bucket(b.BucketName).Get([]byte(key)); val == nil {
-			return cache.ErrKeyNotFound
-		} else {
-			var e entry
-			if err := cache.UnMarshal(val, &e); err != nil {
-				return err
-			}
-			if !e.isExpired() {
-				return nil
-			} else {
+	var err error
+	if cache.BloomCacheKeyCheck(key) {
+		err = b.View(func(tx *bolt.Tx) error {
+			if val := tx.Bucket(b.BucketName).Get([]byte(key)); val == nil {
 				return cache.ErrKeyNotFound
+			} else {
+				var e entry
+				if err := cache.UnMarshal(val, &e); err != nil {
+					return err
+				}
+				if !e.isExpired() {
+					return nil
+				} else {
+					return cache.ErrKeyNotFound
+				}
 			}
-		}
-	}); err != nil {
-		return false
+		})
 	}
-	return true
+	return err == nil
 }
 
 func (b *PineBolt) Remember(key string, receiver interface{}, call func() ([]byte, error), ttl ...int) error {
 	b.Lock()
 	defer b.Unlock()
 
-	var val []byte
+	var byts []byte
 	var err error
 
-	if val, err = b.Get(key); err != nil && err != cache.ErrKeyNotFound {
+	if err = b.GetWithUnmarshal(key, receiver); err != nil && err != cache.ErrKeyNotFound {
 		return err
-	} else if err == cache.ErrKeyNotFound {
-		if val, err = call(); err != nil {
-			return err
-		}
-		if err = b.Set(key, val, ttl...); err != nil {
-			return err
+	}
+
+	if err == cache.ErrKeyNotFound {
+		if byts, err = call(); err == nil {
+			err = b.SetWithMarshal(key, byts, ttl...)
 		}
 	}
-	return cache.UnMarshal(val, receiver)
-}
-
-func (b *PineBolt) BoltDB() *bolt.DB {
-	return b.DB
+	return err
 }
 
 func (b *PineBolt) getExpireTime(ttl ...int) time.Time {

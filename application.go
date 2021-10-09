@@ -196,7 +196,6 @@ func (r *Router) Subdomain(subdomain string) *Router {
 
 func (a *Application) SetRecoverHandler(handler Handler) {
 	a.recoverHandler = handler
-	errCodeCallHandler[http.StatusInternalServerError] = handler
 }
 
 func (a *Application) SetNotFound(handler Handler) {

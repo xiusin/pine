@@ -64,6 +64,7 @@ func (r *PineRedis) Set(key string, val []byte, ttl ...int) error {
 	defer client.Close()
 
 	_, err := client.Do("SET", params...)
+	cache.BloomFilterAdd(key)
 	return err
 }
 
@@ -88,19 +89,24 @@ func (r *PineRedis) Remember(key string, receiver interface{}, call func() (inte
 	r.Lock()
 	defer r.Unlock()
 	var err error
-	if err = r.GetWithUnmarshal(key, receiver); err != cache.ErrKeyNotFound {
+	if err = r.GetWithUnmarshal(key, receiver); err != nil && err != cache.ErrKeyNotFound {
 		return err
 	}
-	if receiver, err = call(); err == nil {
-		err = r.SetWithMarshal(key, receiver, ttl...)
+	if err == cache.ErrKeyNotFound {
+		if receiver, err = call(); err == nil {
+			err = r.SetWithMarshal(key, receiver, ttl...)
+		}
 	}
 	return err
 }
 
 func (r *PineRedis) Exists(key string) bool {
-	client := r.pool.Get()
-	defer client.Close()
+	var exist bool
+	if cache.BloomCacheKeyCheck(key) {
+		client := r.pool.Get()
+		defer client.Close()
+		exist, _ = redisgo.Bool(client.Do("EXISTS", key))
+	}
 
-	exist, _ := redisgo.Bool(client.Do("EXISTS", key))
 	return exist
 }

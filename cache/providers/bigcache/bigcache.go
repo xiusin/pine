@@ -40,7 +40,11 @@ func (r *PineBigCache) GetWithUnmarshal(key string, receiver interface{}) error 
 }
 
 func (r *PineBigCache) Set(key string, val []byte, ttl ...int) error {
-	return r.BigCache.Set(key, val)
+	err := r.BigCache.Set(key, val)
+	if err == nil {
+		cache.BloomFilterAdd(key)
+	}
+	return err
 }
 
 func (r *PineBigCache) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
@@ -57,12 +61,16 @@ func (r *PineBigCache) Delete(key string) error {
 
 func (r *PineBigCache) Remember(key string, receiver interface{}, call func() (interface{}, error), ttl ...int) error {
 	var err error
-	if err = r.GetWithUnmarshal(key, receiver); err != cache.ErrKeyNotFound {
+	if err = r.GetWithUnmarshal(key, receiver); err != nil && err != cache.ErrKeyNotFound {
 		return err
 	}
-	if receiver, err = call(); err == nil {
-		err = r.SetWithMarshal(key, receiver, ttl...)
+
+	if err == cache.ErrKeyNotFound {
+		if receiver, err = call(); err == nil {
+			err = r.SetWithMarshal(key, receiver, ttl...)
+		}
 	}
+
 	return err
 }
 
@@ -71,6 +79,9 @@ func (r *PineBigCache) GetCacheHandler() interface{} {
 }
 
 func (r *PineBigCache) Exists(key string) bool {
-	_, err := r.BigCache.Get(key)
+	var err error
+	if cache.BloomCacheKeyCheck(key) {
+		_, err = r.BigCache.Get(key)
+	}
 	return err == nil
 }

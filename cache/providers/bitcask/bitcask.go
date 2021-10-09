@@ -60,11 +60,16 @@ func (r *PineBitCask) Set(key string, val []byte, ttl ...int) error {
 	if len(ttl) == 0 {
 		ttl = []int{r.ttl}
 	}
+	var err error
 	if ttl[0] > 0 {
-		return r.Bitcask.Put([]byte(key), val, bitcask.WithExpiry(time.Now().Add(time.Duration(ttl[0])*time.Second)))
+		err = r.Bitcask.Put([]byte(key), val, bitcask.WithExpiry(time.Now().Add(time.Duration(ttl[0])*time.Second)))
 	} else {
-		return r.Bitcask.Put([]byte(key), val)
+		err = r.Bitcask.Put([]byte(key), val)
 	}
+	if err == nil {
+		cache.BloomFilterAdd(key)
+	}
+	return err
 }
 
 func (r *PineBitCask) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
@@ -84,8 +89,10 @@ func (r *PineBitCask) Remember(key string, receiver interface{}, call func() (in
 	if err = r.GetWithUnmarshal(key, receiver); err != cache.ErrKeyNotFound {
 		return err
 	}
-	if receiver, err = call(); err == nil {
-		err = r.SetWithMarshal(key, receiver, ttl...)
+	if err == cache.ErrKeyNotFound {
+		if receiver, err = call(); err == nil {
+			err = r.SetWithMarshal(key, receiver, ttl...)
+		}
 	}
 	return err
 }
@@ -95,5 +102,9 @@ func (r *PineBitCask) GetCacheHandler() interface{} {
 }
 
 func (r *PineBitCask) Exists(key string) bool {
-	return r.Bitcask.Has([]byte(key))
+	var exist bool
+	if cache.BloomCacheKeyCheck(key) {
+		exist = r.Bitcask.Has([]byte(key))
+	}
+	return exist
 }
