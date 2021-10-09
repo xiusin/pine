@@ -74,6 +74,9 @@ func (sess *Session) Remove(key string) {
 }
 
 func (sess *Session) Save() error {
+	if !sess.changed {
+		return nil
+	}
 	err := sess.store.Save(sess.key(), &sess.data)
 	for k := range sess.data {
 		delete(sess.data, k)
@@ -85,7 +88,8 @@ func (sess *Session) Save() error {
 // Destroy 销毁整个sess信息
 func (sess *Session) Destroy() {
 	sess.Lock()
-	sess.changed = true
+	sess.data = nil
+	sess.changed = false
 	sess.store.Delete(sess.key())
 	sess.Unlock()
 }
