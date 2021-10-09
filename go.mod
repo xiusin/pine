@@ -17,12 +17,13 @@ require (
 	github.com/gookit/color v1.4.2
 	github.com/gorilla/schema v1.2.0
 	github.com/kataras/tablewriter v0.0.0-20180708051242-e063d29b7c23 // indirect
-	github.com/klauspost/compress v1.13.1 // indirect
+	github.com/klauspost/compress v1.13.6 // indirect
 	github.com/landoop/tableprinter v0.0.0-20201125135848-89e81fc956e7
 	github.com/mattn/go-colorable v0.1.11 // indirect
+	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/prologic/bitcask v0.3.11-0.20210601204730-e7c649076233
 	github.com/satori/go.uuid v1.2.0
-	github.com/valyala/fasthttp v1.27.0
+	github.com/valyala/fasthttp v1.30.0
 	github.com/valyala/fastjson v1.6.3
 	github.com/xiusin/logger v0.0.6-0.20210624030332-1618e61b92ce
 	go.etcd.io/bbolt v1.3.4
