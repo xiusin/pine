@@ -80,6 +80,7 @@ func (c *Context) reset() {
 	c.middlewareIndex = -1
 	c.stopped = false
 	c.Msg = ""
+
 	if len(c.keys) > 0 {
 		for k := range c.keys {
 			delete(c.keys, k)

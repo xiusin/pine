@@ -22,6 +22,7 @@ type AbstractSession interface {
 	GetId() string
 	Set(string, string)
 	Get(string) string
+	Has(string) bool
 	AddFlush(string, string)
 	Remove(string)
 	Destroy()
@@ -53,7 +54,6 @@ func New(provider AbstractSessionStore, cfg *Config) *Sessions {
 	return &Sessions{provider: provider, cfg: cfg}
 }
 
-// sessionId 为新客户分配sessionId
 func sessionId() string {
 	hash := md5.New()
 	hash.Write(uuid.NewV4().Bytes())
@@ -68,6 +68,6 @@ func (m *Sessions) Session(cookie *Cookie) (sess AbstractSession, err error) {
 		sessID = sessionId()
 		cookie.Set(m.cfg.CookieName, sessID, int(m.cfg.Expires.Seconds()))
 	}
-	sess, err = newSession(sessID, m.provider)
-	return
+
+	return newSession(sessID, m.provider, cookie)
 }

@@ -10,13 +10,20 @@ import (
 	"github.com/xiusin/pine/cache"
 )
 
+const (
+	Modified = iota
+	Desroyed
+)
+
 type Session struct {
 	sync.RWMutex
 	id   string
 	data map[string]entry
 
-	changed bool
-	store   AbstractSessionStore
+	status int
+	store  AbstractSessionStore
+
+	cookie *Cookie
 }
 
 type entry struct {
@@ -24,15 +31,17 @@ type entry struct {
 	Flush bool   `json:"flush"`
 }
 
-func newSession(id string, store AbstractSessionStore) (*Session, error) {
+func newSession(id string, store AbstractSessionStore, cookie *Cookie) (*Session, error) {
 	entity := map[string]entry{}
-	sess := &Session{id: id, store: store}
+	sess := &Session{id: id, store: store, cookie: cookie}
 
 	if err := store.Get(sess.key(), &entity); err != nil && err != cache.ErrKeyNotFound {
 		return nil, err
 	}
 
 	sess.data = entity
+	sess.status = Modified
+
 	return sess, nil
 }
 
@@ -42,7 +51,6 @@ func (sess *Session) GetId() string {
 
 func (sess *Session) Set(key string, val string) {
 	sess.Lock()
-	sess.changed = true
 	sess.data[key] = entry{Value: val}
 	sess.Unlock()
 }
@@ -52,7 +60,6 @@ func (sess *Session) Get(key string) string {
 	var val entry
 	if val = sess.data[key]; val.Flush {
 		sess.Remove(key)
-		sess.changed = true
 	}
 	sess.RUnlock()
 	return val.Value
@@ -61,22 +68,21 @@ func (sess *Session) Get(key string) string {
 func (sess *Session) AddFlush(key string, val string) {
 	sess.Lock()
 	sess.data[key] = entry{Value: val, Flush: true}
-	sess.changed = true
 	sess.Unlock()
 }
 
 // Remove 移除某个key
 func (sess *Session) Remove(key string) {
 	sess.Lock()
-	sess.changed = true
 	delete(sess.data, key)
 	sess.Unlock()
 }
 
 func (sess *Session) Save() error {
-	if !sess.changed {
+	if sess.status == Desroyed {
 		return nil
 	}
+
 	err := sess.store.Save(sess.key(), &sess.data)
 	for k := range sess.data {
 		delete(sess.data, k)
@@ -88,10 +94,24 @@ func (sess *Session) Save() error {
 // Destroy 销毁整个sess信息
 func (sess *Session) Destroy() {
 	sess.Lock()
+	defer sess.Unlock()
+
 	sess.data = nil
-	sess.changed = false
+	sess.status = Desroyed
+
+	sess.cookie.Set(sess.id, "", -3600)
 	sess.store.Delete(sess.key())
-	sess.Unlock()
+}
+
+// Has 检查是否存在Key
+func (sess *Session) Has(key string) bool {
+	sess.RLock()
+	defer sess.RUnlock()
+	var exist bool
+	if sess.data != nil {
+		_, exist = sess.data[key]
+	}
+	return exist
 }
 
 // makeKey 存储session的key
