@@ -5,9 +5,8 @@
 package bitcask
 
 import (
+	"git.mills.io/prologic/bitcask"
 	"time"
-
-	"github.com/prologic/bitcask"
 	"github.com/xiusin/pine"
 	"github.com/xiusin/pine/cache"
 )
