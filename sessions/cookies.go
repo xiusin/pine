@@ -41,16 +41,20 @@ func (c *Cookie) Set(name string, value string, maxAge int) {
 			panic(err)
 		}
 	}
+
 	cookie := fasthttp.AcquireCookie()
 	fasthttp.ReleaseCookie(cookie)
 	cookie.SetKey(name)
 	cookie.SetValue(value)
 	cookie.SetPath("/")
+	cookie.SetHTTPOnly(true)
+	cookie.SetSecure(true)
+	cookie.SetSameSite(fasthttp.CookieSameSiteDefaultMode)
 	cookie.SetMaxAge(maxAge)
 
 	c.ctx.Response.Header.SetCookie(cookie)
 }
 
 func (c *Cookie) Delete(name string) {
-	c.ctx.Response.Header.Del(name)
+	c.Set(name, "", -1)
 }

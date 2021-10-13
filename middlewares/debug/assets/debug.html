@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Pine Framework Error</title>
+    <link rel="stylesheet" href="/debug_static/debug.css">
+    <script src="/debug_static/debug.js"></script>
+</head>
+<body>
+<div style="font-family:Inconsolata !important;line-height:1.3 !important;font-size:12px !important;">
+    <div class="__BtrD__header"><div class="__BtrD__logo __BtrD__tops">
+            <span class="__BtrD__logo-img"></span>
+            <span class="__BtrD__theme">Panic</span>
+        </div>
+    </div>
+    <div class="__BtrD__container-fluid">
+        <div class="__BtrD__row __BtrD__contents">
+            <div class="__BtrD__col-md-3 __BtrD__attr __BtrD__left">
+                <div class="__BtrD__content-nav" id="cont-nav">
+                    <div class="__BtrD__top-tog __BtrD__active" id="__BtrD__function">Panic Trace List</div>
+                </div>
+                <div class="__BtrD__content-body">
+                    <div class="__BtrD__function __BtrD__loops __BtrD__active">
+                        {{.stack}}
+                    </div>
+                </div>
+            </div>
+            <div class="__BtrD__col-md-9 __BtrD__attr __BtrD__middle ">
+                <div class="__BtrD__exception-type">
+                    <span id="path">Path: {{.fistFile}}</span>
+                </div>
+                <div class="__BtrD__exception-msg"><span class="__BtrD__char-string">PanicError: {{.error}}</span></div>
+                <div class="__BtrD__code-view" id="proc-main">
+{{/*                    <div style="position: absolute;left: 0;top: 0;width: 100%;height: 100%;z-index: 9999"></div><!--遮罩-->*/}}
+                    <textarea id="code-go" name="code" style="display:none">{{.firstCode}}</textarea>
+                </div>
+            </div>
+            <div class="__BtrD__col-md-3 __BtrD__attr __BtrD__right" style="display: none">
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-1"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Server
+                    </div>
+                    <div class="__BtrD__content" style="display:none;">
+                        <div class="__BtrD__listed">
+                            <span class="__BtrD__index">HTTP_HOST</span> :
+                            <span class="__BtrD__value"><span class="__BtrD__char-string">dbug</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-2"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Get</div>
+                    <div class="__BtrD__content" style="display:none;">
+                    </div>
+                </div>
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-3"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Post</div>
+                    <div class="__BtrD__content" style="display:none;">
+                        <div class="__BtrD__listed">
+                            <span class="__BtrD__index">foo</span> :
+                            <span class="__BtrD__value"><span class="__BtrD__char-integer">22</span></span>
+                        </div>
+                        <div class="__BtrD__listed">
+                            <span class="__BtrD__index">bar</span> :
+                            <span class="__BtrD__value"><span class="char-object">Foo</span>
+        [  <span class="__BtrD__caret"></span>  <div class="__BtrD__env-arr"><span
+                                            class="private">private&nbsp;&nbsp; </span> : <span
+                                            class="__BtrD__char-string">string</span>; <br/><span class="protected">protected </span> : <span
+                                            class="__BtrD__char-integer">20</span>; <br/><span class="private">private&nbsp;&nbsp;&nbsp; </span> : [  <span
+                                            class="__BtrD__caret"></span>  <div class="__BtrD__env-arr"><span
+                                                class="key">foo</span> : <span
+                                                class="__BtrD__char-string">bar</span>,<br/></div>]; <br/><span
+                                            class="protected">protected </span> : <span
+                                            class="__BtrD__char-bool">false</span>; <br/></div>]</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-4"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Files</div>
+                    <div class="__BtrD__content" style="display:none;">
+                    </div>
+                </div>
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-5"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Request
+                    </div>
+                    <div class="__BtrD__content" style="display:none;">
+                    </div>
+                </div>
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-6"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Session
+                    </div>
+                    <div class="__BtrD__content" style="display:none;">
+                    </div>
+                </div>
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-7"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Cookie
+                    </div>
+                    <div class="__BtrD__content" style="display:none;">
+                        <div class="__BtrD__listed">
+                            <span class="__BtrD__index">BittrDebug_toggle_right</span> :
+                            <span class="__BtrD__value"><span class="__BtrD__char-string">tog-1</span></span>
+                        </div>
+                    </div>
+                </div>
+                <div class="__BtrD__global">
+                    <div class="__BtrD__labeled" id="tog-8"><span class="__BtrD__caret"></span> &nbsp;&nbsp; Env</div>
+                    <div class="__BtrD__content" style="display:none;">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    var fileMap = JSON.parse({{.fileMap}})
+    var editor = initEditor({{.firstLine}}, {{.line}});
+    var ls = document.querySelectorAll(".__BtrD__active > div");
+    ls[0].style.background = "#222731"
+    for (var i = 0; i< ls.length; i++) {
+        ls[i].onclick = function (i) {
+            return function () {
+                for(var j = 0; j< ls.length; j++) {
+                    if (i == j) {
+                        ls[j].style.background = "#222731"
+                    } else {
+                        ls[j].style.background = "#343c45"
+                    }
+                }
+                document.getElementById('code-go').value = fileMap[i]
+                editor.getDoc().setValue(document.getElementById('code-go').value);
+                editor.getDoc().remove();
+                document.querySelector(".CodeMirror").remove()
+                document.querySelector("#path").innerHTML="Path: " + ls[i].dataset.file;
+                editor = initEditor(Number(ls[i].dataset.fline) + 1, Number(ls[i].dataset.line))
+            }
+        }(i)
+    }
+
+    function initEditor(firstLine, line){
+        var editor = CodeMirror.fromTextArea(document.getElementById('code-go'), {
+            mode: "go",
+            lineNumbers: true,
+            lineWrapping: true,
+            firstLineNumber: firstLine,
+            readOnly: true,
+            theme: 'cobalt',
+            scrollbarStyle: null,
+            foldGutter: true,
+            gutters: ["CodeMirror-linenumbers", "CodeMirror-foldgutter"]
+        })
+        editor.setSize('auto', '860px');
+        editor.setSelection({line:line-firstLine,ch:0},{line:line - firstLine+1,ch:0})
+        return editor
+    }
+    function a(t, e, r, i) {
+        t.addEventListener(e, function (t) {
+            for (var e = t.target; e && e !== this;) e.matches(r) && i.call(e, t), e = e.parentNode
+        })
+    }
+    var B = function (t) { var e = document.cookie.match("(^|;) ?" + t + "=([^;]*)(;|$)");return e ? e[2] : null}("BittrDebug_toggle_right");
+    B && (document.getElementById(B).nextElementSibling.style.display = "block"), a(document, "click", ".__BtrD__global .__BtrD__labeled", function () {
+        var t = this.nextElementSibling;
+        "none" === t.style.display ? t.style.display = "block" : t.style.display = "none"
+    }), a(document, "click", ".__BtrD__contents .__BtrD__right .__BtrD__global .__BtrD__listed .__BtrD__caret", function () {
+        var t = this.nextElementSibling;
+        "none" === t.style.display ? t.style.display = "block" : t.style.display = "none"
+    });
+</script>
+</body>
+</html>

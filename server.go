@@ -6,11 +6,13 @@ package pine
 
 import (
 	"fmt"
-	"github.com/gookit/color"
-	"github.com/valyala/fasthttp"
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
+
+	"github.com/gookit/color"
+	"github.com/valyala/fasthttp"
 )
 
 type ServerHandler func(*Application) error
@@ -21,8 +23,10 @@ func (a *Application) printSetupInfo(addr string) {
 	if strings.HasPrefix(addr, ":") {
 		addr = fmt.Sprintf("%s%s", a.hostname, addr)
 	}
-	color.Green.Println(logo)
-	color.Red.Printf("\nServer now listening on: %s\n", addr)
+	if !a.configuration.withoutStartupLog {
+		color.Green.Println(logo)
+	}
+	color.Red.Printf("pine server now listening on: %s\n", addr)
 }
 
 func Addr(addr string) ServerHandler {
@@ -38,9 +42,7 @@ func Addr(addr string) ServerHandler {
 			addrInfo[0] = zeroIP
 		}
 		a.hostname = addrInfo[0]
-		if !a.configuration.withoutStartupLog {
-			a.printSetupInfo(addr)
-		}
+		a.printSetupInfo(addr)
 		if a.configuration.maxMultipartMemory > 0 {
 			s.MaxRequestBodySize = int(a.configuration.maxMultipartMemory)
 		}
@@ -54,7 +56,7 @@ func Addr(addr string) ServerHandler {
 		}
 		if a.configuration.gracefulShutdown {
 			a.quitCh = make(chan os.Signal)
-			signal.Notify(a.quitCh, os.Interrupt, os.Kill)
+			signal.Notify(a.quitCh, os.Interrupt, syscall.SIGTERM)
 			go a.gracefulShutdown(s, a.quitCh)
 		}
 		return s.ListenAndServe(addr)

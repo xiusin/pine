@@ -7,8 +7,6 @@ package pine
 import (
 	"embed"
 	"fmt"
-	gomime "github.com/cubewise-code/go-mime"
-	"github.com/valyala/fasthttp"
 	"net/http"
 	"os"
 	"path"
@@ -17,6 +15,9 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	gomime "github.com/cubewise-code/go-mime"
+	"github.com/valyala/fasthttp"
 )
 
 const Version = "dev 0.0.6"
@@ -37,7 +38,7 @@ var (
 	// 按照注册顺序保存匹配路由内容, 防止map迭代出现随机匹配的情况
 	sortedPattern []string
 
-	patternRouteCompiler = regexp.MustCompile("[:*](\\w[A-Za-z0-9_/]+)(<.+?>)?")
+	patternRouteCompiler = regexp.MustCompile(`[:*](\w[A-Za-z0-9_/]+)(<.+?>)?`)
 
 	patternMap = map[string]string{
 		":int":    "<\\d+>",
@@ -45,7 +46,7 @@ var (
 		":any":    "<[/\\w0-9\\_\\.\\+\\-~]+>", // *
 	}
 
-	localServer = map[string]struct{}{zeroIP: {}, "127.0.0.1": {}, "localhost": {}}
+	// localServer = map[string]struct{}{zeroIP: {}, "127.0.0.1": {}, "localhost": {}}
 
 	_ AbstractRouter = (*Application)(nil)
 )
@@ -86,8 +87,6 @@ type Handler func(ctx *Context)
 type routerMap map[string]map[string]*RouteEntry
 
 type Router struct {
-	handler http.Handler
-
 	prefix       string
 	methodRoutes routerMap
 	middleWares  []Handler
@@ -100,7 +99,7 @@ type Router struct {
 
 type Application struct {
 	*Router
-	pool sync.Pool
+	pool                  sync.Pool
 	quitCh                chan os.Signal
 	recoverHandler        Handler
 	configuration         *Configuration
@@ -165,12 +164,12 @@ func (r *Router) register(controller IController, prefix string) {
 
 func (r *Router) matchRegister(path, prefix string, handle Handler) {
 	var methods = map[string]routeMaker{
-		"Get":     r.GET,
-		"Put":     r.PUT,
-		"Post":    r.POST,
-		"Head":    r.HEAD,
-		"Delete":  r.DELETE,
-		"Options": r.OPTIONS,
+		"":       r.ANY,
+		"Get":    r.GET,
+		"Put":    r.PUT,
+		"Post":   r.POST,
+		"Head":   r.HEAD,
+		"Delete": r.DELETE,
 	}
 
 	for method, routeMaker := range methods {
@@ -220,7 +219,14 @@ func (a *Application) gracefulShutdown(srv *fasthttp.Server, quit <-chan os.Sign
 
 func (a *Application) handle(c *Context) {
 	if route := a.matchRoute(c); route != nil {
-		c.setRoute(route).Next()
+		c.setRoute(route)
+		defer func() {
+			if c.sess != nil {
+				c.sess.Save()
+			}
+		}()
+
+		c.Next()
 	} else {
 		if handler, ok := errCodeCallHandler[http.StatusNotFound]; ok {
 			c.SetStatus(http.StatusNotFound)
@@ -322,14 +328,14 @@ func (r *Router) getPattern(str string, any bool) (paramName, pattern string) {
 }
 
 func (r *Router) matchRoute(ctx *Context) *RouteEntry {
-	ok, host := false, strings.Replace(strings.Split(string(ctx.Host()), ":")[0], r.hostname, "", 1)
-
-	// 查看是否有注册域名路由
-	if _, exist := localServer[host]; !exist {
-		if r, ok = r.registeredSubdomains[host]; !ok {
-			return nil
-		}
-	}
+	//ok, host := false, strings.Replace(strings.Split(string(ctx.Host()), ":")[0], r.hostname, "", 1)
+	//fmt.Println(localServer, r.registeredSubdomains)
+	//// 查看是否有注册域名路由
+	//if _, exist := localServer[host]; !exist {
+	//	if r, ok = r.registeredSubdomains[host]; !ok {
+	//		return nil
+	//	}
+	//}
 
 	method := string(ctx.Method())
 	// 优先匹配完整路由
@@ -360,7 +366,7 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 		reg := regexp.MustCompile(pattern)
 		matchedStrings := reg.FindAllStringSubmatch(ctx.Path(), -1)
 		for _, route := range routes {
-			if len(matchedStrings) == 0 || len(matchedStrings[0]) == 0 || route.Method != method {
+			if len(matchedStrings) == 0 || len(matchedStrings[0]) == 0 || route.Method != method { //TODO 自动放行 OPTIONS
 				continue
 			}
 			matchedValues := matchedStrings[0][1:]
@@ -500,6 +506,10 @@ func (r *Router) DELETE(path string, handle Handler, mws ...Handler) {
 
 func (r *Router) OPTIONS(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(http.MethodOptions, path, handle, mws...)
+}
+
+func (r *Router) Delete(method string, path string) {
+	panic("delete route")
 }
 
 func initRouteMap() map[string]map[string]*RouteEntry {

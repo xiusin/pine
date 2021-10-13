@@ -1,9 +1,10 @@
 package main
 
 import (
-	"fmt"
-	"github.com/xiusin/debug"
+	"github.com/xiusin/logger"
 	"github.com/xiusin/pine"
+	"github.com/xiusin/pine/di"
+	"github.com/xiusin/pine/middlewares/debug"
 )
 
 func main() {
@@ -13,12 +14,12 @@ func main() {
 		panic("服务错误")
 	})
 
-	app.SetRecoverHandler(func(ctx *pine.Context) {
-			ctx.Render().Text(fmt.Sprintf("recover函数必须放到recover的判断里: %s", ctx.Msg))
-	})
-
 	// 使用debug组件替换默认recover函数
 	app.SetRecoverHandler(debug.Recover(app))
+
+	di.Set(di.ServicePineLogger, func(builder di.AbstractBuilder) (interface{}, error) {
+		return logger.New(), nil
+	}, true)
 
 	app.Run(pine.Addr(":9528"))
 }

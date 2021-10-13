@@ -6,13 +6,7 @@ package pine
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
-	"github.com/gorilla/schema"
-	"github.com/valyala/fasthttp"
-	"github.com/xiusin/logger"
-	"github.com/xiusin/pine/di"
-	"github.com/xiusin/pine/sessions"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -20,6 +14,12 @@ import (
 	"strconv"
 	"strings"
 	"unsafe"
+
+	"github.com/gorilla/schema"
+	"github.com/valyala/fasthttp"
+	"github.com/xiusin/logger"
+	"github.com/xiusin/pine/di"
+	"github.com/xiusin/pine/sessions"
 )
 
 var schemaDecoder = schema.NewDecoder()
@@ -44,8 +44,8 @@ type Context struct {
 	// Temporary recording error information
 	Msg string
 	// Binding some value to context
-	keys map[string]interface{}
-	input *input
+	keys           map[string]interface{}
+	input          *input
 	autoParseValue bool
 }
 
@@ -76,14 +76,17 @@ func (c *Context) reset() {
 	c.route = nil
 	c.sess = nil
 	c.input = nil
+
 	c.middlewareIndex = -1
 	c.stopped = false
 	c.Msg = ""
+
 	if len(c.keys) > 0 {
 		for k := range c.keys {
 			delete(c.keys, k)
 		}
 	}
+
 	if c.params != nil {
 		c.params.reset()
 	}
@@ -164,7 +167,7 @@ func (c *Context) Session(sessIns ...sessions.AbstractSession) sessions.Abstract
 }
 
 func (c *Context) Next() {
-	if c.stopped == true {
+	if c.stopped {
 		return
 	}
 	c.middlewareIndex++
@@ -190,10 +193,6 @@ func (c *Context) IsStopped() bool {
 	return c.stopped
 }
 
-func (c *Context) getRoute() *RouteEntry {
-	return c.route
-}
-
 func (c *Context) setRoute(route *RouteEntry) *Context {
 	c.route = route
 	return c
@@ -205,10 +204,9 @@ func (c *Context) Abort(statusCode int, msg ...string) {
 	if len(msg) > 0 {
 		c.Msg = msg[0]
 	}
+	c.ResetBody()
 	if handler, ok := errCodeCallHandler[statusCode]; ok {
 		handler(c)
-	} else {
-		panic(errors.New(c.Msg))
 	}
 }
 
@@ -330,6 +328,15 @@ func (c *Context) FormValue(key string) string {
 	return c.PostString(key)
 }
 
+func (c *Context) FormValues(key string) []string {
+	data := c.PostData()
+	var arr []string
+	if data != nil {
+		arr = data[key]
+	}
+	return arr
+}
+
 func (c *Context) PostString(key string, defaultVal ...string) string {
 	val := string(c.RequestCtx.FormValue(key))
 	if val == "" && len(defaultVal) > 0 {
@@ -355,7 +362,10 @@ func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, e
 }
 
 func (c *Context) PostData() map[string][]string {
-	forms, _ := c.MultipartForm()
+	forms, err := c.MultipartForm()
+	if err != nil {
+		return nil
+	}
 	return forms.Value
 }
 

@@ -26,8 +26,7 @@ func (c params) Set(key, value string) {
 }
 
 func (c params) Get(key string) string {
-	value, _ := c[key]
-	return value
+	return c[key]
 }
 
 func (c params) GetDefault(key, defaultVal string) string {

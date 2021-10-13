@@ -6,9 +6,9 @@ package bitcask
 
 import (
 	"git.mills.io/prologic/bitcask"
+	"time"
 	"github.com/xiusin/pine"
 	"github.com/xiusin/pine/cache"
-	"time"
 )
 
 type PineBitCask struct {
@@ -21,23 +21,30 @@ func New(ttl int, path string, mergeTickTime time.Duration, opt ...bitcask.Optio
 	if err != nil {
 		panic(err)
 	}
+
 	if err := bc.Merge(); err != nil {
-		panic(err)
+		pine.Logger().Error(err)
 	}
-	go func() {
-		if mergeTickTime > 0 {
-			for range time.Tick(mergeTickTime) {
+	if mergeTickTime > 0 {
+		go func() {
+			var ticker = time.NewTicker(mergeTickTime)
+			for range ticker.C {
 				if err := bc.Merge(); err != nil {
 					pine.Logger().Error(err)
 				}
 			}
-		}
-	}()
+		}()
+	}
+
 	return &PineBitCask{ttl: ttl, Bitcask: bc}
 }
 
 func (r *PineBitCask) Get(key string) ([]byte, error) {
-	return r.Bitcask.Get([]byte(key))
+	byts, err := r.Bitcask.Get([]byte(key))
+	if err == bitcask.ErrKeyNotFound || err == bitcask.ErrKeyExpired {
+		err = cache.ErrKeyNotFound
+	}
+	return byts, err
 }
 
 func (r *PineBitCask) GetWithUnmarshal(key string, receiver interface{}) error {
@@ -45,19 +52,23 @@ func (r *PineBitCask) GetWithUnmarshal(key string, receiver interface{}) error {
 	if err != nil {
 		return err
 	}
-	err = cache.UnMarshal(data, receiver)
-	return err
+	return cache.UnMarshal(data, receiver)
 }
 
 func (r *PineBitCask) Set(key string, val []byte, ttl ...int) error {
 	if len(ttl) == 0 {
 		ttl = []int{r.ttl}
 	}
+	var err error
 	if ttl[0] > 0 {
-		return r.Bitcask.Put([]byte(key), val, bitcask.WithExpiry(time.Now().Add(time.Duration(ttl[0])*time.Second)))
+		err = r.Bitcask.Put([]byte(key), val, bitcask.WithExpiry(time.Now().Add(time.Duration(ttl[0])*time.Second)))
 	} else {
-		return r.Bitcask.Put([]byte(key), val)
+		err = r.Bitcask.Put([]byte(key), val)
 	}
+	if err == nil {
+		cache.BloomFilterAdd(key)
+	}
+	return err
 }
 
 func (r *PineBitCask) SetWithMarshal(key string, structData interface{}, ttl ...int) error {
@@ -72,20 +83,27 @@ func (r *PineBitCask) Delete(key string) error {
 	return r.Bitcask.Delete([]byte(key))
 }
 
-func (r *PineBitCask) Remeber(key string, receiver interface{}, call func() []byte, ttl ...int) error {
-	val, err := r.Get(key)
-	if err != nil {
+func (r *PineBitCask) Remember(key string, receiver interface{}, call func() (interface{}, error), ttl ...int) error {
+	var err error
+	if err = r.GetWithUnmarshal(key, receiver); err != cache.ErrKeyNotFound {
 		return err
 	}
-	if len(val) == 0 {
-		val = call()
-		if err := r.Set(key, val, ttl...); err != nil {
-			return err
+	if err == cache.ErrKeyNotFound {
+		if receiver, err = call(); err == nil {
+			err = r.SetWithMarshal(key, receiver, ttl...)
 		}
 	}
-	return cache.UnMarshal(val, receiver)
+	return err
+}
+
+func (r *PineBitCask) GetCacheHandler() interface{} {
+	return r.Bitcask
 }
 
 func (r *PineBitCask) Exists(key string) bool {
-	return r.Bitcask.Has([]byte(key))
+	var exist bool
+	if cache.BloomCacheKeyCheck(key) {
+		exist = r.Bitcask.Has([]byte(key))
+	}
+	return exist
 }
