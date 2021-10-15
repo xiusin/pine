@@ -5,8 +5,9 @@
 package bitcask
 
 import (
-	"git.mills.io/prologic/bitcask"
 	"time"
+
+	"git.mills.io/prologic/bitcask"
 	"github.com/xiusin/pine"
 	"github.com/xiusin/pine/cache"
 )
@@ -61,7 +62,7 @@ func (r *PineBitCask) Set(key string, val []byte, ttl ...int) error {
 	}
 	var err error
 	if ttl[0] > 0 {
-		err = r.Bitcask.Put([]byte(key), val, bitcask.WithExpiry(time.Now().Add(time.Duration(ttl[0])*time.Second)))
+		err = r.Bitcask.PutWithTTL([]byte(key), val, time.Duration(ttl[0])*time.Second)
 	} else {
 		err = r.Bitcask.Put([]byte(key), val)
 	}
