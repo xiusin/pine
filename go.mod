@@ -3,6 +3,7 @@ module github.com/xiusin/pine
 go 1.13
 
 require (
+	git.mills.io/prologic/bitcask v1.0.0
 	github.com/CloudyKit/fastprinter v0.0.0-20200109182630-33d98a066a53 // indirect
 	github.com/CloudyKit/jet v2.1.3-0.20180809161101-62edd43e4f88+incompatible
 	github.com/allegro/bigcache/v3 v3.0.1
@@ -21,7 +22,6 @@ require (
 	github.com/landoop/tableprinter v0.0.0-20201125135848-89e81fc956e7
 	github.com/mattn/go-colorable v0.1.11 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
-	git.mills.io/prologic/bitcask v0.3.11-0.20210601204730-e7c649076233
 	github.com/satori/go.uuid v1.2.0
 	github.com/valyala/fasthttp v1.30.0
 	github.com/valyala/fastjson v1.6.3
