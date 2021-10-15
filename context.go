@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"mime/multipart"
 	"net"
-	"net/http"
 	"net/url"
 	"runtime"
 	"strconv"
@@ -95,7 +94,7 @@ func (c *Context) reset() {
 
 func (c *Context) endRequest(recoverHandler Handler) {
 	if err := recover(); err != nil {
-		c.SetStatus(http.StatusInternalServerError)
+		c.SetStatus(fasthttp.StatusInternalServerError)
 		c.Msg = fmt.Sprintf("%s", err)
 		recoverHandler(c)
 	}
@@ -143,7 +142,7 @@ func (c *Context) Logger() logger.AbstractLogger {
 
 func (c *Context) Redirect(url string, statusHeader ...int) {
 	if len(statusHeader) == 0 {
-		statusHeader = []int{http.StatusFound}
+		statusHeader = []int{fasthttp.StatusFound}
 	}
 	c.RequestCtx.Redirect(url, statusHeader[0])
 }

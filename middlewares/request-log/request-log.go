@@ -2,10 +2,11 @@ package request_log
 
 import (
 	"fmt"
-	"github.com/fatih/color"
-	"github.com/xiusin/pine"
-	"net/http"
 	"time"
+
+	"github.com/fatih/color"
+	"github.com/valyala/fasthttp"
+	"github.com/xiusin/pine"
 )
 
 func RequestRecorder(minDuration ...time.Duration) pine.Handler {
@@ -13,7 +14,7 @@ func RequestRecorder(minDuration ...time.Duration) pine.Handler {
 		var start = time.Now()
 		c.Next()
 		if !c.IsOptions() {
-			usedTime := time.Now().Sub(start)
+			usedTime := time.Since(start)
 			if minDuration != nil {
 				if usedTime < minDuration[0] {
 					return
@@ -21,9 +22,9 @@ func RequestRecorder(minDuration ...time.Duration) pine.Handler {
 			}
 			statusInfo := ""
 			status := c.Response.StatusCode()
-			if status == 0 || status == http.StatusOK {
-				statusInfo = color.GreenString("%d", http.StatusOK)
-			} else if status > http.StatusBadRequest && status < http.StatusInternalServerError {
+			if status == 0 || status == fasthttp.StatusOK {
+				statusInfo = color.GreenString("%d", fasthttp.StatusOK)
+			} else if status > fasthttp.StatusBadRequest && status < fasthttp.StatusInternalServerError {
 				statusInfo = color.RedString("%d", status)
 			} else {
 				statusInfo = color.YellowString("%d", status)

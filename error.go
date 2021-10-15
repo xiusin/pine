@@ -5,9 +5,10 @@
 package pine
 
 import (
-	"net/http"
 	"runtime/debug"
 	"text/template"
+
+	"github.com/valyala/fasthttp"
 )
 
 var (
@@ -154,7 +155,7 @@ func RegisterOnInterrupt(handler func()) {
 }
 
 func RegisterErrorCodeHandler(status int, handler Handler) {
-	if status == http.StatusOK {
+	if status == fasthttp.StatusOK {
 		return
 	}
 	errCodeCallHandler[status] = handler
@@ -164,5 +165,5 @@ func defaultRecoverHandler(c *Context) {
 	stackInfo, strFmt := debug.Stack(), "msg: %s  method: %s  path: %s\n stack: %s"
 	c.Logger().Errorf(strFmt, c.Msg, c.Method(), c.RequestURI(), stackInfo)
 	c.Response.Header.SetContentType(ContentTypeHTML)
-	_ = DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": http.StatusInternalServerError})
+	_ = DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": fasthttp.StatusInternalServerError})
 }

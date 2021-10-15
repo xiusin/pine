@@ -7,7 +7,6 @@ package pine
 import (
 	"embed"
 	"fmt"
-	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -129,7 +128,7 @@ func New() *Application {
 		err := DefaultErrTemplate.Execute(
 			c.Response.BodyWriter(), H{
 				"Message": c.Msg,
-				"Code":    http.StatusNotFound,
+				"Code":    fasthttp.StatusNotFound,
 			})
 		if err != nil {
 			Logger().Errorf("%s", err)
@@ -198,7 +197,7 @@ func (a *Application) SetRecoverHandler(handler Handler) {
 }
 
 func (a *Application) SetNotFound(handler Handler) {
-	errCodeCallHandler[http.StatusNotFound] = handler
+	errCodeCallHandler[fasthttp.StatusNotFound] = handler
 }
 
 func (a *Application) Close() {
@@ -227,8 +226,8 @@ func (a *Application) handle(c *Context) {
 
 		c.Next()
 	} else {
-		if handler, ok := errCodeCallHandler[http.StatusNotFound]; ok {
-			c.SetStatus(http.StatusNotFound)
+		if handler, ok := errCodeCallHandler[fasthttp.StatusNotFound]; ok {
+			c.SetStatus(fasthttp.StatusNotFound)
 
 			c.setRoute(&RouteEntry{
 				ExtendsMiddleWare: a.middleWares,
@@ -426,12 +425,12 @@ func (r *Router) StaticFS(urlPath string, fs embed.FS, prefix string) {
 	handler := func(c *Context) {
 		fName := c.params.Get("filepath")
 		if len(fName) == 0 {
-			c.Abort(http.StatusNotFound)
+			c.Abort(fasthttp.StatusNotFound)
 			return
 		}
 		content, err := fs.ReadFile(filepath.Join(prefix, fName))
 		if err != nil {
-			c.Abort(http.StatusInternalServerError, err.Error())
+			c.Abort(fasthttp.StatusInternalServerError, err.Error())
 			return
 		}
 		mimeType := gomime.TypeByExtension(filepath.Ext(fName))
@@ -453,7 +452,7 @@ func (r *Router) Static(urlPath, dir string, stripSlashes ...int) {
 	handler := func(c *Context) {
 		fName := c.params.Get("filepath")
 		if len(fName) == 0 {
-			c.Abort(http.StatusNotFound)
+			c.Abort(fasthttp.StatusNotFound)
 			return
 		}
 		fileServer(c.RequestCtx)
@@ -468,12 +467,12 @@ func (r *Router) StaticFile(path, file string, mws ...Handler) {
 }
 
 func (r *Router) GET(path string, handle Handler, mws ...Handler) {
-	r.AddRoute(http.MethodGet, path, handle, mws...)
+	r.AddRoute(fasthttp.MethodGet, path, handle, mws...)
 	r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) PUT(path string, handle Handler, mws ...Handler) {
-	r.AddRoute(http.MethodPut, path, handle, mws...)
+	r.AddRoute(fasthttp.MethodPut, path, handle, mws...)
 	r.OPTIONS(path, handle, mws...)
 }
 
@@ -487,22 +486,22 @@ func (r *Router) ANY(path string, handle Handler, mws ...Handler) {
 }
 
 func (r *Router) POST(path string, handle Handler, mws ...Handler) {
-	r.AddRoute(http.MethodPost, path, handle, mws...)
+	r.AddRoute(fasthttp.MethodPost, path, handle, mws...)
 	r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) HEAD(path string, handle Handler, mws ...Handler) {
-	r.AddRoute(http.MethodHead, path, handle, mws...)
+	r.AddRoute(fasthttp.MethodHead, path, handle, mws...)
 	r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) DELETE(path string, handle Handler, mws ...Handler) {
-	r.AddRoute(http.MethodDelete, path, handle, mws...)
+	r.AddRoute(fasthttp.MethodDelete, path, handle, mws...)
 	r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) OPTIONS(path string, handle Handler, mws ...Handler) {
-	r.AddRoute(http.MethodOptions, path, handle, mws...)
+	r.AddRoute(fasthttp.MethodOptions, path, handle, mws...)
 }
 
 func (r *Router) Delete(method string, path string) {
@@ -511,13 +510,13 @@ func (r *Router) Delete(method string, path string) {
 
 func initRouteMap() map[string]map[string]*RouteEntry {
 	return routerMap{
-		http.MethodGet:     {},
-		http.MethodPost:    {},
-		http.MethodPut:     {},
-		http.MethodHead:    {},
-		http.MethodDelete:  {},
-		http.MethodOptions: {},
-		http.MethodPatch:   {}}
+		fasthttp.MethodGet:     {},
+		fasthttp.MethodPost:    {},
+		fasthttp.MethodPut:     {},
+		fasthttp.MethodHead:    {},
+		fasthttp.MethodDelete:  {},
+		fasthttp.MethodOptions: {},
+		fasthttp.MethodPatch:   {}}
 }
 
 func upperCharToUnderLine(path string) string {

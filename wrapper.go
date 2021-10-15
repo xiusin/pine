@@ -7,12 +7,12 @@ package pine
 import (
 	"encoding/json"
 	"fmt"
-	"net/http"
 	"reflect"
 	"strings"
 	"sync"
 	"unsafe"
 
+	"github.com/valyala/fasthttp"
 	"github.com/xiusin/pine/di"
 )
 
@@ -165,7 +165,7 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 			_ = ctx.Render().Bytes(body)
 		} else {
 			ctx.ResetBody()
-			ctx.Response.SetStatusCode(http.StatusInternalServerError)
+			ctx.Response.SetStatusCode(fasthttp.StatusInternalServerError)
 			panic(err)
 		}
 	}

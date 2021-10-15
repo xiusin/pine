@@ -3,10 +3,11 @@ package cache304
 import (
 	"errors"
 	"fmt"
-	"github.com/xiusin/pine"
-	"net/http"
 	"strings"
 	"time"
+
+	"github.com/valyala/fasthttp"
+	"github.com/xiusin/pine"
 )
 
 var errCheckFailed = errors.New("check failed")
@@ -22,7 +23,7 @@ func Cache304(expires time.Duration, prefix ...string) pine.Handler {
 		if needFilter(c) {
 			now := time.Now()
 			if modified, err := checkIfModifiedSince(c, now.Add(-expires)); !modified && err == nil {
-				c.SetStatus(http.StatusNotModified)
+				c.SetStatus(fasthttp.StatusNotModified)
 				c.Stop()
 				return
 			}
@@ -43,7 +44,7 @@ func needFilter(c *pine.Context) bool {
 
 
 func checkIfModifiedSince(c *pine.Context, modtime time.Time) (bool, error) {
-	if !c.IsGet() && string(c.Method()) == http.MethodHead {
+	if !c.IsGet() && string(c.Method()) == fasthttp.MethodHead {
 		return false, fmt.Errorf("method: %w", errCheckFailed)
 	}
 	inm := c.Header("If-None-Match")

@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	_ "net/http/pprof"
 
 	"github.com/xiusin/pine"
 	"github.com/xiusin/pine/_examples/mvc/actions"

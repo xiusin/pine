@@ -5,10 +5,10 @@
 package pine
 
 import (
+	"strings"
+
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fastjson"
-	"net/http"
-	"strings"
 )
 
 type input struct {
@@ -20,7 +20,7 @@ type input struct {
 func newInput(ctx *Context) *input {
 	v := &input{}
 	method := string(ctx.Method())
-	v.isGet = method == http.MethodGet
+	v.isGet = method == fasthttp.MethodGet
 	if !v.isGet {
 		contentType := ctx.Header(fasthttp.HeaderContentType)
 		if strings.Contains(contentType, "/json") {
