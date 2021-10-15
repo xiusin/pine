@@ -46,8 +46,6 @@ var (
 		":any":    "<[/\\w0-9\\_\\.\\+\\-~]+>", // *
 	}
 
-	// localServer = map[string]struct{}{zeroIP: {}, "127.0.0.1": {}, "localhost": {}}
-
 	_ AbstractRouter = (*Application)(nil)
 )
 
@@ -56,6 +54,7 @@ type RouteEntry struct {
 	Middleware        []Handler
 	ExtendsMiddleWare []Handler
 	Handle            Handler
+	HandlerName		  string
 	resolved          bool
 	Param             []string
 	Pattern           string
@@ -258,11 +257,8 @@ func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 	}
 }
 
-func (r *Router) Handle(c IController, prefix ...string) *Router {
-	if len(prefix) == 0 {
-		prefix = []string{""}
-	}
-	r.register(c, prefix[0])
+func (r *Router) Handle(c IController, prefix string) *Router {
+	r.register(c, prefix)
 	return r
 }
 
@@ -295,6 +291,7 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 		}
 		pattern = fmt.Sprintf("^%s$", pattern)
 	}
+
 	route := &RouteEntry{
 		Method:     method,
 		Handle:     handle,

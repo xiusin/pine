@@ -11,6 +11,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"runtime"
 	"strconv"
 	"strings"
 	"unsafe"
@@ -378,6 +379,17 @@ func (c *Context) Value(key string) interface{} {
 		return val
 	}
 	return nil
+}
+
+
+func (c *Context) HandlerName() string {
+	if len(c.route.HandlerName) == 0 {
+		pc, _, _, _ := runtime.Caller(1) 
+		c.route.HandlerName = runtime.FuncForPC(pc).Name()
+	}
+	// controller name 返回 package.conroller.func
+	// 否则返回 package.func
+	return c.route.HandlerName
 }
 
 func (c *Context) SetCookie(name string, value string, maxAge int) {

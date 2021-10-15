@@ -59,8 +59,9 @@ type UserController struct {
 //	return d
 //}
 
-//func (user *UserController) GetLogin0() {
-//}
+func (user *UserController) GetLogin() {
+	user.Ctx().WriteString(user.Ctx().HandlerName())
+}
 //
 //func (user *UserController) GetFlush() {
 //	for range time.Tick(time.Second) {
