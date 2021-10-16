@@ -7,13 +7,9 @@ package pine
 import (
 	"encoding/json"
 	"fmt"
-	"mime/multipart"
 	"net"
-	"net/url"
 	"runtime"
-	"strconv"
 	"strings"
-	"unsafe"
 
 	"github.com/gorilla/schema"
 	"github.com/valyala/fasthttp"
@@ -44,7 +40,8 @@ type Context struct {
 	// Temporary recording error information
 	Msg string
 	// Binding some value to context
-	keys           map[string]interface{}
+	keys map[string]interface{}
+
 	input          *input
 	autoParseValue bool
 }
@@ -125,6 +122,13 @@ func (c *Context) Render() *Render {
 	return c.render
 }
 
+func (c *Context) Input() *input {
+	if c.input == nil {
+		c.input = newInput(c)
+	}
+	return c.input
+}
+
 func (c *Context) Params() params {
 	if c.params == nil {
 		c.params = newParams()
@@ -171,7 +175,7 @@ func (c *Context) Next() {
 		return
 	}
 	c.middlewareIndex++
-	mws := c.route.ExtendsMiddleWare
+	mws := c.route.ExtendsMiddleWare[:]
 	mws = append(mws, c.route.Middleware...)
 	length := len(mws)
 	if length == c.middlewareIndex {
@@ -250,127 +254,11 @@ func (c *Context) BindJSON(rev interface{}) error {
 }
 
 func (c *Context) BindForm(rev interface{}) error {
-	values := c.PostData()
+	values := c.Input().PostData()
 	if len(values) == 0 {
 		return nil
 	}
 	return schemaDecoder.Decode(rev, values)
-}
-
-func (c *Context) GetData() map[string][]string {
-	b := c.URI().QueryString()
-	values, _ := url.ParseQuery(*(*string)(unsafe.Pointer(&b)))
-	return values
-}
-
-func (c *Context) GetInt(key string, defaultVal ...int) (val int, err error) {
-	val, err = strconv.Atoi(c.GetString(key))
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return
-}
-
-func (c *Context) GetInt64(key string, defaultVal ...int64) (val int64, err error) {
-	val, err = strconv.ParseInt(c.GetString(key), 10, 64)
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return val, err
-}
-
-func (c *Context) GetBool(key string, defaultVal ...bool) (val bool, err error) {
-	val, err = strconv.ParseBool(c.GetString(key))
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return val, err
-}
-
-func (c *Context) GetFloat64(key string, defaultVal ...float64) (val float64, err error) {
-	val, err = strconv.ParseFloat(c.GetString(key), 64)
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return
-}
-
-func (c *Context) GetString(key string, defaultVal ...string) string {
-	b := c.QueryArgs().Peek(key)
-	val := *(*string)(unsafe.Pointer(&b))
-	if val == "" && len(defaultVal) > 0 {
-		val = defaultVal[0]
-	}
-	return val
-}
-
-func (c *Context) PostInt(key string, defaultVal ...int) (val int, err error) {
-	val, err = strconv.Atoi(string(c.RequestCtx.FormValue(key)))
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return
-}
-
-func (c *Context) PostBool(key string, defaultVal ...bool) (val bool, err error) {
-	val, err = strconv.ParseBool(string(c.RequestCtx.FormValue(key)))
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return
-}
-
-func (c *Context) PostValue(key string) string {
-	return c.PostString(key)
-}
-
-func (c *Context) FormValue(key string) string {
-	return c.PostString(key)
-}
-
-func (c *Context) FormValues(key string) []string {
-	data := c.PostData()
-	var arr []string
-	if data != nil {
-		arr = data[key]
-	}
-	return arr
-}
-
-func (c *Context) PostString(key string, defaultVal ...string) string {
-	val := string(c.RequestCtx.FormValue(key))
-	if val == "" && len(defaultVal) > 0 {
-		val = defaultVal[0]
-	}
-	return val
-}
-
-func (c *Context) PostInt64(key string, defaultVal ...int64) (val int64, err error) {
-	val, err = strconv.ParseInt(string(c.RequestCtx.FormValue(key)), 10, 64)
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return
-}
-
-func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, err error) {
-	val, err = strconv.ParseFloat(string(c.RequestCtx.FormValue(key)), 64)
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return
-}
-
-func (c *Context) PostData() map[string][]string {
-	forms, err := c.MultipartForm()
-	if err != nil {
-		return nil
-	}
-	return forms.Value
-}
-
-func (c *Context) Files(key string) (*multipart.FileHeader, error) {
-	return c.FormFile(key)
 }
 
 func (c *Context) Value(key string) interface{} {
@@ -380,14 +268,11 @@ func (c *Context) Value(key string) interface{} {
 	return nil
 }
 
-
 func (c *Context) HandlerName() string {
 	if len(c.route.HandlerName) == 0 {
-		pc, _, _, _ := runtime.Caller(1) 
+		pc, _, _, _ := runtime.Caller(1)
 		c.route.HandlerName = runtime.FuncForPC(pc).Name()
 	}
-	// controller name 返回 package.conroller.func
-	// 否则返回 package.func
 	return c.route.HandlerName
 }
 

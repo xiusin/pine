@@ -56,10 +56,7 @@ func (c *Controller) Session() sessions.AbstractSession {
 }
 
 func (c *Controller) Input() *input {
-	if c.Ctx().input == nil {
-		c.Ctx().input = newInput(c.context)
-	}
-	return c.Ctx().input
+	return c.Ctx().Input()
 }
 
 func (c *Controller) ViewData(key string, val interface{}) {
