@@ -19,7 +19,7 @@ import (
 	"github.com/valyala/fasthttp"
 )
 
-const Version = "dev 0.0.6"
+const Version = "dev 0.0.7"
 
 const logo = `
   ____  _            
@@ -122,7 +122,7 @@ func New() *Application {
 
 	app.SetNotFound(func(c *Context) {
 		if len(c.Msg) == 0 {
-			c.Msg = defaultNotFoundMsg
+			c.Msg = "Not Found"
 		}
 		c.Response.Header.SetContentType(ContentTypeHTML)
 		err := DefaultErrTemplate.Execute(

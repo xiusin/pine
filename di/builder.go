@@ -32,6 +32,7 @@ type BuildWithHandler func(builder AbstractBuilder, params ...interface{}) (inte
 const ServicePineSessions = "pine.sessions"
 const ServicePineLogger = "pine.logger"
 const ServicePineRender = "pine.render"
+const ServiceCache = "cache.AbstractCache"
 
 const formatErrServiceNotExists = "service %s not exists"
 
