@@ -33,6 +33,8 @@ type Context struct {
 	sess sessions.AbstractSession
 	// Request params
 	params params
+	// Input
+	input *input
 	// Stop middleware iteration
 	stopped bool
 	// Current middleware iteration index, init with -1
@@ -42,7 +44,6 @@ type Context struct {
 	// Binding some value to context
 	keys map[string]interface{}
 
-	input          *input
 	autoParseValue bool
 }
 
@@ -254,11 +255,11 @@ func (c *Context) BindJSON(rev interface{}) error {
 }
 
 func (c *Context) BindForm(rev interface{}) error {
-	values := c.Input().PostData()
-	if len(values) == 0 {
-		return nil
+	if values := c.Input().PostData(); len(values) > 0 {
+		return schemaDecoder.Decode(rev, values)
 	}
-	return schemaDecoder.Decode(rev, values)
+
+	return nil
 }
 
 func (c *Context) Value(key string) interface{} {
