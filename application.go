@@ -53,7 +53,7 @@ type RouteEntry struct {
 	Middleware        []Handler
 	ExtendsMiddleWare []Handler
 	Handle            Handler
-	HandlerName		  string
+	HandlerName       string
 	resolved          bool
 	Param             []string
 	Pattern           string
@@ -220,7 +220,7 @@ func (a *Application) handle(c *Context) {
 		c.setRoute(route)
 		defer func() {
 			if c.sess != nil {
-				c.sess.Save()
+				_ = c.sess.Save()
 			}
 		}()
 
@@ -428,7 +428,7 @@ func (r *Router) StaticFS(urlPath string, fs embed.FS, prefix string) {
 			c.Abort(fasthttp.StatusNotFound)
 			return
 		}
-		content, err := fs.ReadFile(filepath.Join(prefix, fName))
+		content, err := fs.ReadFile(strings.Replace(filepath.Join(prefix, fName), "\\", "/", -1))
 		if err != nil {
 			c.Abort(fasthttp.StatusInternalServerError, err.Error())
 			return

@@ -147,19 +147,19 @@ func (i *input) str2bytes(s string) []byte {
 }
 
 // GetBytes 获取bytes数据， 仅个别类型
-func (c *input) GetBytes(key string) ([]byte, error) {
-	if c.Has(key) {
-		switch value := c.Get(key); value.(type) {
+func (i *input) GetBytes(key string) ([]byte, error) {
+	if i.Has(key) {
+		switch value := i.Get(key); value.(type) {
 		case bool:
-			return c.str2bytes(strconv.FormatBool(value.(bool))), nil
+			return i.str2bytes(strconv.FormatBool(value.(bool))), nil
 		case []byte:
 			return value.([]byte), nil
 		case string:
-			return c.str2bytes(value.(string)), nil
+			return i.str2bytes(value.(string)), nil
 		case input, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
-			return c.str2bytes(fmt.Sprintf("%d", value)), nil
+			return i.str2bytes(fmt.Sprintf("%d", value)), nil
 		case float64:
-			return c.str2bytes(strconv.FormatFloat(value.(float64), 'f', -1, 64)), nil
+			return i.str2bytes(strconv.FormatFloat(value.(float64), 'f', -1, 64)), nil
 		default:
 			return nil, ErrConvert
 		}
@@ -180,7 +180,7 @@ func (i *input) GetInt(key string, defaultVal ...int) (val int, err error) {
 func (i *input) GetInt64(key string, defaultVal ...int64) (val int64, err error) {
 	var byts []byte
 	if byts, err = i.GetBytes(key); err == nil {
-		if val, err = strconv.ParseInt((*(*string)(unsafe.Pointer(&byts))), 10, 64); err != nil && len(defaultVal) > 0 {
+		if val, err = strconv.ParseInt(*(*string)(unsafe.Pointer(&byts)), 10, 64); err != nil && len(defaultVal) > 0 {
 			val, err = defaultVal[0], nil
 		}
 	}
@@ -190,7 +190,7 @@ func (i *input) GetInt64(key string, defaultVal ...int64) (val int64, err error)
 func (i *input) GetBool(key string, defaultVal ...bool) (val bool, err error) {
 	var byts []byte
 	if byts, err = i.GetBytes(key); err == nil {
-		if val, err = strconv.ParseBool((*(*string)(unsafe.Pointer(&byts)))); err != nil && len(defaultVal) > 0 {
+		if val, err = strconv.ParseBool(*(*string)(unsafe.Pointer(&byts))); err != nil && len(defaultVal) > 0 {
 			val, err = defaultVal[0], nil
 		}
 	}
@@ -200,7 +200,7 @@ func (i *input) GetBool(key string, defaultVal ...bool) (val bool, err error) {
 func (i *input) GetFloat64(key string, defaultVal ...float64) (val float64, err error) {
 	var byts []byte
 	if byts, err = i.GetBytes(key); err == nil {
-		if val, err = strconv.ParseFloat((*(*string)(unsafe.Pointer(&byts))), 64); err != nil && len(defaultVal) > 0 {
+		if val, err = strconv.ParseFloat(*(*string)(unsafe.Pointer(&byts)), 64); err != nil && len(defaultVal) > 0 {
 			val, err = defaultVal[0], nil
 		}
 	}
@@ -208,23 +208,22 @@ func (i *input) GetFloat64(key string, defaultVal ...float64) (val float64, err 
 }
 
 func (i *input) GetFormStrings(key string) []string {
-	return i.GetForm().Value[key]
+	if i.GetForm() != nil {
+		return i.GetForm().Value[key]
+	}
+	return nil
 }
 
-func (i *input) GetString(key string, defaultVal ...string) (string, error) {
-	var value string
+func (i *input) GetString(key string, defaultVal ...string) (val string, err error) {
 	var byts []byte
-	if i.ctx.PostArgs().Has(key) {
-		byts = i.ctx.PostArgs().Peek(key)
-	} else if i.ctx.QueryArgs().Has(key) {
-		byts = i.ctx.QueryArgs().Peek(key)
-	} else {
-		return "", ErrKeyNotFound
+	if byts, err = i.GetBytes(key); err == nil {
+		if len(byts) > 0 {
+			val = *(*string)(unsafe.Pointer(&byts))
+		} else if len(defaultVal) > 0 {
+			val = defaultVal[0]
+		}
 	}
-	if value = *(*string)(unsafe.Pointer(&byts)); len(value) == 0 && len(defaultVal) > 0 {
-		value = defaultVal[0]
-	}
-	return value, nil
+	return
 }
 
 func (i *input) Files(key string) (*multipart.FileHeader, error) {
