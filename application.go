@@ -262,8 +262,12 @@ func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 	}
 }
 
-func (r *Router) Handle(c IController, prefix string) *Router {
-	r.register(c, prefix)
+func (r *Router) Handle(c IController, prefix ...string) *Router {
+	if len(prefix) == 0 {
+		r.register(c, "")
+	} else {
+		r.register(c, prefix[0])
+	}
 	return r
 }
 
