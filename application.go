@@ -136,7 +136,9 @@ func New() *Application {
 		}
 	})
 
-	di.Set()
+	di.Set(di.ServicePineApplication, func(builder di.AbstractBuilder) (interface{}, error) {
+		return app, nil
+	}, true)
 
 	return app
 }
