@@ -143,8 +143,11 @@ func New() *Application {
 	return app
 }
 
-func (r *Router) register(controller IController, prefix string) {
+func (r *Router) register(controller IController, prefix ...string) {
 	wrapper := newRouterWrapper(r, controller)
+	if len(prefix) == 0 {
+		prefix = append(prefix, "")
+	}
 	if v, implemented := interface{}(controller).(IRegisterHandler); implemented {
 		v.RegisterRoute(wrapper)
 	} else {
@@ -156,7 +159,7 @@ func (r *Router) register(controller IController, prefix string) {
 			if !ok && val.MethodByName(name).IsValid() {
 				r.matchRegister(
 					name,
-					prefix,
+					prefix[0],
 					routeWrapper.warpHandler(name, controller),
 				)
 			}
@@ -263,11 +266,7 @@ func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 }
 
 func (r *Router) Handle(c IController, prefix ...string) *Router {
-	if len(prefix) == 0 {
-		r.register(c, "")
-	} else {
-		r.register(c, prefix[0])
-	}
+	r.register(c, prefix...)
 	return r
 }
 
