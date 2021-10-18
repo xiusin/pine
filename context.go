@@ -10,6 +10,7 @@ import (
 	"net"
 	"runtime"
 	"strings"
+	"unsafe"
 
 	"github.com/gorilla/schema"
 	"github.com/valyala/fasthttp"
@@ -21,6 +22,9 @@ import (
 var schemaDecoder = schema.NewDecoder()
 
 type Context struct {
+	// Input
+	*input
+	// application
 	app *Application
 	*fasthttp.RequestCtx
 	// matched routerEntry
@@ -33,16 +37,12 @@ type Context struct {
 	sess sessions.AbstractSession
 	// Request params
 	params params
-	// Input
-	input *input
 	// Stop middleware iteration
 	stopped bool
 	// Current middleware iteration index, init with -1
 	middlewareIndex int
 	// Temporary recording error information
 	Msg string
-	// Binding some value to context
-	keys map[string]interface{}
 
 	autoParseValue bool
 }
@@ -51,7 +51,6 @@ func newContext(app *Application) *Context {
 	return &Context{
 		middlewareIndex: -1,
 		app:             app,
-		keys:            map[string]interface{}{},
 		autoParseValue:  app.ReadonlyConfiguration.GetAutoParseControllerResult(),
 	}
 }
@@ -65,6 +64,7 @@ func (c *Context) beginRequest(ctx *fasthttp.RequestCtx) {
 			c.cookie.Reset(ctx)
 		}
 	}
+	
 	if c.render != nil {
 		c.render.reset(c.RequestCtx)
 	}
@@ -78,12 +78,6 @@ func (c *Context) reset() {
 	c.middlewareIndex = -1
 	c.stopped = false
 	c.Msg = ""
-
-	if len(c.keys) > 0 {
-		for k := range c.keys {
-			delete(c.keys, k)
-		}
-	}
 
 	if c.params != nil {
 		c.params.reset()
@@ -224,7 +218,7 @@ func (c *Context) SetStatus(statusCode int) {
 }
 
 func (c *Context) Set(key string, value interface{}) {
-	c.keys[key] = value
+	c.RequestCtx.SetUserValue(key, value)
 }
 
 func (c *Context) IsAjax() bool {
@@ -247,7 +241,8 @@ func (c *Context) ClientIP() string {
 }
 
 func (c *Context) Path() string {
-	return string(c.RequestCtx.Path())
+	method := c.RequestCtx.Path()
+	return *(*string)(unsafe.Pointer(&method))
 }
 
 func (c *Context) BindJSON(rev interface{}) error {
@@ -263,10 +258,7 @@ func (c *Context) BindForm(rev interface{}) error {
 }
 
 func (c *Context) Value(key string) interface{} {
-	if val, ok := c.keys[key]; ok {
-		return val
-	}
-	return nil
+	return c.RequestCtx.Value(key)
 }
 
 func (c *Context) HandlerName() string {

@@ -46,14 +46,27 @@ func Addr(addr string) ServerHandler {
 		if a.configuration.maxMultipartMemory > 0 {
 			s.MaxRequestBodySize = int(a.configuration.maxMultipartMemory)
 		}
-		s.Handler = func(ctx *fasthttp.RequestCtx) {
+
+		handler := func(ctx *fasthttp.RequestCtx) {
 			c := a.pool.Get().(*Context)
 			c.beginRequest(ctx)
 			defer a.pool.Put(c)
 			defer func() { c.RequestCtx = nil }()
 			defer c.endRequest(a.recoverHandler)
+
 			a.handle(c)
 		}
+
+		if a.ReadonlyConfiguration.GetCompressGzip() {
+			s.Handler = fasthttp.CompressHandler(handler)
+		} else {
+			s.Handler = handler
+		}
+
+		if enable, duration, msg := a.ReadonlyConfiguration.GetTimeout(); enable {
+			s.Handler = fasthttp.TimeoutHandler(s.Handler, duration, msg)
+		}
+
 		if a.configuration.gracefulShutdown {
 			a.quitCh = make(chan os.Signal)
 			signal.Notify(a.quitCh, os.Interrupt, syscall.SIGTERM)

@@ -22,7 +22,12 @@ func Logger() logger.AbstractLogger {
 
 // Cache 获取cache实例
 func Cache() cache.AbstractCache {
-	return Make(di.ServiceCache).(cache.AbstractCache)
+	return Make(di.ServicePineCache).(cache.AbstractCache)
+}
+
+// App 获取应用实例
+func App() *Application {
+	return Make(di.ServicePineApplication).(*Application)
 }
 
 // RegisterLogger 注册日志依赖
@@ -34,7 +39,7 @@ func RegisterLogger(log logger.AbstractLogger) {
 
 // RegisterCache 注册cache依赖
 func RegisterCache(cacheHandler cache.AbstractCache) {
-	di.Set(di.ServiceCache, func(builder di.AbstractBuilder) (interface{}, error) {
+	di.Set(di.ServicePineCache, func(builder di.AbstractBuilder) (interface{}, error) {
 		return cacheHandler, nil
 	}, true)
 }

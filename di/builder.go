@@ -29,10 +29,11 @@ type BuildWithHandler func(builder AbstractBuilder, params ...interface{}) (inte
 
 //reflect.TypeOf((*logger.AbstractLogger)(nil)).Elem()) 直接反射类型， 后续判断是否可以100%反射pkgPath
 
+const ServicePineApplication = "pine.application"
 const ServicePineSessions = "pine.sessions"
 const ServicePineLogger = "pine.logger"
 const ServicePineRender = "pine.render"
-const ServiceCache = "cache.AbstractCache"
+const ServicePineCache = "cache.AbstractCache"
 
 const formatErrServiceNotExists = "service %s not exists"
 

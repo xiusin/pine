@@ -17,6 +17,7 @@ import (
 
 	gomime "github.com/cubewise-code/go-mime"
 	"github.com/valyala/fasthttp"
+	"github.com/xiusin/pine/di"
 )
 
 const Version = "dev 0.0.7"
@@ -134,6 +135,9 @@ func New() *Application {
 			Logger().Errorf("%s", err)
 		}
 	})
+
+	di.Set()
+
 	return app
 }
 
