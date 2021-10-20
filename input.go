@@ -14,6 +14,7 @@ import (
 	"unsafe"
 
 	"github.com/valyala/fasthttp"
+	"github.com/valyala/fastjson"
 )
 
 var ErrConvert = errors.New("convert failed")
@@ -146,6 +147,29 @@ func (i *input) str2bytes(s string) []byte {
 	return *(*[]byte)(unsafe.Pointer(&h))
 }
 
+// GetDeep 深层获取value
+func (i *input) GetDeep(key string) (*fastjson.Value, error) {
+	pars := strings.Split(key, ".")
+	if i.Has(pars[0]) {
+		data, err := i.GetBytes(pars[0])
+		if err != nil {
+			return nil, err
+		}
+		if data == nil && len(pars) == 1 {
+			return nil, nil
+		}
+		value, err := fastjson.ParseBytes(data)
+		if err != nil {
+			return nil, err
+		}
+		for _, par := range pars[:1] {
+			value = value.Get(par)
+		}
+		return value, nil
+	}
+	return nil, ErrKeyNotFound
+}
+
 // GetBytes 获取bytes数据， 仅个别类型
 func (i *input) GetBytes(key string) ([]byte, error) {
 	if i.Has(key) {
@@ -161,7 +185,7 @@ func (i *input) GetBytes(key string) ([]byte, error) {
 		case float64:
 			return i.str2bytes(strconv.FormatFloat(value.(float64), 'f', -1, 64)), nil
 		default:
-			return nil, ErrConvert
+			return json.Marshal(value)
 		}
 	}
 	return nil, ErrKeyNotFound
