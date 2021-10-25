@@ -64,7 +64,7 @@ func (c *Context) beginRequest(ctx *fasthttp.RequestCtx) {
 			c.cookie.Reset(ctx)
 		}
 	}
-	
+
 	if c.render != nil {
 		c.render.reset(c.RequestCtx)
 	}
@@ -137,6 +137,10 @@ func (c *Context) Header(key string) string {
 
 func (c *Context) Logger() logger.AbstractLogger {
 	return Logger()
+}
+
+func (c *Context) LoggerEntity() *logger.LogEntity  {
+	return Logger().EntityLogger().(*logger.LogEntity)
 }
 
 func (c *Context) Redirect(url string, statusHeader ...int) {

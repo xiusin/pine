@@ -25,9 +25,9 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/valyala/fasthttp v1.30.0
 	github.com/valyala/fastjson v1.6.3
-	github.com/xiusin/logger v0.0.6-0.20210624030332-1618e61b92ce
+	github.com/xiusin/logger v0.0.7
 	go.etcd.io/bbolt v1.3.4
 	golang.org/x/exp v0.0.0-20210603111838-86dd7ad88cc9 // indirect
-	golang.org/x/sys v0.0.0-20211007075335-d3039528d8ac // indirect
+	golang.org/x/sys v0.0.0-20211023085530-d6a326fbbf70 // indirect
 	golang.org/x/term v0.0.0-20210927222741-03fcf44c2211 // indirect
 )

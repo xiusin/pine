@@ -8,6 +8,6 @@ import "github.com/xiusin/logger"
 
 func init() {
 	Set(ServicePineLogger, func(builder AbstractBuilder) (interface{}, error) {
-		return logger.New(), nil
+		return logger.GetDefault(), nil
 	}, true)
 }
