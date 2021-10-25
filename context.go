@@ -44,6 +44,8 @@ type Context struct {
 	// Temporary recording error information
 	Msg string
 
+	loggerEntity *logger.LogEntity
+
 	autoParseValue bool
 }
 
@@ -74,6 +76,7 @@ func (c *Context) reset() {
 	c.route = nil
 	c.sess = nil
 	c.input = nil
+	c.loggerEntity = nil
 
 	c.middlewareIndex = -1
 	c.stopped = false
@@ -139,8 +142,11 @@ func (c *Context) Logger() logger.AbstractLogger {
 	return Logger()
 }
 
-func (c *Context) LoggerEntity() *logger.LogEntity  {
-	return Logger().EntityLogger().(*logger.LogEntity)
+func (c *Context) LoggerEntity() *logger.LogEntity {
+	if c.loggerEntity == nil {
+		c.loggerEntity = Logger().EntityLogger().(*logger.LogEntity)
+	}
+	return c.loggerEntity
 }
 
 func (c *Context) Redirect(url string, statusHeader ...int) {

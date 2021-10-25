@@ -522,8 +522,8 @@ github.com/valyala/tcplisten v1.0.0/go.mod h1:T0xQ8SeCZGxckz9qRXTfG43PvQ/mcWh7Fw
 github.com/vmihailenco/msgpack v4.0.4+incompatible h1:dSLoQfGFAo3F6OoNhwUmLwVgaUXK79GlxNBwueZn0xI=
 github.com/vmihailenco/msgpack v4.0.4+incompatible/go.mod h1:fy3FlTQTDXWkZ7Bh6AcGMlsjHatGryHQYUTf1ShIgkk=
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
-github.com/xiusin/logger v0.0.7 h1:CkV/byzR9eo3ZEZAai+s1OdAT02AkMeqHp9LeXlJXW4=
-github.com/xiusin/logger v0.0.7/go.mod h1:ig+ElmSCXxqlNlVZFqew5KumXFarcYX+OMaOQ8oV23o=
+github.com/xiusin/logger v0.0.9 h1:ghBHR3hlEj21p7A0lZvwUx7v8Z93JwL1Gr4qG70DSLg=
+github.com/xiusin/logger v0.0.9/go.mod h1:fEzFJfh865KMxYsx3maW7dRFEubGNcZy6wbzAqVMfF8=
 github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 h1:QldyIu/L63oPpyvQmHgvgickp1Yw510KJOqX7H24mg8=
 github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778/go.mod h1:2MuV+tbUrU1zIOPMxZ5EncGwgmMJsa+9ucAQZXxsObs=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=
