@@ -70,6 +70,8 @@ func (c *Context) beginRequest(ctx *fasthttp.RequestCtx) {
 	if c.render != nil {
 		c.render.reset(c.RequestCtx)
 	}
+	
+	c.input = newInput(c)
 }
 
 func (c *Context) reset() {
