@@ -278,7 +278,11 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 	)
 
 	if len(path) == 0 {
-		panic(errors.New("path can not empty"))
+		panic(errors.New("path can not empty."))
+	}
+
+	if strings.Count(path, "*") > 1 {
+		panic(errors.New("optional parameters can only be one."))
 	}
 
 	for patternType, patternString := range patternMap {
