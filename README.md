@@ -26,6 +26,9 @@ METHOD | PATH | ALIASES | NAME     | HANDLE
 GET    | /    |         | rootPath | path/to/routes_error/actions.HomeHandler
 ```
 
+- 目前不支持项:
+    - /get/*version/*doc 解析会赋值给version, 如 `/get/1 /get/1/1` doc都为空
+
 
 # TODO 
 - 支持非Post或Get开始的方法名称，支持任何方式请求

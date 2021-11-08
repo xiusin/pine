@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/xiusin/pine"
 )
 
@@ -16,6 +17,10 @@ func main() {
 	})
 
 	app.Static("/assets/", ".")
+
+	app.GET("/editor", func(ctx *pine.Context) {
+		ctx.Render().Text(ctx.Path())
+	})
 
 	app.Use(func(ctx *pine.Context) {
 		if ctx.Params().Get("action") == "stop" {
@@ -42,7 +47,7 @@ func main() {
 	// http://127.0.0.1:9528/hello/!  404
 	// http://127.0.0.1:9528/hello/xiusin Hello xiusin
 	app.GET("/hello/:name<\\w+>", func(c *pine.Context) {
-		_, _ = c.Writer().Write([]byte("Hello " + c.Params().GetDefault("name", "world")))
+		c.Write([]byte("Hello " + c.Params().GetDefault("name", "world")))
 	})
 
 	app.GET("/panic", func(ctx *pine.Context) {
@@ -59,21 +64,21 @@ func main() {
 			ctx.Next()
 		})
 		g.GET("/", func(ctx *pine.Context) {
-			ctx.Render().Text("分组路由跟地址:" + ctx.Request().URL.Path )
+			ctx.Render().Text("分组路由跟地址:" + ctx.Path())
 		})
 		g.GET("/index", func(ctx *pine.Context) {
-			ctx.Writer().Write([]byte(ctx.Request().RequestURI))
+			ctx.Write([]byte(ctx.URI().RequestURI()))
 		})
 		g.GET("/:name<\\w+>", func(c *pine.Context) {
-			_, _ = c.Writer().Write([]byte("Hello " + c.GetString("name", "world")))
+			c.Write([]byte("Hello " + c.Params().Get("name")))
 		})
 		g1 := g.Group("/group")
 		{
 			g1.GET("/index", func(ctx *pine.Context) {
-				ctx.Writer().Write([]byte(ctx.Request().RequestURI))
+				ctx.Write(ctx.URI().RequestURI())
 			})
 		}
 	}
 
-	app.Run(pine.Addr(":9528"), pine.WithCharset("UTF8"))
+	app.Run(pine.Addr(":9528"))
 }

@@ -6,6 +6,7 @@ package pine
 
 import (
 	"embed"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -250,7 +251,7 @@ func (a *Application) handle(c *Context) {
 
 func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 	if srv == nil {
-		panic("ServerHandler can't nil")
+		panic(errors.New("server handler can't nil"))
 	}
 	if len(opts) > 0 {
 		for _, opt := range opts {
@@ -275,10 +276,17 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 		params  []string
 		pattern string
 	)
+
+	if len(path) == 0 {
+		panic(errors.New("path can not empty"))
+	}
+
 	for patternType, patternString := range patternMap {
 		path = strings.Replace(path, patternType, patternString, -1)
 	}
-	fullPath := r.prefix + path
+
+	fullPath := strings.TrimRight(r.prefix+path, "/")
+
 	isPattern, _ := regexp.MatchString("[:*]", fullPath)
 	if isPattern {
 		uriPartials := strings.Split(fullPath, urlSeparator)[1:]
@@ -344,7 +352,7 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 
 	method := string(ctx.Method())
 	// 优先匹配完整路由
-	fullPath := ctx.Path()
+	fullPath := strings.TrimRight(ctx.Path(), "/")
 	if route, ok := r.methodRoutes[method][fullPath]; ok {
 		if !route.resolved {
 			route.ExtendsMiddleWare = r.middleWares
@@ -477,12 +485,12 @@ func (r *Router) StaticFile(path, file string, mws ...Handler) {
 
 func (r *Router) GET(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(fasthttp.MethodGet, path, handle, mws...)
-	r.OPTIONS(path, handle, mws...)
+	// r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) PUT(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(fasthttp.MethodPut, path, handle, mws...)
-	r.OPTIONS(path, handle, mws...)
+	// r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) ANY(path string, handle Handler, mws ...Handler) {
@@ -491,22 +499,22 @@ func (r *Router) ANY(path string, handle Handler, mws ...Handler) {
 	r.HEAD(path, handle, mws...)
 	r.POST(path, handle, mws...)
 	r.DELETE(path, handle, mws...)
-	r.OPTIONS(path, handle, mws...)
+	// r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) POST(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(fasthttp.MethodPost, path, handle, mws...)
-	r.OPTIONS(path, handle, mws...)
+	// r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) HEAD(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(fasthttp.MethodHead, path, handle, mws...)
-	r.OPTIONS(path, handle, mws...)
+	// r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) DELETE(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(fasthttp.MethodDelete, path, handle, mws...)
-	r.OPTIONS(path, handle, mws...)
+	// r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) OPTIONS(path string, handle Handler, mws ...Handler) {
