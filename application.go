@@ -442,14 +442,14 @@ func (r *Router) Use(middleWares ...Handler) {
 	r.middleWares = append(r.middleWares, middleWares...)
 }
 
-func (r *Router) StaticFS(urlPath string, fs embed.FS, prefix string) {
+func (r *Router) StaticFS(urlPath string, fs embed.FS, filePrefix string) {
 	handler := func(c *Context) {
 		fName := c.params.Get("filepath")
 		if len(fName) == 0 {
 			c.Abort(fasthttp.StatusNotFound)
 			return
 		}
-		content, err := fs.ReadFile(strings.Replace(filepath.Join(prefix, fName), "\\", "/", -1))
+		content, err := fs.ReadFile(strings.Replace(filepath.Join(filePrefix, fName), "\\", "/", -1))
 		if err != nil {
 			c.Abort(fasthttp.StatusInternalServerError, err.Error())
 			return
