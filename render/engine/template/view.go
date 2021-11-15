@@ -5,8 +5,10 @@
 package template
 
 import (
+	"errors"
 	"html/template"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -15,9 +17,10 @@ import (
 	"sync"
 )
 
-type htmlEngine struct {
+type Engine struct {
 	sync.Once
 	*template.Template
+	fs fs.FS
 
 	funcMap template.FuncMap
 	reload  bool
@@ -25,32 +28,42 @@ type htmlEngine struct {
 	ext     string
 }
 
-func New(viewDir, ext string, reload bool) *htmlEngine {
-	if len(viewDir) == 0 || len(ext) == 0 {
-		panic("viewDir or ext cannot be empty")
+// NewWithFS 基于Fs对象创建模板 由于调用ParseFS创建template对象， funcMap必须在调用时传入， 否则可能会出现无法解析函数
+func NewWithFS(fs fs.FS, ext string, funcMap template.FuncMap) *Engine {
+	if funcMap == nil {
+		funcMap = template.FuncMap{}
 	}
-
-	html := &htmlEngine{
-		reload:  reload,
-		funcMap: template.FuncMap{},
-		ext:     ext,
+	if fs == nil || len(ext) == 0 {
+		panic(errors.New("fs or ext cannot be empty"))
 	}
-
+	engine := &Engine{funcMap: funcMap, ext: ext, fs: fs}
 	var err error
-	html.viewDir, err = filepath.Abs(viewDir)
+	engine.Template, err = template.New(ext).Funcs(funcMap).ParseFS(engine.fs, "*"+engine.ext)
 	if err != nil {
 		panic(err)
 	}
-
-	html.Template = template.New(html.viewDir)
-	return html
+	return engine
 }
 
-func (t *htmlEngine) walk() {
-	t.Do(func() {
-		if err := filepath.Walk(t.viewDir, func(targetPath string, info os.FileInfo, err error) error {
-			if info != nil && !info.IsDir() && strings.HasSuffix(info.Name(), t.ext) {
-				relPath, err := filepath.Rel(t.viewDir, targetPath)
+func New(viewDir, ext string, reload bool) *Engine {
+	if len(viewDir) == 0 || len(ext) == 0 {
+		panic(errors.New("viewDir or ext cannot be empty"))
+	}
+	engine := &Engine{reload: reload, funcMap: template.FuncMap{}, ext: ext}
+	var err error
+	engine.viewDir, err = filepath.Abs(viewDir)
+	if err != nil {
+		panic(err)
+	}
+	engine.Template = template.New(engine.viewDir)
+	return engine
+}
+
+func (engine *Engine) walk() {
+	engine.Do(func() {
+		if err := filepath.Walk(engine.viewDir, func(targetPath string, info os.FileInfo, err error) error {
+			if info != nil && !info.IsDir() && strings.HasSuffix(info.Name(), engine.ext) {
+				relPath, err := filepath.Rel(engine.viewDir, targetPath)
 				if err != nil {
 					return err
 				}
@@ -60,7 +73,7 @@ func (t *htmlEngine) walk() {
 					panic(err)
 				}
 
-				_, err = t.Template.New(strings.Replace(relPath, "\\", "/", -1)).Funcs(t.funcMap).Parse(string(buf))
+				_, err = engine.Template.New(strings.Replace(relPath, "\\", "/", -1)).Funcs(engine.funcMap).Parse(string(buf))
 				if err != nil {
 					panic(err)
 				}
@@ -72,22 +85,24 @@ func (t *htmlEngine) walk() {
 	})
 }
 
-func (t *htmlEngine) Ext() string {
-	return t.ext
+func (engine *Engine) Ext() string {
+	return engine.ext
 }
 
-func (t *htmlEngine) AddFunc(funcName string, funcEntry interface{}) {
+func (engine *Engine) AddFunc(funcName string, funcEntry interface{}) {
 	if reflect.ValueOf(funcEntry).Kind() == reflect.Func {
-		t.funcMap[funcName] = funcEntry
+		engine.funcMap[funcName] = funcEntry
 	}
 }
 
-func (t *htmlEngine) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
-	if t.reload {
-		funcs := t.funcMap
-		t = New(t.viewDir, t.ext, t.reload)
-		t.funcMap = funcs
+func (engine *Engine) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
+	if engine.fs == nil {
+		if engine.reload {
+			funcMap := engine.funcMap
+			engine = New(engine.viewDir, engine.ext, engine.reload)
+			engine.funcMap = funcMap
+		}
+		engine.walk()
 	}
-	t.walk()
-	return t.Template.ExecuteTemplate(writer, filepath.ToSlash(name), binding)
+	return engine.Template.ExecuteTemplate(writer, filepath.ToSlash(name), binding)
 }

@@ -19,6 +19,7 @@ import (
 	gomime "github.com/cubewise-code/go-mime"
 	"github.com/valyala/fasthttp"
 	"github.com/xiusin/pine/di"
+	"io/fs"
 )
 
 const Version = "dev 0.0.7"
@@ -440,6 +441,25 @@ func (r *Router) Group(prefix string, middleWares ...Handler) *Router {
 
 func (r *Router) Use(middleWares ...Handler) {
 	r.middleWares = append(r.middleWares, middleWares...)
+}
+
+func (r *Router) FavoriteIco(file interface{}) {
+	r.GET("/favorite.ico", func(c *Context) {
+		if filename, ok := file.(string); ok {
+			if mimeType := gomime.TypeByExtension(filepath.Ext(filename)); len(mimeType) > 0 {
+				c.Response.Header.Set("content-type", mimeType)
+			}
+			c.Response.SendFile(filename)
+		} else if file, ok := file.(fs.File); ok {
+			info, _ := file.Stat()
+			if mimeType := gomime.TypeByExtension(filepath.Ext(info.Name())); len(mimeType) > 0 {
+				c.Response.Header.Set("content-type", mimeType)
+			}
+			c.Response.SetBodyStream(file, -1)
+		} else {
+			panic(errors.New("unsupported file type"))
+		}
+	})
 }
 
 func (r *Router) StaticFS(urlPath string, fs embed.FS, filePrefix string) {
