@@ -443,8 +443,8 @@ func (r *Router) Use(middleWares ...Handler) {
 	r.middleWares = append(r.middleWares, middleWares...)
 }
 
-func (r *Router) FavoriteIco(file interface{}) {
-	r.GET("/favorite.ico", func(c *Context) {
+func (r *Router) Favicon(file interface{}) {
+	r.GET("/favicon.ico", func(c *Context) {
 		if filename, ok := file.(string); ok {
 			if mimeType := gomime.TypeByExtension(filepath.Ext(filename)); len(mimeType) > 0 {
 				c.Response.Header.Set("content-type", mimeType)
