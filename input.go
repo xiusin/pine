@@ -17,7 +17,6 @@ import (
 	"github.com/valyala/fastjson"
 )
 
-var ErrConvert = errors.New("convert failed")
 var ErrKeyNotFound = errors.New("key not found")
 
 type input struct {
@@ -89,7 +88,7 @@ func (i *input) Clear() {
 	}
 }
 
-// Reset 从context重置数据
+// ResetFromContext 从context重置数据
 func (i *input) ResetFromContext() {
 	data := map[string]interface{}{}
 	if i.IsJson() {

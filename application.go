@@ -5,9 +5,9 @@
 package pine
 
 import (
-	"embed"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,10 +16,11 @@ import (
 	"strings"
 	"sync"
 
+	"io/fs"
+
 	gomime "github.com/cubewise-code/go-mime"
 	"github.com/valyala/fasthttp"
 	"github.com/xiusin/pine/di"
-	"io/fs"
 )
 
 const Version = "dev 0.0.7"
@@ -449,7 +450,9 @@ func (r *Router) Favicon(file interface{}) {
 			if mimeType := gomime.TypeByExtension(filepath.Ext(filename)); len(mimeType) > 0 {
 				c.Response.Header.Set("content-type", mimeType)
 			}
-			c.Response.SendFile(filename)
+			if err := c.Response.SendFile(filename); err != nil {
+				c.Abort(fasthttp.StatusInternalServerError, err.Error())
+			}
 		} else if file, ok := file.(fs.File); ok {
 			info, _ := file.Stat()
 			if mimeType := gomime.TypeByExtension(filepath.Ext(info.Name())); len(mimeType) > 0 {
@@ -457,19 +460,24 @@ func (r *Router) Favicon(file interface{}) {
 			}
 			c.Response.SetBodyStream(file, -1)
 		} else {
-			panic(errors.New("unsupported file type"))
+			panic(errors.New("unsupported type"))
 		}
 	})
 }
 
-func (r *Router) StaticFS(urlPath string, fs embed.FS, filePrefix string) {
+func (r *Router) StaticFS(urlPath string, f fs.FS, filePrefix string) {
 	handler := func(c *Context) {
 		fName := c.params.Get("filepath")
 		if len(fName) == 0 {
 			c.Abort(fasthttp.StatusNotFound)
 			return
 		}
-		content, err := fs.ReadFile(strings.Replace(filepath.Join(filePrefix, fName), "\\", "/", -1))
+		file, err := f.Open(strings.Replace(filepath.Join(filePrefix, fName), "\\", "/", -1))
+		var content []byte
+		if err == nil {
+			defer file.Close()
+			content, err = io.ReadAll(file)
+		}
 		if err != nil {
 			c.Abort(fasthttp.StatusInternalServerError, err.Error())
 			return
@@ -509,12 +517,10 @@ func (r *Router) StaticFile(path, file string, mws ...Handler) {
 
 func (r *Router) GET(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(fasthttp.MethodGet, path, handle, mws...)
-	// r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) PUT(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(fasthttp.MethodPut, path, handle, mws...)
-	// r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) ANY(path string, handle Handler, mws ...Handler) {
@@ -523,30 +529,26 @@ func (r *Router) ANY(path string, handle Handler, mws ...Handler) {
 	r.HEAD(path, handle, mws...)
 	r.POST(path, handle, mws...)
 	r.DELETE(path, handle, mws...)
-	// r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) POST(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(fasthttp.MethodPost, path, handle, mws...)
-	// r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) HEAD(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(fasthttp.MethodHead, path, handle, mws...)
-	// r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) DELETE(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(fasthttp.MethodDelete, path, handle, mws...)
-	// r.OPTIONS(path, handle, mws...)
 }
 
 func (r *Router) OPTIONS(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(fasthttp.MethodOptions, path, handle, mws...)
 }
 
-func (r *Router) Delete(method string, path string) {
-	panic("delete route")
+func (r *Router) Delete(path string, handle Handler, mws ...Handler) {
+	r.AddRoute(fasthttp.MethodDelete, path, handle, mws...)
 }
 
 func initRouteMap() map[string]map[string]*RouteEntry {
@@ -564,4 +566,8 @@ func upperCharToUnderLine(path string) string {
 	return strings.TrimLeft(regexp.MustCompile("([A-Z])").ReplaceAllStringFunc(path, func(s string) string {
 		return strings.ToLower("_" + strings.ToLower(s))
 	}), "_")
+}
+
+func RegisterOnInterrupt(handler func()) {
+	shutdownBeforeHandler = append(shutdownBeforeHandler, handler)
 }

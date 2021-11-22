@@ -25,8 +25,8 @@ func (a *Application) printSetupInfo(addr string) {
 	}
 	if !a.configuration.withoutStartupLog {
 		color.Green.Println(logo)
+		color.Red.Printf("pine server now listening on: %s\n", addr)
 	}
-	color.Red.Printf("pine server now listening on: %s\n", addr)
 }
 
 func Addr(addr string) ServerHandler {
