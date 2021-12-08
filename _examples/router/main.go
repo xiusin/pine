@@ -50,6 +50,18 @@ func main() {
 		c.Write([]byte("Hello " + c.Params().GetDefault("name", "world")))
 	})
 
+	app.GET("/any/*word", func(ctx *pine.Context) {
+		ctx.Write([]byte(ctx.Params().Get("word")))
+	})
+
+	app.GET("/string/:word", func(ctx *pine.Context) {
+		ctx.Write([]byte(ctx.Params().Get("word")))
+	})
+
+	app.GET("/profile/:name/:word", func(ctx *pine.Context) {
+		ctx.Write([]byte(ctx.Params().Get("name") + "====" + ctx.Params().Get("word")))
+	})
+
 	app.GET("/panic", func(ctx *pine.Context) {
 		panic("服务错误")
 	})

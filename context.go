@@ -70,7 +70,7 @@ func (c *Context) beginRequest(ctx *fasthttp.RequestCtx) {
 	if c.render != nil {
 		c.render.reset(c.RequestCtx)
 	}
-	
+
 	c.input = newInput(c)
 }
 
@@ -216,7 +216,7 @@ func (c *Context) Abort(statusCode int, msg ...string) {
 		c.Msg = msg[0]
 	}
 	c.ResetBody()
-	if handler, ok := errCodeCallHandler[statusCode]; ok {
+	if handler, ok := codeCallHandler[statusCode]; ok {
 		handler(c)
 	}
 }

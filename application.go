@@ -32,6 +32,8 @@ const logo = `
  |  __/| | | | |  __/
  |_|   |_|_| |_|\___|`
 
+const FilePathParam = "filepath"
+
 var (
 	urlSeparator = "/"
 
@@ -41,12 +43,14 @@ var (
 	// 按照注册顺序保存匹配路由内容, 防止map迭代出现随机匹配的情况
 	sortedPattern []string
 
+	// 正则路由特征匹配
 	patternRouteCompiler = regexp.MustCompile(`[:*](\w[A-Za-z0-9_/]+)(<.+?>)?`)
 
+	// 内置替换规则 (后面改写为拦截器)
 	patternMap = map[string]string{
 		":int":    "<\\d+>",
-		":string": "<[\\w0-9\\_\\.\\+\\-]+>",
-		":any":    "<[/\\w0-9\\_\\.\\+\\-~]+>", // *
+		":string": "<.+>",
+		":any":    "<.*>",
 	}
 
 	_ AbstractRouter = (*Application)(nil)
@@ -70,9 +74,10 @@ type AbstractRouter interface {
 	GET(path string, handle Handler, mws ...Handler)
 	POST(path string, handle Handler, mws ...Handler)
 	HEAD(path string, handle Handler, mws ...Handler)
-	OPTIONS(path string, handle Handler, mws ...Handler)
 	PUT(path string, handle Handler, mws ...Handler)
 	DELETE(path string, handle Handler, mws ...Handler)
+
+	// Resource(path string)
 
 	StaticFile(string, string, ...Handler)
 	Static(string, string, ...int)
@@ -109,7 +114,6 @@ type Application struct {
 }
 
 func New() *Application {
-
 	app := &Application{
 		Router: &Router{
 			methodRoutes:         initRouteMap(),
@@ -209,7 +213,7 @@ func (a *Application) SetRecoverHandler(handler Handler) {
 }
 
 func (a *Application) SetNotFound(handler Handler) {
-	errCodeCallHandler[fasthttp.StatusNotFound] = handler
+	codeCallHandler[fasthttp.StatusNotFound] = handler
 }
 
 func (a *Application) Close() {
@@ -223,7 +227,7 @@ func (a *Application) gracefulShutdown(srv *fasthttp.Server, quit <-chan os.Sign
 	}
 
 	if err := srv.Shutdown(); err != nil {
-		panic(fmt.Sprintf("could not gracefully shutdown the server: %s", err.Error()))
+		panic(fmt.Errorf("could not gracefully shutdown the server: %s", err.Error()))
 	}
 }
 
@@ -238,7 +242,7 @@ func (a *Application) handle(c *Context) {
 
 		c.Next()
 	} else {
-		if handler, ok := errCodeCallHandler[fasthttp.StatusNotFound]; ok {
+		if handler, ok := codeCallHandler[fasthttp.StatusNotFound]; ok {
 			c.SetStatus(fasthttp.StatusNotFound)
 
 			c.setRoute(&RouteEntry{
@@ -290,11 +294,8 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 	for patternType, patternString := range patternMap {
 		path = strings.Replace(path, patternType, patternString, -1)
 	}
-
-	fullPath := strings.TrimRight(r.prefix+path, "/")
-
-	isPattern, _ := regexp.MatchString("[:*]", fullPath)
-	if isPattern {
+	fullPath := strings.TrimRight(r.prefix+path, urlSeparator)
+	if isPattern, _ := regexp.MatchString("[:*]", fullPath); isPattern {
 		uriPartials := strings.Split(fullPath, urlSeparator)[1:]
 		for _, v := range uriPartials {
 			if strings.Contains(v, ":") {
@@ -355,10 +356,11 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 	//		return nil
 	//	}
 	//}
+	method, fullPath := string(ctx.Method()), strings.TrimRight(ctx.Path(), urlSeparator)
+	if len(fullPath) == 0 {
+		fullPath = urlSeparator
+	}
 
-	method := string(ctx.Method())
-	// 优先匹配完整路由
-	fullPath := strings.TrimRight(ctx.Path(), "/")
 	if route, ok := r.methodRoutes[method][fullPath]; ok {
 		if !route.resolved {
 			route.ExtendsMiddleWare = r.middleWares
@@ -385,7 +387,7 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 		reg := regexp.MustCompile(pattern)
 		matchedStrings := reg.FindAllStringSubmatch(ctx.Path(), -1)
 		for _, route := range routes {
-			if len(matchedStrings) == 0 || len(matchedStrings[0]) == 0 || route.Method != method { //TODO 自动放行 OPTIONS
+			if len(matchedStrings) == 0 || len(matchedStrings[0]) == 0 || route.Method != method {
 				continue
 			}
 			matchedValues := matchedStrings[0][1:]
@@ -448,7 +450,7 @@ func (r *Router) Favicon(file interface{}) {
 	r.GET("/favicon.ico", func(c *Context) {
 		if filename, ok := file.(string); ok {
 			if mimeType := gomime.TypeByExtension(filepath.Ext(filename)); len(mimeType) > 0 {
-				c.Response.Header.Set("content-type", mimeType)
+				c.Response.Header.Set(HeaderContentType, mimeType)
 			}
 			if err := c.Response.SendFile(filename); err != nil {
 				c.Abort(fasthttp.StatusInternalServerError, err.Error())
@@ -456,7 +458,7 @@ func (r *Router) Favicon(file interface{}) {
 		} else if file, ok := file.(fs.File); ok {
 			info, _ := file.Stat()
 			if mimeType := gomime.TypeByExtension(filepath.Ext(info.Name())); len(mimeType) > 0 {
-				c.Response.Header.Set("content-type", mimeType)
+				c.Response.Header.Set(HeaderContentType, mimeType)
 			}
 			c.Response.SetBodyStream(file, -1)
 		} else {
@@ -467,12 +469,12 @@ func (r *Router) Favicon(file interface{}) {
 
 func (r *Router) StaticFS(urlPath string, f fs.FS, filePrefix string) {
 	handler := func(c *Context) {
-		fName := c.params.Get("filepath")
+		fName := c.params.Get(FilePathParam)
 		if len(fName) == 0 {
 			c.Abort(fasthttp.StatusNotFound)
 			return
 		}
-		file, err := f.Open(strings.Replace(filepath.Join(filePrefix, fName), "\\", "/", -1))
+		file, err := f.Open(strings.Replace(filepath.Join(filePrefix, fName), "\\", urlSeparator, -1))
 		var content []byte
 		if err == nil {
 			defer file.Close()
@@ -484,11 +486,11 @@ func (r *Router) StaticFS(urlPath string, f fs.FS, filePrefix string) {
 		}
 		mimeType := gomime.TypeByExtension(filepath.Ext(fName))
 		if len(mimeType) > 0 {
-			c.Response.Header.Set("content-type", mimeType)
+			c.Response.Header.Set(HeaderContentType, mimeType)
 		}
 		c.Response.SetBodyRaw(content)
 	}
-	routePath := path.Join(urlPath, "*filepath")
+	routePath := path.Join(urlPath, "*"+FilePathParam)
 	r.GET(routePath, handler)
 	r.HEAD(routePath, handler)
 }
@@ -499,14 +501,14 @@ func (r *Router) Static(urlPath, dir string, stripSlashes ...int) {
 	}
 	fileServer := fasthttp.FSHandler(dir, stripSlashes[0])
 	handler := func(c *Context) {
-		fName := c.params.Get("filepath")
+		fName := c.params.Get(FilePathParam)
 		if len(fName) == 0 {
 			c.Abort(fasthttp.StatusNotFound)
 			return
 		}
 		fileServer(c.RequestCtx)
 	}
-	routePath := path.Join(urlPath, "*filepath")
+	routePath := path.Join(urlPath, "*"+FilePathParam)
 	r.GET(routePath, handler)
 	r.HEAD(routePath, handler)
 }

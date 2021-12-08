@@ -179,7 +179,7 @@ func (i *input) GetBytes(key string) ([]byte, error) {
 			return value.([]byte), nil
 		case string:
 			return i.str2bytes(value.(string)), nil
-		case input, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
+		case int, int8, int16, int32, int64, uint, uint8, uint16, uint32, uint64:
 			return i.str2bytes(fmt.Sprintf("%d", value)), nil
 		case float64:
 			return i.str2bytes(strconv.FormatFloat(value.(float64), 'f', -1, 64)), nil
