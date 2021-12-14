@@ -19,6 +19,8 @@ import (
 
 var ErrKeyNotFound = errors.New("key not found")
 
+const InputArrName = "__pine__json__slice"
+
 type input struct {
 	ctx  *Context
 	form *multipart.Form
@@ -93,7 +95,13 @@ func (i *input) ResetFromContext() {
 	data := map[string]interface{}{}
 	if i.IsJson() {
 		if err := json.Unmarshal(i.ctx.RequestCtx.PostBody(), &data); err != nil {
-			Logger().Debug("can not parse post body", err)
+			arr := []interface{}{}
+			if err := json.Unmarshal(i.ctx.RequestCtx.PostBody(), &data); err != nil {
+				Logger().Debug("无法解析Body内容", err)
+			} else {
+				Logger().Debug("body为数组格式,自动命名为", InputArrName)
+			}
+			data[InputArrName] = arr
 		}
 	} else {
 		i.ctx.QueryArgs().VisitAll(func(key, value []byte) {

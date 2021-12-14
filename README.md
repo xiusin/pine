@@ -42,4 +42,3 @@ GET    | /    |         | rootPath | path/to/routes_error/actions.HomeHandler
 - 基于1.18泛型处理参数读取等功能 `gofmt -w -r 'interface{} -> any' ./...`
 - 模板引擎支持传入文件系统对象
 - 实现路由占位符用于自定义路由替换规则
-
