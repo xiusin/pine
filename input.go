@@ -19,7 +19,7 @@ import (
 
 var ErrKeyNotFound = errors.New("key not found")
 
-const InputArrName = "__pine__json__slice"
+const GoRawBody = "pine://input"
 
 type input struct {
 	ctx  *Context
@@ -90,36 +90,40 @@ func (i *input) Clear() {
 	}
 }
 
-// ResetFromContext 从context重置数据
 func (i *input) ResetFromContext() {
 	data := map[string]interface{}{}
+	jsonRawBodyData := map[string]interface{}{}
 	if i.IsJson() {
-		if err := json.Unmarshal(i.ctx.RequestCtx.PostBody(), &data); err != nil {
+		if err := json.Unmarshal(i.ctx.RequestCtx.PostBody(), &jsonRawBodyData); err != nil {
 			arr := []interface{}{}
-			if err := json.Unmarshal(i.ctx.RequestCtx.PostBody(), &data); err != nil {
+			if err := json.Unmarshal(i.ctx.RequestCtx.PostBody(), &arr); err != nil {
 				Logger().Debug("无法解析Body内容", err)
-			} else {
-				Logger().Debug("body为数组格式,自动命名为", InputArrName)
 			}
-			data[InputArrName] = arr
-		}
-	} else {
-		i.ctx.QueryArgs().VisitAll(func(key, value []byte) {
-			data[string(key)] = value
-		})
-
-		i.ctx.PostArgs().VisitAll(func(key, value []byte) {
-			data[string(key)] = value
-		})
-
-		for key, values := range i.PostData() {
-			if len(values[0]) > 0 {
-				data[key] = i.str2bytes(values[0])
-			} else {
-				data[key] = []byte("")
-			}
+			jsonRawBodyData[GoRawBody] = arr
 		}
 	}
+	i.ctx.QueryArgs().VisitAll(func(key, value []byte) {
+		data[string(key)] = value
+	})
+
+	i.ctx.PostArgs().VisitAll(func(key, value []byte) {
+		data[string(key)] = value
+	})
+
+	for key, values := range i.PostData() {
+		if len(values[0]) > 0 {
+			data[key] = i.str2bytes(values[0])
+		} else {
+			data[key] = []byte("")
+		}
+	}
+
+	if len(jsonRawBodyData) > 0 {
+		for key, value := range jsonRawBodyData {
+			data[key] = value
+		}
+	}
+
 	i.data = data
 }
 
