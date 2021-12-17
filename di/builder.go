@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"reflect"
 	"sync"
-
-	"github.com/xiusin/logger"
 )
 
 type AbstractBuilder interface {
@@ -31,27 +29,21 @@ type BuildWithHandler func(builder AbstractBuilder, params ...interface{}) (inte
 
 //reflect.TypeOf((*logger.AbstractLogger)(nil)).Elem()) 直接反射类型， 后续判断是否可以100%反射pkgPath
 
+const ServicePineApplication = "pine.application"
 const ServicePineSessions = "pine.sessions"
 const ServicePineLogger = "pine.logger"
 const ServicePineRender = "pine.render"
+const ServicePineCache = "cache.AbstractCache"
 
 const formatErrServiceNotExists = "service %s not exists"
 
-var ServiceSingletonErr = errors.New("service is singleton, cannot use it with GetWithParams")
-
-func init() {
-	di.Set(ServicePineLogger, func(builder AbstractBuilder) (i interface{}, e error) {
-		l := logger.New()
-		l.SetLogLevel(logger.DebugLevel)
-		return l, nil
-	}, true)
-}
+var ErrServiceSingleton = errors.New("service is singleton, cannot use it with GetWithParams")
 
 func (b *builder) GetDefinition(serviceAny interface{}) (*Definition, error) {
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf(formatErrServiceNotExists, serviceName))
+		return nil, fmt.Errorf(formatErrServiceNotExists, serviceName)
 	}
 	return service.(*Definition), nil
 }
@@ -65,14 +57,13 @@ func (b *builder) Set(serviceAny interface{}, handler BuildHandler, singleton bo
 }
 
 func ResolveServiceName(service interface{}) string {
-	switch service.(type) {
+	switch service := service.(type) {
 	case string:
-		return service.(string)
+		return service
 	default:
 		ty := reflect.TypeOf(service)
 		if ty.Kind() == reflect.Ptr {
 			// todo 解决统一接口类型反射, 暂时使用输入字符串的方式解决
-			//fmt.Println(ty.String())
 			return ty.String()
 		}
 		panic(fmt.Sprintf("serviceName type(%s) is not support", ty.String()))
@@ -94,7 +85,7 @@ func (b *builder) Get(serviceAny interface{}) (interface{}, error) {
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf(formatErrServiceNotExists, serviceName))
+		return nil, fmt.Errorf(formatErrServiceNotExists, serviceName)
 	}
 	s, err := service.(*Definition).resolve(b)
 	if err != nil {
@@ -107,10 +98,10 @@ func (b *builder) GetWithParams(serviceAny interface{}, params ...interface{}) (
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
-		return nil, errors.New(fmt.Sprintf(formatErrServiceNotExists, serviceName))
+		return nil, fmt.Errorf(formatErrServiceNotExists, serviceName)
 	}
 	if service.(*Definition).IsSingleton() {
-		return nil, ServiceSingletonErr
+		return nil, ErrServiceSingleton
 	}
 	s, err := service.(*Definition).resolveWithParams(b, params...)
 	if err != nil {
@@ -148,6 +139,10 @@ func (b *builder) Exists(serviceAny interface{}) bool {
 }
 
 var di = &builder{}
+
+func GetDefaultDI() AbstractBuilder {
+	return di
+}
 
 func Get(serviceAny interface{}) (interface{}, error) {
 	return di.Get(serviceAny)

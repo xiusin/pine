@@ -8,6 +8,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"runtime"
+	"strings"
+	"unsafe"
+
 	"github.com/gorilla/schema"
 	"github.com/xiusin/logger"
 	"github.com/xiusin/pine/di"
@@ -23,6 +28,9 @@ import (
 var schemaDecoder = schema.NewDecoder()
 
 type Context struct {
+	// Input
+	*input
+	// application
 	app *Application
 	// response object
 	res http.ResponseWriter
@@ -44,8 +52,9 @@ type Context struct {
 	middlewareIndex int
 	// Temporary recording error information
 	Msg string
-	// Binding some value to context
-	keys           map[string]interface{}
+
+	loggerEntity *logger.LogEntity
+
 	autoParseValue bool
 }
 
@@ -79,6 +88,10 @@ func (c *Context) beginRequest(res http.ResponseWriter, req *http.Request) {
 
 func (c *Context) reset() {
 	c.route = nil
+	c.sess = nil
+	c.input = nil
+	c.loggerEntity = nil
+
 	c.middlewareIndex = -1
 	c.stopped = false
 	c.Msg = ""
@@ -105,11 +118,31 @@ func (c *Context) WriteString(str string) error {
 	return c.Render().Text(str)
 }
 
+func (c *Context) Write(data []byte) error {
+	return c.Render().Bytes(data)
+}
+
+func (c *Context) WriteJSON(v interface{}) error {
+	return c.Render().JSON(v)
+}
+
+func (c *Context) WriteHTMLBytes(data []byte) error {
+	c.Response.Header.Set("Content-Type", ContentTypeHTML)
+	return c.Render().Bytes(data)
+}
+
 func (c *Context) Render() *Render {
 	if c.render == nil {
 		c.render = newRender(c.res)
 	}
 	return c.render
+}
+
+func (c *Context) Input() *input {
+	if c.input == nil {
+		c.input = newInput(c)
+	}
+	return c.input
 }
 
 func (c *Context) Params() params {
@@ -149,23 +182,27 @@ func (c *Context) sessions() *sessions.Sessions {
 	return Make(di.ServicePineSessions).(*sessions.Sessions)
 }
 
-func (c *Context) Session() sessions.AbstractSession {
+func (c *Context) Session(sessIns ...sessions.AbstractSession) sessions.AbstractSession {
 	if c.sess == nil {
-		sess, err := c.sessions().Session(c.cookie)
-		if err != nil {
-			panic(fmt.Sprintf("Get sessionInstance failed: %s", err.Error()))
+		if len(sessIns) > 0 {
+			c.sess = sessIns[0]
+		} else {
+			sess, err := c.sessions().Session(c.cookie)
+			if err != nil {
+				panic(fmt.Sprintf("Get sessionInstance failed: %s", err.Error()))
+			}
+			c.sess = sess
 		}
-		c.sess = sess
 	}
 	return c.sess
 }
 
 func (c *Context) Next() {
-	if c.stopped == true {
+	if c.stopped {
 		return
 	}
 	c.middlewareIndex++
-	mws := c.route.ExtendsMiddleWare
+	mws := c.route.ExtendsMiddleWare[:]
 	mws = append(mws, c.route.Middleware...)
 	length := len(mws)
 	if length == c.middlewareIndex {
@@ -175,7 +212,6 @@ func (c *Context) Next() {
 	}
 }
 
-// skip all middleware to exec router handler
 func (c *Context) Handle() {
 	c.route.Handle(c)
 }
@@ -247,6 +283,11 @@ func (c *Context) ClientIP() string {
 		return ip
 	}
 	return ""
+}
+
+func (c *Context) Path() string {
+	method := c.RequestCtx.Path()
+	return *(*string)(unsafe.Pointer(&method))
 }
 
 func (c *Context) BindJSON(rev interface{}) error {

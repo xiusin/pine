@@ -34,7 +34,7 @@ func (d *Definition) ServiceName() string {
 }
 
 func (d *Definition) IsSingleton() bool {
-	return d.shared == true
+	return d.shared
 }
 
 func (d *Definition) IsResolved() bool {

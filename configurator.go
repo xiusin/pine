@@ -4,16 +4,26 @@
 
 package pine
 
-import "github.com/xiusin/pine/sessions/cookie_transcoder"
+import (
+	"time"
+
+	"github.com/xiusin/pine/sessions/cookie_transcoder"
+)
 
 type Configuration struct {
 	maxMultipartMemory        int64
 	serverName                string
 	withoutStartupLog         bool
+	gracefulShutdown          bool
 	autoParseControllerResult bool
 	autoParseForm             bool
 	useCookie                 bool
 	CookieTranscoder          cookie_transcoder.AbstractCookieTranscoder
+	defaultResponseType       string
+	compressGzip              bool
+	timeoutEnable             bool
+	timeoutDuration           time.Duration
+	timeoutMsg                string
 }
 
 type AbstractReadonlyConfiguration interface {
@@ -23,9 +33,24 @@ type AbstractReadonlyConfiguration interface {
 	GetMaxMultipartMemory() int64
 	GetAutoParseControllerResult() bool
 	GetCookieTranscoder() cookie_transcoder.AbstractCookieTranscoder
+	GetDefaultResponseType() string
+	GetCompressGzip() bool
+	GetTimeout() (bool, time.Duration, string)
 }
 
 type Configurator func(o *Configuration)
+
+func WithGracefulShutdown() Configurator {
+	return func(o *Configuration) {
+		o.gracefulShutdown = true
+	}
+}
+
+func WithDefaultResponseType(responseType string) Configurator {
+	return func(o *Configuration) {
+		o.defaultResponseType = responseType
+	}
+}
 
 func WithServerName(srvName string) Configurator {
 	return func(o *Configuration) {
@@ -45,12 +70,6 @@ func WithCookie(open bool) Configurator {
 	}
 }
 
-func WithAutoParseForm(autoParseForm bool) Configurator {
-	return func(o *Configuration) {
-		o.autoParseForm = autoParseForm
-	}
-}
-
 func WithMaxMultipartMemory(mem int64) Configurator {
 	return func(o *Configuration) {
 		o.maxMultipartMemory = mem
@@ -66,6 +85,20 @@ func WithoutStartupLog(hide bool) Configurator {
 func WithAutoParseControllerResult(auto bool) Configurator {
 	return func(o *Configuration) {
 		o.autoParseControllerResult = auto
+	}
+}
+
+func WithCompressGzip(enable bool) Configurator {
+	return func(o *Configuration) {
+		o.compressGzip = enable
+	}
+}
+
+func WithTimeout(enable bool, duration time.Duration, msg string) Configurator {
+	return func(o *Configuration) {
+		o.timeoutEnable = enable
+		o.timeoutDuration = duration
+		o.timeoutMsg = msg
 	}
 }
 
@@ -91,4 +124,16 @@ func (c *Configuration) GetCookieTranscoder() cookie_transcoder.AbstractCookieTr
 
 func (c *Configuration) GetMaxMultipartMemory() int64 {
 	return c.maxMultipartMemory
+}
+
+func (c *Configuration) GetDefaultResponseType() string {
+	return c.defaultResponseType
+}
+
+func (c *Configuration) GetCompressGzip() bool {
+	return c.compressGzip
+}
+
+func (c *Configuration) GetTimeout() (bool, time.Duration, string) {
+	return c.timeoutEnable, c.timeoutDuration, c.timeoutMsg
 }
