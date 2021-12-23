@@ -10,6 +10,12 @@ import (
 	"github.com/xiusin/pine/sessions/cookie_transcoder"
 )
 
+type TimeoutConf struct {
+	Enable   bool
+	Duration time.Duration
+	Msg      string
+}
+
 type Configuration struct {
 	maxMultipartMemory        int64
 	serverName                string
@@ -20,9 +26,9 @@ type Configuration struct {
 	CookieTranscoder          cookie_transcoder.AbstractCookieTranscoder
 	defaultResponseType       string
 	compressGzip              bool
-	timeoutEnable             bool
-	timeoutDuration           time.Duration
-	timeoutMsg                string
+	timeout                   TimeoutConf
+	tlsSecretFile             string
+	tlsKeyFile                string
 }
 
 type AbstractReadonlyConfiguration interface {
@@ -33,7 +39,7 @@ type AbstractReadonlyConfiguration interface {
 	GetCookieTranscoder() cookie_transcoder.AbstractCookieTranscoder
 	GetDefaultResponseType() string
 	GetCompressGzip() bool
-	GetTimeout() (bool, time.Duration, string)
+	GetTimeout() TimeoutConf
 }
 
 type Configurator func(o *Configuration)
@@ -92,11 +98,16 @@ func WithCompressGzip(enable bool) Configurator {
 	}
 }
 
-func WithTimeout(enable bool, duration time.Duration, msg string) Configurator {
+func WithTimeout(conf TimeoutConf) Configurator {
 	return func(o *Configuration) {
-		o.timeoutEnable = enable
-		o.timeoutDuration = duration
-		o.timeoutMsg = msg
+		o.timeout = conf
+	}
+}
+
+func WithTlsFile(key, secret string) Configurator {
+	return func(o *Configuration) {
+		o.tlsKeyFile = key
+		o.tlsSecretFile = secret
 	}
 }
 
@@ -128,6 +139,6 @@ func (c *Configuration) GetCompressGzip() bool {
 	return c.compressGzip
 }
 
-func (c *Configuration) GetTimeout() (bool, time.Duration, string) {
-	return c.timeoutEnable, c.timeoutDuration, c.timeoutMsg
+func (c *Configuration) GetTimeout() TimeoutConf {
+	return c.timeout
 }

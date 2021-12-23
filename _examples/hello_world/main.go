@@ -2,12 +2,31 @@ package main
 
 import (
 	"fmt"
+	"github.com/valyala/fasthttp/pprofhandler"
+	// "strconv"
+	"strings"
+	// "sync/atomic"
 
 	"github.com/xiusin/pine"
 )
 
 func main() {
 	app := pine.New()
+	// var v uint32
+	app.Use(func(ctx *pine.Context) {
+		p := ctx.Path()
+		if strings.HasPrefix(p, "/debug") {
+			pprofhandler.PprofHandler(ctx.RequestCtx)
+			ctx.Stop()
+			return
+		}
+		ctx.Next()
+	})
+	app.ANY("/get", func(ctx *pine.Context) {
+		// atomic.AddUint32(&v, 1)
+		// fmt.Println(v)
+		// ctx.WriteString("current req: " + strconv.Itoa(int(v)))
+	})
 	app.ANY("/json", func(ctx *pine.Context) {
 		if ctx.IsPost() {
 			fmt.Println("input", ctx.Input().All())
@@ -61,5 +80,8 @@ func main() {
 		}
 	})
 
-	app.Run(pine.Addr(":9528"))
+	// brew install mkcert
+	// mkdir .cert
+	// mkcert -key-file .cert/key.pem -cert-file .cert/cert.pem "localhost"
+	app.Run(pine.Addr("localhost:9528"), pine.WithTlsFile(".cert/key.pem", ".cert/cert.pem"))
 }

@@ -10,6 +10,7 @@ require (
 	github.com/buraksezer/olric v0.4.0
 	github.com/cubewise-code/go-mime v0.0.0-20200519001935-8c5762b177d8
 	github.com/dgraph-io/badger/v2 v2.0.2
+	github.com/dgrr/http2 v0.2.13
 	github.com/fatih/color v1.13.0
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/gookit/color v1.5.0
@@ -59,6 +60,7 @@ require (
 	github.com/sean-/seed v0.0.0-20170313163322-e2103e2c3529 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
+	github.com/valyala/fastrand v1.1.0 // indirect
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
 	golang.org/x/crypto v0.0.0-20210513164829-c07d793c2f9a // indirect

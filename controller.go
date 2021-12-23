@@ -29,9 +29,8 @@ type IController interface {
 var reflectingNeedIgnoreMethods = map[string]struct{}{}
 
 func init() {
-	rt := reflect.TypeOf(&Controller{})
-	for i := 0; i < rt.NumMethod(); i++ {
-		reflectingNeedIgnoreMethods[rt.Method(i).Name] = struct{}{}
+	for typo, i := reflect.TypeOf(&Controller{}), 0; i < typo.NumMethod(); i++ {
+		reflectingNeedIgnoreMethods[typo.Method(i).Name] = struct{}{}
 	}
 }
 

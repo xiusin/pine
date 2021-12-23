@@ -5,7 +5,7 @@
 package pine
 
 import (
-	"fmt"
+	"github.com/dgrr/http2"
 	"os"
 	"os/signal"
 	"strings"
@@ -17,54 +17,43 @@ import (
 
 type ServerHandler func(*Application) error
 
-const zeroIP = "0.0.0.0"
-
-func (a *Application) printSetupInfo(addr string) {
-	if strings.HasPrefix(addr, ":") {
-		addr = fmt.Sprintf("%s%s", a.hostname, addr)
+func (a *Application) setupInfo(addr string) {
+	if pos := strings.Index(addr, ":"); pos > 0 {
+		a.hostname = addr[:pos]
+	}
+	scheme := "http"
+	if len(a.configuration.tlsKeyFile) > 0 && len(a.configuration.tlsSecretFile) > 0 {
+		scheme += "s"
 	}
 	if !a.configuration.withoutStartupLog {
 		color.Green.Println(logo)
-		color.Red.Printf("pine server now listening on: %s\n", addr)
+		color.Red.Printf("pine server now listening on: %s://%s\n", scheme, addr)
 	}
 }
 
 func Addr(addr string) ServerHandler {
 	return func(a *Application) error {
-		s := &fasthttp.Server{}
-		s.Logger = Logger()
-		s.Name = a.configuration.serverName
-		if len(addr) == 0 {
-			addr = fmt.Sprintf("%s:%d", zeroIP, 9528)
+		s := &fasthttp.Server{
+			Name:    a.configuration.serverName,
+			Logger:  Logger(),
+			Handler: dispatchRequest(a),
+			ErrorHandler: func(ctx *fasthttp.RequestCtx, err error) {
+				Logger().Errorf("server error: %s", err)
+			},
 		}
-		addrInfo := strings.Split(addr, ":")
-		if len(addrInfo[0]) == 0 {
-			addrInfo[0] = zeroIP
-		}
-		a.hostname = addrInfo[0]
-		a.printSetupInfo(addr)
+
+		a.setupInfo(addr)
+
 		if a.configuration.maxMultipartMemory > 0 {
 			s.MaxRequestBodySize = int(a.configuration.maxMultipartMemory)
 		}
 
-		handler := func(ctx *fasthttp.RequestCtx) {
-			c := a.pool.Get().(*Context)
-			c.beginRequest(ctx)
-			defer a.pool.Put(c)
-			defer func() { c.RequestCtx = nil }()
-			defer c.endRequest(a.recoverHandler)
-
-			a.handle(c)
+		if a.configuration.compressGzip {
+			s.Handler = fasthttp.CompressHandler(s.Handler)
 		}
 
-		if a.ReadonlyConfiguration.GetCompressGzip() {
-			s.Handler = fasthttp.CompressHandler(handler)
-		} else {
-			s.Handler = handler
-		}
-
-		if enable, duration, msg := a.ReadonlyConfiguration.GetTimeout(); enable {
-			s.Handler = fasthttp.TimeoutHandler(s.Handler, duration, msg)
+		if conf := a.configuration.timeout; conf.Enable {
+			s.Handler = fasthttp.TimeoutHandler(s.Handler, conf.Duration, conf.Msg)
 		}
 
 		if a.configuration.gracefulShutdown {
@@ -72,6 +61,12 @@ func Addr(addr string) ServerHandler {
 			signal.Notify(a.quitCh, os.Interrupt, syscall.SIGTERM)
 			go a.gracefulShutdown(s, a.quitCh)
 		}
+
+		if len(a.configuration.tlsSecretFile) > 0 && len(a.configuration.tlsKeyFile) > 0 {
+			http2.ConfigureServer(s)
+			return s.ListenAndServeTLS(addr, a.configuration.tlsSecretFile, a.configuration.tlsKeyFile)
+		}
+
 		return s.ListenAndServe(addr)
 	}
 }

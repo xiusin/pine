@@ -1,7 +1,6 @@
 package main
 
 import (
-
 	"github.com/xiusin/pine"
 )
 
@@ -26,7 +25,7 @@ func main() {
 			ctx.Writer().Write([]byte("请输入要删除的cookie名称"))
 		} else {
 			ctx.RemoveCookie(val)
-			ctx.Writer().Write([]byte("deleted => " + val ))
+			ctx.Writer().Write([]byte("deleted => " + val))
 		}
 	})
 	app.Run(pine.Addr(""))

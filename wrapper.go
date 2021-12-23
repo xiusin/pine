@@ -139,7 +139,7 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 	values := c.MethodByName(method).Call(ins)
 
 	if len(values) > 1 {
-		Logger().Warning("cann't support auto parse mulit values")
+		Logger().Warning("can't support auto parse multi values")
 	}
 
 	// 查看是否设置了解析返回值

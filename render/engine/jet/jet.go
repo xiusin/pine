@@ -14,7 +14,7 @@ type PineJet struct {
 	ext string
 }
 
-func New(viewDir , ext string, reload bool) *PineJet {
+func New(viewDir, ext string, reload bool) *PineJet {
 	if len(viewDir) == 0 || len(ext) == 0 {
 		panic("viewDir or ext cannot be empty")
 	}
@@ -38,7 +38,7 @@ func (p *PineJet) Ext() string {
 
 func (p *PineJet) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
 	if runtime.GOOS == "windows" {
-		name = strings.Replace(name, "\\","/",-1)
+		name = strings.Replace(name, "\\", "/", -1)
 	}
 	t, err := p.GetTemplate(name)
 	if err != nil {

@@ -27,13 +27,12 @@ type Render struct {
 	applied bool
 }
 
-
 const (
 	HeaderContentType = fasthttp.HeaderContentType
-	ContentTypeJSON = "application/json; charset=utf-8"
-	ContentTypeHTML = "text/html; charset=utf-8"
-	ContentTypeText = "text/plain; charset=utf-8"
-	ContentTypeXML  = "text/xml; charset=utf-8"
+	ContentTypeJSON   = "application/json; charset=utf-8"
+	ContentTypeHTML   = "text/html; charset=utf-8"
+	ContentTypeText   = "text/plain; charset=utf-8"
+	ContentTypeXML    = "text/xml; charset=utf-8"
 )
 
 func RegisterViewEngine(engine render.AbstractRenderer) {

@@ -27,14 +27,13 @@ func (r *Router) DumpRouteTable() {
 
 	var tables []RouterTableRow
 
-
 	for method, routers := range r.methodRoutes {
 		if len(routers) == 0 {
 			continue
 		}
 		for s, entry := range routers {
-			pc := make([]uintptr,1)
-			runtime.Callers(2,pc)
+			pc := make([]uintptr, 1)
+			runtime.Callers(2, pc)
 			tables = append(tables, RouterTableRow{
 				Method:  method,
 				Path:    s,

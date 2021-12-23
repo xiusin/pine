@@ -62,10 +62,10 @@ type UserController struct {
 func (user *UserController) GetLogin() {
 	user.Ctx().WriteString(user.Ctx().HandlerName())
 }
+
 //
 //func (user *UserController) GetFlush() {
 //	for range time.Tick(time.Second) {
 //		user.Ctx().Flush("hello")
 //	}
 //}
-

@@ -45,7 +45,6 @@ func main() {
 	//	})), nil
 	//}, true)
 
-
 	pine.RegisterOnInterrupt(func() {
 		fmt.Println(" server was closed")
 	})
@@ -103,7 +102,7 @@ func main() {
 	// /cms_a_1.html error
 	// /cms_1_1.html success
 	app.GET("/cms_:pid<\\d+>_:uid.html", func(c *pine.Context) {
-		 c.Write([]byte(fmt.Sprintf("%#v", c.Params())))
+		c.Write([]byte(fmt.Sprintf("%#v", c.Params())))
 	})
 
 	// 用APP实例化出一个subDomain
@@ -115,8 +114,6 @@ func main() {
 	// userSubDomain.Subdomain("center.").GET("/", func(ctx *pine.Context) {
 	// 	ctx.Writer().Write([]byte(ctx.Request().Host))
 	// })
-
-
 
 	//handler.Run(router.TLS(":443", "./tls/cert/server.pem", "./tls/cert/server.key"))
 	app.Run(pine.Addr(":9528"), pine.WithServerName("xiusin/router"))

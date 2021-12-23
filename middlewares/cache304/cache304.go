@@ -12,7 +12,7 @@ import (
 
 var errCheckFailed = errors.New("check failed")
 var unixZero = time.Unix(0, 0)
-var prefixes = []string  {"/favicon.ico"}
+var prefixes = []string{"/favicon.ico"}
 
 const timeFormat = "2006-01-02 15:04:05"
 
@@ -41,7 +41,6 @@ func needFilter(c *pine.Context) bool {
 	}
 	return false
 }
-
 
 func checkIfModifiedSince(c *pine.Context, modtime time.Time) (bool, error) {
 	if !c.IsGet() && string(c.Method()) == fasthttp.MethodHead {

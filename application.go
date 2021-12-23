@@ -23,7 +23,7 @@ import (
 	"github.com/xiusin/pine/di"
 )
 
-const Version = "dev 0.0.7"
+const Version = "dev 0.1.0"
 
 const logo = `
   ____  _            
@@ -77,8 +77,6 @@ type AbstractRouter interface {
 	PUT(path string, handle Handler, mws ...Handler)
 	DELETE(path string, handle Handler, mws ...Handler)
 
-	// Resource(path string)
-
 	StaticFile(string, string, ...Handler)
 	Static(string, string, ...int)
 }
@@ -116,7 +114,7 @@ type Application struct {
 func New() *Application {
 	app := &Application{
 		Router: &Router{
-			methodRoutes:         initRouteMap(),
+			methodRoutes:         initRouteEntity(),
 			groups:               map[string]*Router{},
 			registeredSubdomains: map[string]*Router{},
 		},
@@ -124,23 +122,22 @@ func New() *Application {
 		recoverHandler: defaultRecoverHandler,
 	}
 
-	app.pool.New = func() interface{} {
-		return newContext(app)
-	}
+	app.pool.New = func() interface{} { return newContext(app) }
 
 	app.SetNotFound(func(c *Context) {
 		if len(c.Msg) == 0 {
 			c.Msg = "Not Found"
 		}
 		c.Response.Header.SetContentType(ContentTypeHTML)
-		err := DefaultErrTemplate.Execute(
-			c.Response.BodyWriter(), H{
-				"Message": c.Msg,
-				"Code":    fasthttp.StatusNotFound,
-			})
-		if err != nil {
-			Logger().Errorf("%s", err)
+		_ = DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": fasthttp.StatusNotFound})
+	})
+
+	app.NotAllowMethod(func(c *Context) {
+		if len(c.Msg) == 0 {
+			c.Msg = "Method not allowed"
 		}
+		c.Response.Header.SetContentType(ContentTypeHTML)
+		_ = DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": fasthttp.StatusMethodNotAllowed})
 	})
 
 	di.Set(di.ServicePineApplication, func(builder di.AbstractBuilder) (interface{}, error) {
@@ -201,7 +198,7 @@ func (r *Router) Subdomain(subdomain string) *Router {
 		registeredSubdomains: r.registeredSubdomains,
 	}
 
-	s.methodRoutes = initRouteMap()
+	s.methodRoutes = initRouteEntity()
 	s.subdomain = subdomain + r.subdomain
 	r.registeredSubdomains[s.subdomain] = s
 
@@ -214,6 +211,10 @@ func (a *Application) SetRecoverHandler(handler Handler) {
 
 func (a *Application) SetNotFound(handler Handler) {
 	codeCallHandler[fasthttp.StatusNotFound] = handler
+}
+
+func (a *Application) NotAllowMethod(handler Handler) {
+	codeCallHandler[fasthttp.StatusMethodNotAllowed] = handler
 }
 
 func (a *Application) Close() {
@@ -257,7 +258,7 @@ func (a *Application) handle(c *Context) {
 
 func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 	if srv == nil {
-		panic(errors.New("server handler can't nil"))
+		panic(errors.New("server handler can't nil."))
 	}
 	if len(opts) > 0 {
 		for _, opt := range opts {
@@ -436,7 +437,7 @@ func (r *Router) Group(prefix string, middleWares ...Handler) *Router {
 		groups:      map[string]*Router{},
 		middleWares: r.middleWares[:]}
 
-	g.methodRoutes = initRouteMap()
+	g.methodRoutes = initRouteEntity()
 	g.middleWares = append(g.middleWares, middleWares...)
 	r.groups[prefix] = g
 	return g
@@ -545,15 +546,11 @@ func (r *Router) DELETE(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(fasthttp.MethodDelete, path, handle, mws...)
 }
 
-func (r *Router) OPTIONS(path string, handle Handler, mws ...Handler) {
-	r.AddRoute(fasthttp.MethodOptions, path, handle, mws...)
-}
-
 func (r *Router) Delete(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(fasthttp.MethodDelete, path, handle, mws...)
 }
 
-func initRouteMap() map[string]map[string]*RouteEntry {
+func initRouteEntity() routerMap {
 	return routerMap{
 		fasthttp.MethodGet:     {},
 		fasthttp.MethodPost:    {},

@@ -22,25 +22,33 @@ import (
 var schemaDecoder = schema.NewDecoder()
 
 type Context struct {
-	// Input
 	*input
 	// application
 	app *Application
+
 	*fasthttp.RequestCtx
+
 	// matched routerEntry
 	route *RouteEntry
+
 	//  reader service
 	render *Render
+
 	// cookie cookie manager
 	cookie *sessions.Cookie
+
 	// SessionManager
 	sess sessions.AbstractSession
+
 	// Request params
-	params params
+	params Params
+
 	// Stop middleware iteration
 	stopped bool
+
 	// Current middleware iteration index, init with -1
 	middlewareIndex int
+
 	// Temporary recording error information
 	Msg string
 
@@ -129,9 +137,9 @@ func (c *Context) Input() *input {
 	return c.input
 }
 
-func (c *Context) Params() params {
+func (c *Context) Params() Params {
 	if c.params == nil {
-		c.params = newParams()
+		c.params = Params{}
 	}
 	return c.params
 }
@@ -175,6 +183,18 @@ func (c *Context) Session(sessIns ...sessions.AbstractSession) sessions.Abstract
 		}
 	}
 	return c.sess
+}
+
+func dispatchRequest(a *Application) func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		c := a.pool.Get().(*Context)
+		c.beginRequest(ctx)
+		defer a.pool.Put(c)
+		defer func() { c.RequestCtx = nil }()
+		defer c.endRequest(a.recoverHandler)
+
+		a.handle(c)
+	}
 }
 
 func (c *Context) Next() {
