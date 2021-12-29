@@ -82,6 +82,10 @@ func (c *Context) beginRequest(ctx *fasthttp.RequestCtx) {
 	c.input = newInput(c)
 }
 
+func (c *Context) Clone() {
+
+}
+
 func (c *Context) reset() {
 	c.route = nil
 	c.sess = nil

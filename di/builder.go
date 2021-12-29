@@ -11,6 +11,8 @@ import (
 	"sync"
 )
 
+var ErrNotSupportedType = fmt.Errorf("unsupported type")
+
 type AbstractBuilder interface {
 	Bind(interface{}, BuildHandler) *Definition
 	Singleton(interface{}, BuildHandler) *Definition
@@ -193,6 +195,10 @@ func Remove(serviceAny interface{}) {
 	di.services.Delete(ResolveServiceName(serviceAny))
 }
 
+func Bind(serviceAny interface{}, handler BuildHandler) *Definition {
+	return di.Bind(serviceAny, handler)
+}
+
 func Bound(serviceAny interface{}) bool {
 	return Exists(serviceAny)
 }
@@ -234,7 +240,23 @@ func Register(providers ...AbstractServiceProvider) {
 }
 
 // InjectOn 作用, 解析object对象内可识别的字段自动注入
+// 引用服务非数据安全, 需要自行管理
 func InjectOn(object interface{}) {
+	value := reflect.ValueOf(object)
+	if value.Kind() != reflect.Ptr && value.Elem().Kind() != reflect.Struct {
+		panic(ErrNotSupportedType)
+	}
+
+	fieldNum := value.Elem().NumField()
+	for i := 0; i < fieldNum; i++ {
+		field := value.Elem().Field(i)
+		if field.Kind() != reflect.Ptr {
+			continue
+		}
+		if service, err := di.Get(field.Interface()); err == nil {
+			field.Set(reflect.ValueOf(service))
+		}
+	}
 
 }
 
