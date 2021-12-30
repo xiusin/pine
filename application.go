@@ -105,6 +105,7 @@ type Router struct {
 type Application struct {
 	*Router
 	pool                  sync.Pool
+	DI                    di.AbstractBuilder
 	quitCh                chan os.Signal
 	recoverHandler        Handler
 	configuration         *Configuration
@@ -119,6 +120,7 @@ func New() *Application {
 			registeredSubdomains: map[string]*Router{},
 		},
 		configuration:  &Configuration{},
+		DI:             di.GetDefaultDI(),
 		recoverHandler: defaultRecoverHandler,
 	}
 

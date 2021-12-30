@@ -92,8 +92,7 @@ func ResolveServiceName(service interface{}) string {
 	default:
 		ty := reflect.TypeOf(service)
 		if ty.Kind() == reflect.Ptr {
-			// todo 解决统一接口类型反射, 暂时使用输入字符串的方式解决
-			return ty.String()
+			return ty.String() // todo 解决统一接口类型反射, 暂时使用输入字符串的方式解决
 		}
 		panic(fmt.Sprintf("serviceName type(%s) is not support", ty.String()))
 	}
@@ -239,9 +238,11 @@ func Register(providers ...AbstractServiceProvider) {
 	di.Register(providers...)
 }
 
-// InjectOn 作用, 解析object对象内可识别的字段自动注入
-// 引用服务非数据安全, 需要自行管理
-func InjectOn(object interface{}) {
+// InjectOn 作用, 解析object对象内可识别的字段自动注入, 引用服务非数据安全, 需要自行管理
+//
+// object 需要被注入的对象
+// onlyNil 是否仅注入为nil
+func InjectOn(object interface{}, onlyNil ...bool) {
 	value := reflect.ValueOf(object)
 	if value.Kind() != reflect.Ptr && value.Elem().Kind() != reflect.Struct {
 		panic(ErrNotSupportedType)
@@ -253,11 +254,12 @@ func InjectOn(object interface{}) {
 		if field.Kind() != reflect.Ptr {
 			continue
 		}
-		if service, err := di.Get(field.Interface()); err == nil {
-			field.Set(reflect.ValueOf(service))
+		if field.IsNil() {
+			if service, err := di.Get(field.Interface()); err == nil {
+				field.Set(reflect.ValueOf(service))
+			}
 		}
 	}
-
 }
 
 func List() []string {

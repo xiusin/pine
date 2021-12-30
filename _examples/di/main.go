@@ -15,6 +15,10 @@ type F struct {
 	InjectService *S `inject:"f"`
 }
 
+func init() {
+	// di.Register(&providers.P1{})
+}
+
 func main() {
 	var f = &F{}
 	var s = &S{ServiceName: "*main.S"}
@@ -30,4 +34,5 @@ func main() {
 	f.InjectService = &S{"replace"}
 	fmt.Println(f.InjectService.ServiceName, s.ServiceName, di.MustGet(s).(*S).ServiceName)
 
+	fmt.Println(di.List())
 }
