@@ -19,7 +19,7 @@ require (
 	github.com/satori/go.uuid v1.2.0
 	github.com/valyala/fasthttp v1.31.0
 	github.com/valyala/fastjson v1.6.3
-	github.com/xiusin/logger v0.0.9
+	github.com/xiusin/logger v0.0.10-0.20220103084022-9cb8378d9b03
 	go.etcd.io/bbolt v1.3.4
 )
 
@@ -50,7 +50,7 @@ require (
 	github.com/hashicorp/memberlist v0.1.5 // indirect
 	github.com/kataras/tablewriter v0.0.0-20180708051242-e063d29b7c23 // indirect
 	github.com/klauspost/compress v1.13.6 // indirect
-	github.com/mattn/go-colorable v0.1.11 // indirect
+	github.com/mattn/go-colorable v0.1.12 // indirect
 	github.com/mattn/go-isatty v0.0.14 // indirect
 	github.com/mattn/go-runewidth v0.0.13 // indirect
 	github.com/miekg/dns v1.1.31 // indirect
