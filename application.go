@@ -470,24 +470,34 @@ func (r *Router) Favicon(file interface{}) {
 	})
 }
 
-func (r *Router) StaticFS(urlPath string, f fs.FS, filePrefix string) {
+func (r *Router) StaticFS(urlPath string, f fs.FS, filePrefix string, indexfile ...string) {
 	handler := func(c *Context) {
-		fName := c.params.Get(FilePathParam)
-		if len(fName) == 0 {
-			c.Abort(fasthttp.StatusNotFound)
-			return
+		filename := c.params.Get(FilePathParam)
+
+		if len(filename) == 0 {
+			if len(indexfile) == 0 {
+				c.Abort(fasthttp.StatusNotFound)
+				return
+			}
+			filename = indexfile[0]
+
 		}
-		file, err := f.Open(strings.Replace(filepath.Join(filePrefix, fName), "\\", urlSeparator, -1))
+
+		file, err := f.Open(strings.Replace(filepath.Join(filePrefix, filename), "\\", urlSeparator, -1))
 		var content []byte
 		if err == nil {
-			defer file.Close()
 			content, err = io.ReadAll(file)
+			file.Close()
 		}
 		if err != nil {
-			c.Abort(fasthttp.StatusInternalServerError, err.Error())
+			if os.IsNotExist(err) {
+				c.Abort(fasthttp.StatusNotFound)
+			} else {
+				c.Abort(fasthttp.StatusInternalServerError, err.Error())
+			}
 			return
 		}
-		mimeType := gomime.TypeByExtension(filepath.Ext(fName))
+		mimeType := gomime.TypeByExtension(filepath.Ext(filename))
 		if len(mimeType) > 0 {
 			c.Response.Header.Set(HeaderContentType, mimeType)
 		}
