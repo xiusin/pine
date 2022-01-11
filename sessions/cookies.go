@@ -36,8 +36,7 @@ func (c *Cookie) Get(name string) string {
 func (c *Cookie) Set(name string, value string, maxAge int) {
 	if c.transcoder != nil {
 		var err error
-		value, err = c.transcoder.Encode(name, value)
-		if err != nil {
+		if value, err = c.transcoder.Encode(name, value); err != nil {
 			panic(err)
 		}
 	}
@@ -48,7 +47,11 @@ func (c *Cookie) Set(name string, value string, maxAge int) {
 	cookie.SetValue(value)
 	cookie.SetPath("/")
 	cookie.SetHTTPOnly(true)
-	cookie.SetSecure(true)
+
+	if len(c.ctx.URI().Scheme()) == 5 {
+		cookie.SetSecure(true)
+	}
+
 	cookie.SetSameSite(fasthttp.CookieSameSiteDefaultMode)
 	cookie.SetMaxAge(maxAge)
 

@@ -236,6 +236,8 @@ func (c *Context) setRoute(route *RouteEntry) *Context {
 func (c *Context) Abort(statusCode int, msg ...string) {
 	c.SetStatus(statusCode)
 	c.Stop()
+	c.Msg = fasthttp.StatusMessage(statusCode)
+
 	if len(msg) > 0 {
 		c.Msg = msg[0]
 	}
