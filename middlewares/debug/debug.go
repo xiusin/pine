@@ -3,7 +3,7 @@ package debug
 import (
 	"bytes"
 	"encoding/json"
-	"golang.org/x/tools/go/ssa/interp/testdata/src/fmt"
+	"fmt"
 	"html/template"
 	"io/ioutil"
 	"path"
@@ -46,7 +46,6 @@ func DebugBar() pine.Handler {
 		fmt.Println(data)
 	}
 }
-
 
 func Recover(r *pine.Application) pine.Handler {
 	once.Do(func() {
