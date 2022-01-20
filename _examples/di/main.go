@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/bits-and-blooms/bloom"
 
 	"github.com/xiusin/pine/di"
 )
@@ -15,19 +16,20 @@ type F struct {
 	InjectService *S `inject:"f"`
 }
 
-func init() {
-	// di.Register(&providers.P1{})
-}
 
 func main() {
+	a := &bloom.BloomFilter{}
+	di.Instance(a)
+	di.Instance(&a)
 	var f = &F{}
 	var s = &S{ServiceName: "*main.S"}
 	di.Instance("f", f)
-	di.Instance(s, s)
-
+	di.Instance(s)
+	di.Instance(&s)
 	di.MustGet("f").(*F).Name = "hello world"
 
 	di.InjectOn(f)
+
 	fmt.Println(f.InjectService.ServiceName)
 
 	f.InjectService.ServiceName = "HELLO 2"

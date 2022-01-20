@@ -16,7 +16,7 @@ var ErrNotSupportedType = fmt.Errorf("unsupported type")
 type AbstractBuilder interface {
 	Bind(interface{}, BuildHandler) *Definition
 	Singleton(interface{}, BuildHandler) *Definition
-	Instance(interface{}, interface{}) *Definition
+	Instance(interface{}, ...interface{}) *Definition
 	Register(...AbstractServiceProvider)
 
 	Set(interface{}, BuildHandler, bool) *Definition
@@ -40,7 +40,6 @@ type BuildWithHandler func(builder AbstractBuilder, params ...interface{}) (inte
 const ServicePineApplication = "pine.application"
 const ServicePineSessions = "pine.sessions"
 const ServicePineLogger = "pine.logger"
-const ServicePineRender = "pine.render"
 const ServicePineCache = "cache.AbstractCache"
 
 const formatErrServiceNotExists = "service %s not exists"
@@ -56,18 +55,17 @@ func (b *builder) GetDefinition(serviceAny interface{}) (*Definition, error) {
 	return service.(*Definition), nil
 }
 
-func (b *builder) Instance(serviceAny interface{}, instance interface{}) *Definition {
+func (b *builder) Instance(serviceAny interface{}, instance ...interface{}) *Definition {
+	if len(instance) == 0 {
+		if reflect.ValueOf(serviceAny).Kind() != reflect.Ptr {
+			panic(ErrNotSupportedType)
+		}
+		instance = []interface{}{serviceAny}
+	}
 	return b.Set(serviceAny, func(builder AbstractBuilder) (interface{}, error) {
-		return instance, nil
+		return instance[0], nil
 	}, true)
 }
-
-// func (b *builder) Alias(abstract interface{}, alias interface{}) {
-// 	abstractName := ResolveServiceName(abstract)
-// 	aliasName := ResolveServiceName(alias)
-
-// 	b.alias[aliasName] = abstractName
-// }
 
 func (b *builder) Bind(serviceAny interface{}, handler BuildHandler) *Definition {
 	return b.Set(serviceAny, handler, false)
@@ -92,10 +90,18 @@ func ResolveServiceName(service interface{}) string {
 	default:
 		ty := reflect.TypeOf(service)
 		if ty.Kind() == reflect.Ptr {
-			return ty.String() // todo 解决统一接口类型反射, 暂时使用输入字符串的方式解决
+			return GetFullName(ty)
 		}
 		panic(fmt.Sprintf("serviceName type(%s) is not support", ty.String()))
 	}
+}
+
+func GetFullName(p reflect.Type) string {
+	serviceName := p.String()
+	for p.Kind() == reflect.Ptr {
+		p = p.Elem()
+	}
+	return fmt.Sprintf("%s@%s", p.PkgPath(), serviceName)
 }
 
 func (b *builder) SetWithParams(serviceAny interface{}, handler BuildWithHandler) *Definition {
@@ -190,10 +196,12 @@ func Exists(serviceAny interface{}) bool {
 	return di.Exists(serviceAny)
 }
 
+// Remove 移除服务
 func Remove(serviceAny interface{}) {
 	di.services.Delete(ResolveServiceName(serviceAny))
 }
 
+// Bind 绑定非共享服务
 func Bind(serviceAny interface{}, handler BuildHandler) *Definition {
 	return di.Bind(serviceAny, handler)
 }
@@ -222,8 +230,8 @@ func Attempt(serviceAny interface{}, handler BuildHandler, singleton bool) *Defi
 	}
 }
 
-func Instance(serviceAny interface{}, instance interface{}) *Definition {
-	return di.Instance(serviceAny, instance)
+func Instance(serviceAny interface{}, instance ...interface{}) *Definition {
+	return di.Instance(serviceAny, instance...)
 }
 
 func SetWithParams(serviceAny interface{}, handler BuildWithHandler) *Definition {
@@ -239,22 +247,16 @@ func Register(providers ...AbstractServiceProvider) {
 }
 
 // InjectOn 作用, 解析object对象内可识别的字段自动注入, 引用服务非数据安全, 需要自行管理
-//
-// object 需要被注入的对象
-// onlyNil 是否仅注入为nil
-func InjectOn(object interface{}, onlyNil ...bool) {
-	value := reflect.ValueOf(object)
+// object 需要被注入的对象, 仅注入为nil的属性字段
+func InjectOn(ptr interface{}) {
+	value := reflect.ValueOf(ptr)
 	if value.Kind() != reflect.Ptr && value.Elem().Kind() != reflect.Struct {
 		panic(ErrNotSupportedType)
 	}
 
-	fieldNum := value.Elem().NumField()
-	for i := 0; i < fieldNum; i++ {
+	for i, fieldNum := 0, value.Elem().NumField(); i < fieldNum; i++ {
 		field := value.Elem().Field(i)
-		if field.Kind() != reflect.Ptr {
-			continue
-		}
-		if field.IsNil() {
+		if field.Kind() == reflect.Ptr && field.IsNil() {
 			if service, err := di.Get(field.Interface()); err == nil {
 				field.Set(reflect.ValueOf(service))
 			}

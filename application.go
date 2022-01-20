@@ -7,6 +7,7 @@ package pine
 import (
 	"errors"
 	"fmt"
+	"github.com/xiusin/logger"
 	"io"
 	"os"
 	"path"
@@ -112,6 +113,10 @@ type Application struct {
 	ReadonlyConfiguration AbstractReadonlyConfiguration
 }
 
+func init()  {
+	di.Instance(logger.New())
+}
+
 func New() *Application {
 	app := &Application{
 		Router: &Router{
@@ -142,9 +147,7 @@ func New() *Application {
 		_ = DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": fasthttp.StatusMethodNotAllowed})
 	})
 
-	di.Set(di.ServicePineApplication, func(builder di.AbstractBuilder) (interface{}, error) {
-		return app, nil
-	}, true)
+	di.Instance(app)
 
 	return app
 }
@@ -161,13 +164,8 @@ func (r *Router) register(controller IController, prefix ...string) {
 		num, routeWrapper := typ.NumMethod(), wrapper
 		for i := 0; i < num; i++ {
 			name := typ.Method(i).Name
-			_, ok := reflectingNeedIgnoreMethods[name]
-			if !ok && val.MethodByName(name).IsValid() {
-				r.matchRegister(
-					name,
-					prefix[0],
-					routeWrapper.warpHandler(name, controller),
-				)
+			if _, ok := reflectingNeedIgnoreMethods[name]; !ok && val.MethodByName(name).IsValid() {
+				r.matchRegister(name, prefix[0], routeWrapper.warpHandler(name, controller))
 			}
 
 		}
