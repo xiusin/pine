@@ -114,7 +114,7 @@ type Application struct {
 }
 
 func init()  {
-	di.Instance(logger.New())
+	di.Instance(logger.GetDefault())
 }
 
 func New() *Application {

@@ -15,7 +15,6 @@ import (
 	"github.com/gorilla/schema"
 	"github.com/valyala/fasthttp"
 	"github.com/xiusin/logger"
-	"github.com/xiusin/pine/di"
 	"github.com/xiusin/pine/sessions"
 )
 
@@ -171,7 +170,7 @@ func (c *Context) Redirect(url string, statusHeader ...int) {
 }
 
 func (c *Context) sessions() *sessions.Sessions {
-	return Make(di.ServicePineSessions).(*sessions.Sessions)
+	return Make(&sessions.Sessions{}).(*sessions.Sessions)
 }
 
 func (c *Context) Session(sessIns ...sessions.AbstractSession) sessions.AbstractSession {

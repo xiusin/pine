@@ -39,6 +39,5 @@ GET    | /    |         | rootPath | path/to/routes_error/actions.HomeHandler
 - 支持非Post或Get开始的方法名称，支持任何方式请求
 - 自动反射出来的路由需要修改成小驼峰名称
 - 细化input(参照laravel), 抽象convert结构体, 处理各种数据转换.
-- 基于1.18泛型处理参数读取等功能 `gofmt -w -r 'interface{} -> any' ./...`
 - 模板引擎支持传入文件系统对象
 - 实现路由占位符用于自定义路由替换规则

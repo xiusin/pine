@@ -37,11 +37,6 @@ type BuildWithHandler func(builder AbstractBuilder, params ...interface{}) (inte
 
 //reflect.TypeOf((*logger.AbstractLogger)(nil)).Elem()) 直接反射类型， 后续判断是否可以100%反射pkgPath
 
-const ServicePineApplication = "pine.application"
-const ServicePineSessions = "pine.sessions"
-const ServicePineLogger = "pine.logger"
-const ServicePineCache = "cache.AbstractCache"
-
 const formatErrServiceNotExists = "service %s not exists"
 
 var ErrServiceSingleton = errors.New("service is singleton, cannot use it with GetWithParams")
@@ -87,12 +82,14 @@ func ResolveServiceName(service interface{}) string {
 	switch service := service.(type) {
 	case string:
 		return service
+	case nil:
+		panic(fmt.Errorf("service name nil is not support"))
 	default:
-		ty := reflect.TypeOf(service)
-		if ty.Kind() == reflect.Ptr {
-			return GetFullName(ty)
+		typo := reflect.TypeOf(service)
+		if typo.Kind() == reflect.Ptr {
+			return GetFullName(typo)
 		}
-		panic(fmt.Sprintf("serviceName type(%s) is not support", ty.String()))
+		panic(fmt.Errorf("service name type(%s) is not support", typo.String()))
 	}
 }
 

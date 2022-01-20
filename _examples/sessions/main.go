@@ -11,16 +11,16 @@ import (
 
 func main() {
 	app := pine.New()
-	di.Set(di.ServicePineSessions, func(builder di.AbstractBuilder) (i interface{}, e error) {
-		sess := sessions.New(cacheProvider.NewStore(memory.New(memory.Option{
-			GCInterval: 0,
-			Prefix:     "test_",
-		})), &sessions.Config{
-			CookieName: "PINE_SESSIONID",
-			Expires:    time.Second * 10,
-		})
-		return sess, nil
-	}, true)
+
+	sess := sessions.New(cacheProvider.NewStore(memory.New(memory.Option{
+		GCInterval: 0,
+		Prefix:     "test_",
+	})), &sessions.Config{
+		CookieName: "PINE_SESSIONID",
+		Expires:    time.Second * 10,
+	})
+
+	di.Instance(sess)
 
 	app.GET("/", func(ctx *pine.Context) {
 		if val := ctx.Session().Get("name"); val == "" {

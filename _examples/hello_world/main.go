@@ -80,8 +80,11 @@ func main() {
 		}
 	})
 
+	fmt.Println(pine.App())
+	fmt.Println(pine.Logger())
+
 	// brew install mkcert
 	// mkdir .cert
 	// mkcert -key-file .cert/key.pem -cert-file .cert/cert.pem "localhost"
-	app.Run(pine.Addr("localhost:9528"), pine.WithTlsFile(".cert/key.pem", ".cert/cert.pem"))
+	//app.Run(pine.Addr("localhost:9528"), pine.WithTlsFile(".cert/key.pem", ".cert/cert.pem"))
 }

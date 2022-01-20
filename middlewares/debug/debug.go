@@ -3,6 +3,7 @@ package debug
 import (
 	"bytes"
 	"encoding/json"
+	"golang.org/x/tools/go/ssa/interp/testdata/src/fmt"
 	"html/template"
 	"io/ioutil"
 	"path"
@@ -31,6 +32,21 @@ type errHandler struct {
 }
 
 var defaultHandler = &errHandler{}
+
+func DebugBar() pine.Handler {
+	return func(ctx *pine.Context) {
+		data := []map[string]interface{}{
+			{
+				"title": "Ajax",
+				"content": map[string]interface{}{
+					"text": "Ajax",
+				},
+			},
+		}
+		fmt.Println(data)
+	}
+}
+
 
 func Recover(r *pine.Application) pine.Handler {
 	once.Do(func() {
@@ -87,6 +103,15 @@ func (e *errHandler) showTraceInfo(errMsg, traceMsg string, isAjax bool) []byte 
 	for i := 0; i < l; i += 2 {
 		paths := strings.Split(msgs[i+1], ":")
 		paths[0] = strings.Trim(paths[0], "\t")
+
+		if strings.Contains(msgs[i], "debug.Stack()") ||
+			strings.Contains(msgs[i], "endRequest") ||
+			strings.Contains(paths[0], "panic.go") ||
+			strings.Contains(paths[0], "valyala/fasthttp") ||
+			strings.Contains(paths[0], "debug.go") {
+			continue
+		}
+
 		// 读取文件内容
 		codeContent, _ := ioutil.ReadFile(paths[0])
 		line := strings.Split(paths[1], " ")
