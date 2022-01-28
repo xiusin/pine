@@ -5,6 +5,7 @@
 package sessions
 
 import (
+	"strings"
 	"sync"
 
 	"github.com/xiusin/pine/cache"
@@ -12,8 +13,10 @@ import (
 
 const (
 	Modified = iota
-	Desroyed
+	Destroyed
 )
+
+var sessPrefix = []byte("sess_")
 
 type Session struct {
 	sync.RWMutex
@@ -45,9 +48,7 @@ func newSession(id string, store AbstractSessionStore, cookie *Cookie) (*Session
 	return sess, nil
 }
 
-func (sess *Session) GetId() string {
-	return sess.id
-}
+func (sess *Session) GetId() string { return sess.id }
 
 func (sess *Session) Set(key string, val string) {
 	sess.Lock()
@@ -79,7 +80,7 @@ func (sess *Session) Remove(key string) {
 }
 
 func (sess *Session) Save() error {
-	if sess.status == Desroyed {
+	if sess.status == Destroyed {
 		return nil
 	}
 
@@ -92,15 +93,15 @@ func (sess *Session) Save() error {
 }
 
 // Destroy 销毁整个sess信息
-func (sess *Session) Destroy() {
+func (sess *Session) Destroy() error {
 	sess.Lock()
 	defer sess.Unlock()
 
 	sess.data = nil
-	sess.status = Desroyed
+	sess.status = Destroyed
 
-	sess.cookie.Set(sess.id, "", -3600)
-	sess.store.Delete(sess.key())
+	sess.cookie.Delete(sess.id)
+	return sess.store.Delete(sess.key())
 }
 
 // Has 检查是否存在Key
@@ -116,5 +117,8 @@ func (sess *Session) Has(key string) bool {
 
 // makeKey 存储session的key
 func (sess *Session) key() string {
-	return "sess_" + sess.id
+	var buf strings.Builder
+	buf.Write(sessPrefix)
+	buf.WriteString(sess.id)
+	return buf.String()
 }

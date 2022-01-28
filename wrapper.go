@@ -122,14 +122,22 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 		if numIn := mt.NumIn(); numIn > 0 {
 			for i := 0; i < numIn; i++ {
 				if in := mt.In(i); in.Kind() == reflect.Ptr || in.Kind() == reflect.Interface {
-					inType := in.String()
-					if di.Exists(inType) {
-						ins = append(ins, reflect.ValueOf(di.MustGet(inType)))
-					} else {
-						panic(fmt.Sprintf("con't resolve service `%s` in di", inType))
+					if in.Kind() == reflect.Interface { // 解析interface类型的服务, 如cache.AbstractCache
+						if di.Exists(in.String()) {
+							ins = append(ins, reflect.ValueOf(di.MustGet(in.String())))
+						} else {
+							panic(fmt.Errorf("con't resolve service `%s` in di", in))
+						}
+					} else { // 解析指针类型的服务: 如: *string, *int
+						inV := reflect.New(in.Elem())
+						if di.Exists(inV.Interface()) {
+							ins = append(ins, reflect.ValueOf(di.MustGet(inV.Interface())))
+						} else {
+							panic(fmt.Errorf("con't resolve service `%s` in di", inV))
+						}
 					}
 				} else {
-					panic(fmt.Sprintf("controller %s method: %s params(NO.%d)(%s)  not support. only ptr or interface ", c.Type().String(), mt.Name(), i, in.String()))
+					panic(fmt.Errorf("controller %s method: %s params(NO.%d)(%s)  not support. only ptr or interface ", c.Type().String(), mt.Name(), i, in.String()))
 				}
 			}
 			cmr.reflectMethod[method] = ins

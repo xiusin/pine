@@ -3,7 +3,6 @@ package debug
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"html/template"
 	"io/ioutil"
 	"path"
@@ -35,15 +34,7 @@ var defaultHandler = &errHandler{}
 
 func DebugBar() pine.Handler {
 	return func(ctx *pine.Context) {
-		data := []map[string]interface{}{
-			{
-				"title": "Ajax",
-				"content": map[string]interface{}{
-					"text": "Ajax",
-				},
-			},
-		}
-		fmt.Println(data)
+
 	}
 }
 

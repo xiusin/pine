@@ -26,6 +26,7 @@ func (a *Application) setupInfo(addr string) {
 		scheme += "s"
 	}
 	if !a.configuration.withoutStartupLog {
+		a.DumpRouteTable()
 		color.Green.Println(logo)
 		color.Red.Printf("pine server now listening on: %s://%s\n", scheme, addr)
 	}
@@ -63,7 +64,7 @@ func Addr(addr string) ServerHandler {
 		}
 
 		if len(a.configuration.tlsSecretFile) > 0 && len(a.configuration.tlsKeyFile) > 0 {
-			http2.ConfigureServer(s)
+			http2.ConfigureServer(s, http2.ServerConfig{})
 			return s.ListenAndServeTLS(addr, a.configuration.tlsSecretFile, a.configuration.tlsKeyFile)
 		}
 

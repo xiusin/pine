@@ -5,9 +5,10 @@
 package cache
 
 import (
-	"encoding/json"
 	"errors"
 )
+
+type RememberCallback func() (interface{}, error)
 
 type AbstractCache interface {
 	Get(string) ([]byte, error)
@@ -19,33 +20,13 @@ type AbstractCache interface {
 	Delete(string) error
 	Exists(string) bool
 
-	Remember(string, interface{}, func() (interface{}, error), ...int) error
+	Remember(string, interface{}, RememberCallback, ...int) error
 
-	GetCacheHandler() interface{}
+	GetProvider() interface{}
 }
 
 var ErrKeyNotFound = errors.New("key not found or expired")
 
-var defaultTranscoder = struct {
-	Marshal   func(interface{}) ([]byte, error)
-	UnMarshal func([]byte, interface{}) error
-}{
-	Marshal:   json.Marshal,
-	UnMarshal: json.Unmarshal,
+func IsErrKeyNotFound(err error) bool {
+	return err == ErrKeyNotFound
 }
-
-func SetTranscoderFunc(marshaller func(interface{}) ([]byte, error), unMarshaller func([]byte, interface{}) error) {
-	if marshaller != nil && unMarshaller != nil {
-		defaultTranscoder.Marshal = marshaller
-		defaultTranscoder.UnMarshal = unMarshaller
-	}
-}
-
-func Marshal(data interface{}) ([]byte, error) {
-	return defaultTranscoder.Marshal(data)
-}
-
-func UnMarshal(data []byte, receiver interface{}) error {
-	return defaultTranscoder.UnMarshal(data, receiver)
-}
-

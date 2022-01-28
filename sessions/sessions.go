@@ -25,7 +25,7 @@ type AbstractSession interface {
 	Has(string) bool
 	AddFlush(string, string)
 	Remove(string)
-	Destroy()
+	Destroy() error
 	Save() error
 }
 
@@ -40,7 +40,7 @@ type Config struct {
 	Expires    time.Duration
 }
 
-const defaultSessionCookieName = "pine_sessionid"
+const defaultSessionCookieName = "pine_session_id"
 
 var defaultSessionLiftTime = time.Second * 604800 // 默认最长为7天
 

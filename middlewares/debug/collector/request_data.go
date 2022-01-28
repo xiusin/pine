@@ -1,6 +1,8 @@
 package collector
 
-import "github.com/xiusin/pine"
+import (
+	"github.com/xiusin/pine"
+)
 
 type RequestDataCollector struct {
 	cookie  map[string]string
@@ -11,6 +13,26 @@ type RequestDataCollector struct {
 	headers map[string]string
 }
 
-func NewRequestDataCollector(ctx pine.Context) *RequestDataCollector {
+func (r RequestDataCollector) Collect() {
+	panic("implement me")
+}
+
+func (r RequestDataCollector) GetName() string {
+	panic("implement me")
+}
+
+func (r RequestDataCollector) GetTitle() interface{} {
+	panic("implement me")
+}
+
+func (r RequestDataCollector) GetRoute() string {
+	panic("implement me")
+}
+
+func (r RequestDataCollector) GetWidgets() interface{} {
+	panic("implement me")
+}
+
+func NewRequestDataCollector(ctx *pine.Context) *RequestDataCollector {
 	return &RequestDataCollector{}
 }

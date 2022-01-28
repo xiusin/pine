@@ -5,9 +5,8 @@
 package pine
 
 import (
+	"github.com/xiusin/pine/sessions"
 	"time"
-
-	"github.com/xiusin/pine/sessions/cookie_transcoder"
 )
 
 type TimeoutConf struct {
@@ -23,7 +22,7 @@ type Configuration struct {
 	gracefulShutdown          bool
 	autoParseControllerResult bool
 	useCookie                 bool
-	CookieTranscoder          cookie_transcoder.AbstractCookieTranscoder
+	CookieTranscoder          sessions.AbstractCookieTranscoder
 	defaultResponseType       string
 	compressGzip              bool
 	timeout                   TimeoutConf
@@ -36,7 +35,7 @@ type AbstractReadonlyConfiguration interface {
 	GetUseCookie() bool
 	GetMaxMultipartMemory() int64
 	GetAutoParseControllerResult() bool
-	GetCookieTranscoder() cookie_transcoder.AbstractCookieTranscoder
+	GetCookieTranscoder() sessions.AbstractCookieTranscoder
 	GetDefaultResponseType() string
 	GetCompressGzip() bool
 	GetTimeout() TimeoutConf
@@ -62,7 +61,7 @@ func WithServerName(srvName string) Configurator {
 	}
 }
 
-func WithCookieTranscoder(transcoder cookie_transcoder.AbstractCookieTranscoder) Configurator {
+func WithCookieTranscoder(transcoder sessions.AbstractCookieTranscoder) Configurator {
 	return func(o *Configuration) {
 		o.CookieTranscoder = transcoder
 	}
@@ -123,7 +122,7 @@ func (c *Configuration) GetAutoParseControllerResult() bool {
 	return c.autoParseControllerResult
 }
 
-func (c *Configuration) GetCookieTranscoder() cookie_transcoder.AbstractCookieTranscoder {
+func (c *Configuration) GetCookieTranscoder() sessions.AbstractCookieTranscoder {
 	return c.CookieTranscoder
 }
 

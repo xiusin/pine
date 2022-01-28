@@ -41,3 +41,4 @@ GET    | /    |         | rootPath | path/to/routes_error/actions.HomeHandler
 - 细化input(参照laravel), 抽象convert结构体, 处理各种数据转换.
 - 模板引擎支持传入文件系统对象
 - 实现路由占位符用于自定义路由替换规则
+- 缓存驱动github.com/syndtr/goleveldb/leveldb

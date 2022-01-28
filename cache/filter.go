@@ -10,7 +10,8 @@ import (
 
 var filter *bloom.BloomFilter
 
-func DefaultBoomFilter(n uint, fp float64) {
+// InitBoomFilter 初始化布隆过滤器
+func InitBoomFilter(n uint, fp float64) {
 	filter = bloom.NewWithEstimates(n, fp)
 }
 

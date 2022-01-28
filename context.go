@@ -90,7 +90,7 @@ func (c *Context) reset() {
 	c.sess = nil
 	c.input = nil
 	c.loggerEntity = nil
-
+	c.RequestCtx = nil
 	c.middlewareIndex = -1
 	c.stopped = false
 	c.Msg = ""
@@ -191,11 +191,9 @@ func (c *Context) Session(sessIns ...sessions.AbstractSession) sessions.Abstract
 func dispatchRequest(a *Application) func(ctx *fasthttp.RequestCtx) {
 	return func(ctx *fasthttp.RequestCtx) {
 		c := a.pool.Get().(*Context)
-		c.beginRequest(ctx)
 		defer a.pool.Put(c)
-		defer func() { c.RequestCtx = nil }()
 		defer c.endRequest(a.recoverHandler)
-
+		c.beginRequest(ctx)
 		a.handle(c)
 	}
 }

@@ -2,21 +2,21 @@ package sessions
 
 import (
 	"github.com/valyala/fasthttp"
-	"github.com/xiusin/pine/sessions/cookie_transcoder"
 )
 
 type Cookie struct {
 	ctx        *fasthttp.RequestCtx
-	transcoder cookie_transcoder.AbstractCookieTranscoder
+	transcoder AbstractCookieTranscoder
 }
 
-func NewCookie(ctx *fasthttp.RequestCtx,
-	transcoder cookie_transcoder.AbstractCookieTranscoder) *Cookie {
+type AbstractCookieTranscoder interface {
+	Encode(cookieName string, value interface{}) (string, error)
+	Decode(cookieName string, cookieValue string, v interface{}) error
+}
 
-	return &Cookie{
-		ctx:        ctx,
-		transcoder: transcoder,
-	}
+
+func NewCookie(ctx *fasthttp.RequestCtx, transcoder AbstractCookieTranscoder) *Cookie {
+	return &Cookie{ctx, transcoder}
 }
 
 func (c *Cookie) Reset(ctx *fasthttp.RequestCtx) {
@@ -27,7 +27,7 @@ func (c *Cookie) Get(name string) string {
 	value := string(c.ctx.Request.Header.Cookie(name))
 	if c.transcoder != nil {
 		var cookie string
-		c.transcoder.Decode(name, value, &cookie)
+		_ = c.transcoder.Decode(name, value, &cookie)
 		return cookie
 	}
 	return value
