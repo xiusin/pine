@@ -1,4 +1,4 @@
-package jet
+package pjet
 
 import (
 	"github.com/CloudyKit/jet"

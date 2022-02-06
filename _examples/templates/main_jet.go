@@ -3,7 +3,7 @@ package main
 import (
 	"github.com/xiusin/pine"
 	"github.com/xiusin/pine/di"
-	"github.com/xiusin/pine/render/engine/jet"
+	"github.com/xiusin/pine/render/engine/pjet"
 )
 
 func main() {
@@ -11,7 +11,7 @@ func main() {
 
 	di.Set("render", func(builder di.AbstractBuilder) (i interface{}, e error) {
 		// reload = true 每次都会重载模板
-		return jet.New("views", ".jet", true), nil
+		return pjet.New("views", ".jet", true), nil
 	}, true)
 
 	app.GET("/", func(ctx *pine.Context) {
