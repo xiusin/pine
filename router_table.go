@@ -5,17 +5,18 @@
 package pine
 
 import (
-	"github.com/landoop/tableprinter"
 	"os"
 	"reflect"
 	"runtime"
+
+	"github.com/landoop/tableprinter"
 )
 
 type RouterTableRow struct {
-	Method  string `header:"METHOD"`
-	Path    string `header:"PATH"`
-	Alias   string `header:"ALIASES"`
-	Name    string `header:"NAME"`
+	Method string `header:"METHOD"`
+	Path   string `header:"PATH"`
+	// Alias   string `header:"ALIASES"`
+	// Name    string `header:"NAME"`
 	Handler string `header:"HANDLER"`
 }
 
@@ -32,16 +33,26 @@ func (r *Router) DumpRouteTable() {
 			continue
 		}
 		for s, entry := range routers {
-			pc := make([]uintptr, 1)
-			runtime.Callers(2, pc)
 			tables = append(tables, RouterTableRow{
 				Method:  method,
 				Path:    s,
-				Alias:   "",
-				Name:    "",
 				Handler: runtime.FuncForPC(reflect.ValueOf(entry.Handle).Pointer()).Name(),
 			})
 		}
 	}
+
+	for _, routers := range patternRoutes {
+		if len(routers) == 0 {
+			continue
+		}
+		for _, entry := range routers {
+			tables = append(tables, RouterTableRow{
+				Method:  entry.Method,
+				Path:    entry.Pattern,
+				Handler: runtime.FuncForPC(reflect.ValueOf(entry.Handle).Pointer()).Name(),
+			})
+		}
+	}
+
 	p.Print(tables)
 }

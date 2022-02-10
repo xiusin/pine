@@ -6,6 +6,14 @@ import (
 	"github.com/xiusin/pine"
 )
 
+type CController struct {
+	pine.Controller
+}
+
+func (c *CController) GetName() {
+
+}
+
 func main() {
 
 	app := pine.New()
@@ -15,6 +23,7 @@ func main() {
 		ctx.Set("version", pine.Version)
 		ctx.Next()
 	})
+	app.Handle(&CController{}, "/cc")
 
 	app.Static("/assets/", ".")
 

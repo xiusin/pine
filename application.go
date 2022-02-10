@@ -7,7 +7,6 @@ package pine
 import (
 	"errors"
 	"fmt"
-	"github.com/xiusin/logger"
 	"io"
 	"os"
 	"path"
@@ -16,6 +15,8 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+
+	"github.com/xiusin/logger"
 
 	"io/fs"
 
@@ -113,7 +114,7 @@ type Application struct {
 	ReadonlyConfiguration AbstractReadonlyConfiguration
 }
 
-func init()  {
+func init() {
 	di.Instance(logger.GetDefault())
 }
 
@@ -175,7 +176,6 @@ func (r *Router) register(controller IController, prefix ...string) {
 
 func (r *Router) matchRegister(path, prefix string, handle Handler) {
 	var methods = map[string]routeMaker{
-		"":       r.ANY,
 		"Get":    r.GET,
 		"Put":    r.PUT,
 		"Post":   r.POST,
@@ -553,10 +553,6 @@ func (r *Router) HEAD(path string, handle Handler, mws ...Handler) {
 }
 
 func (r *Router) DELETE(path string, handle Handler, mws ...Handler) {
-	r.AddRoute(fasthttp.MethodDelete, path, handle, mws...)
-}
-
-func (r *Router) Delete(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(fasthttp.MethodDelete, path, handle, mws...)
 }
 
