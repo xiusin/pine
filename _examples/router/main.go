@@ -10,12 +10,15 @@ type CController struct {
 	pine.Controller
 }
 
+func (c *CController) Index() {
+	c.Ctx().WriteString("hello world")
+}
+
 func (c *CController) GetName() {
 
 }
 
 func main() {
-
 	app := pine.New()
 
 	app.Use(func(ctx *pine.Context) {

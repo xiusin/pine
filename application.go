@@ -55,6 +55,8 @@ var (
 		":any":    "<.*>",
 	}
 
+	controllerDefaultAction = ""
+
 	_ AbstractRouter = (*Application)(nil)
 )
 
@@ -163,8 +165,17 @@ func (r *Router) register(controller IController, prefix ...string) {
 	} else {
 		val, typ := reflect.ValueOf(controller), reflect.TypeOf(controller)
 		num, routeWrapper := typ.NumMethod(), wrapper
+
+		if len(controllerDefaultAction) > 0 {
+			r.matchRegister(controllerDefaultAction, prefix[0], routeWrapper.warpHandler(controllerDefaultAction, controller))
+			r.ANY(prefix[0], routeWrapper.warpHandler(controllerDefaultAction, controller))
+		}
+
 		for i := 0; i < num; i++ {
 			name := typ.Method(i).Name
+			if len(controllerDefaultAction) > 0 && name == controllerDefaultAction {
+				continue
+			}
 			if _, ok := reflectingNeedIgnoreMethods[name]; !ok && val.MethodByName(name).IsValid() {
 				r.matchRegister(name, prefix[0], routeWrapper.warpHandler(name, controller))
 			}
@@ -575,4 +586,8 @@ func upperCharToUnderLine(path string) string {
 
 func RegisterOnInterrupt(handler func()) {
 	shutdownBeforeHandler = append(shutdownBeforeHandler, handler)
+}
+
+func SetControllerDefaultAction(str string) {
+	controllerDefaultAction = str
 }
