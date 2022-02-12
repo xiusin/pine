@@ -6,6 +6,7 @@ package pine
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"runtime"
@@ -285,11 +286,10 @@ func (c *Context) BindJSON(rev interface{}) error {
 }
 
 func (c *Context) BindForm(rev interface{}) error {
-	if values := c.Input().PostData(); len(values) > 0 {
+	if values := c.Input().PostForm(); len(values) > 0 {
 		return schemaDecoder.Decode(rev, values)
 	}
-
-	return nil
+	return errors.New("no post data")
 }
 
 func (c *Context) Value(key string) interface{} {

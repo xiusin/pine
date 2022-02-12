@@ -102,15 +102,15 @@ func (i *input) ResetFromContext() {
 			jsonRawBodyData[GoRawBody] = arr
 		}
 	}
-	i.ctx.QueryArgs().VisitAll(func(key, value []byte) {
-		data[string(key)] = value
-	})
+	//i.ctx.QueryArgs().VisitAll(func(key, value []byte) {
+	//	data[string(key)] = value
+	//})
+	//
+	//i.ctx.PostArgs().VisitAll(func(key, value []byte) {
+	//	data[string(key)] = value
+	//})
 
-	i.ctx.PostArgs().VisitAll(func(key, value []byte) {
-		data[string(key)] = value
-	})
-
-	for key, values := range i.PostData() {
+	for key, values := range i.PostForm() {
 		if len(values[0]) > 0 {
 			data[key] = i.str2bytes(values[0])
 		} else {
@@ -134,11 +134,15 @@ func (i *input) GetForm() *multipart.Form {
 	return i.form
 }
 
-func (i *input) PostData() map[string][]string {
-	if i.GetForm() != nil {
-		return i.form.Value
-	}
-	return nil
+func (i *input) PostForm() map[string][]string {
+	data := map[string][]string{}
+	i.ctx.PostArgs().VisitAll(func(key, value []byte) {
+		data[string(key)] = []string{string(value)}
+	})
+	i.ctx.QueryArgs().VisitAll(func(key, value []byte) {
+		data[string(key)] = []string{string(value)}
+	})
+	return data
 }
 
 // DelExcept 删除指定keys之外的数据
