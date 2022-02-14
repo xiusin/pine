@@ -24,6 +24,7 @@ const GoRawBody = "pine://input"
 type input struct {
 	ctx  *Context
 	form *multipart.Form
+	err  error
 	data map[string]interface{}
 }
 
@@ -90,25 +91,20 @@ func (i *input) Clear() {
 	}
 }
 
+func (i *input) LastErr() error {
+	return i.err
+}
+
 func (i *input) ResetFromContext() {
 	data := map[string]interface{}{}
 	jsonRawBodyData := map[string]interface{}{}
 	if i.IsJson() {
 		if err := json.Unmarshal(i.ctx.RequestCtx.PostBody(), &jsonRawBodyData); err != nil {
 			arr := []interface{}{}
-			if err := json.Unmarshal(i.ctx.RequestCtx.PostBody(), &arr); err != nil {
-				Logger().Debug("无法解析Body内容", err)
-			}
+			i.err = json.Unmarshal(i.ctx.RequestCtx.PostBody(), &arr)
 			jsonRawBodyData[GoRawBody] = arr
 		}
 	}
-	//i.ctx.QueryArgs().VisitAll(func(key, value []byte) {
-	//	data[string(key)] = value
-	//})
-	//
-	//i.ctx.PostArgs().VisitAll(func(key, value []byte) {
-	//	data[string(key)] = value
-	//})
 
 	for key, values := range i.PostForm() {
 		if len(values[0]) > 0 {
@@ -116,6 +112,19 @@ func (i *input) ResetFromContext() {
 		} else {
 			data[key] = []byte("")
 		}
+	}
+
+	multiForm, err := i.ctx.MultipartForm()
+	if err == nil {
+		for key, values := range multiForm.Value {
+			if len(values[0]) > 0 {
+				data[key] = i.str2bytes(values[0])
+			} else {
+				data[key] = []byte("")
+			}
+		}
+	} else if fasthttp.ErrNoMultipartForm != err {
+		i.err = err
 	}
 
 	if len(jsonRawBodyData) > 0 {
