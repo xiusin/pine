@@ -14,6 +14,10 @@ type ServerDataCollector struct {
 	usedTime    string
 }
 
+func (r *ServerDataCollector) SetContext(ctx *pine.Context) {}
+
+func (r *ServerDataCollector) Destroy() {}
+
 func (r *ServerDataCollector) Collect() {
 	r.goos = runtime.GOOS
 	r.goVersion = runtime.Version()

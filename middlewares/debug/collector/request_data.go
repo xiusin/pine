@@ -11,28 +11,38 @@ type RequestDataCollector struct {
 	post    map[string][]string
 	session map[string]string
 	headers map[string]string
+
+	ctx *pine.Context
 }
 
-func (r RequestDataCollector) Collect() {
+func (c *RequestDataCollector) SetContext(ctx *pine.Context) {
+	c.ctx = ctx
+}
+
+func (c *RequestDataCollector) Destroy() {
+	c.ctx = nil
+
+}
+
+func (c *RequestDataCollector) Collect() {
+}
+
+func (c RequestDataCollector) GetName() string {
 	panic("implement me")
 }
 
-func (r RequestDataCollector) GetName() string {
+func (c RequestDataCollector) GetTitle() interface{} {
 	panic("implement me")
 }
 
-func (r RequestDataCollector) GetTitle() interface{} {
+func (c RequestDataCollector) GetRoute() string {
 	panic("implement me")
 }
 
-func (r RequestDataCollector) GetRoute() string {
+func (c RequestDataCollector) GetWidgets() interface{} {
 	panic("implement me")
 }
 
-func (r RequestDataCollector) GetWidgets() interface{} {
-	panic("implement me")
-}
-
-func NewRequestDataCollector(ctx *pine.Context) *RequestDataCollector {
+func NewRequestDataCollector() *RequestDataCollector {
 	return &RequestDataCollector{}
 }

@@ -32,9 +32,18 @@ type errHandler struct {
 
 var defaultHandler = &errHandler{}
 
-func DebugBar() pine.Handler {
+func DebugBar(enable bool) pine.Handler {
 	return func(ctx *pine.Context) {
+		collectorMgr := NewCollectorMgr(ctx, enable)
+		ctx.Set("collectorMgr", collectorMgr)
+		ctx.Next()
 
+		collectorMgr.RegisterCollector()
+
+		if ctx.Response.StatusCode() == 200 {
+			collectorMgr.BuildHtmlTag()
+		}
+		collectorMgr.Destroy()
 	}
 }
 
@@ -51,8 +60,8 @@ func Recover(r *pine.Application) pine.Handler {
 		c.ResetBody()
 		c.Logger().Printf("msg: %s  Method: %s  Path: %s", c.Msg, c.Method(), c.Path())
 		if c.IsAjax() {
-			c.Response.Header.Add("Content-Type", "application/json")
-			c.Write(defaultHandler.showTraceInfo(c.Msg, stack, true))
+			c.Response.Header.Add("Content-Type", pine.ContentTypeJSON)
+			_ = c.Write(defaultHandler.showTraceInfo(c.Msg, stack, true))
 		} else {
 			c.Response.Header.Add("Content-Type", pine.ContentTypeHTML)
 			defaultHandler.errors(c, c.Msg, defaultHandler.showTraceInfo(c.Msg, stack, false))

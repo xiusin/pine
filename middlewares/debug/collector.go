@@ -4,11 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"github.com/xiusin/pine"
+	"github.com/xiusin/pine/middlewares/debug/collector"
 )
 
 type AbstractCollector interface {
 	Collect()        // 收集数据
 	GetName() string // 收集器名称
+
+	SetContext(ctx *pine.Context)
 
 	GetTitle() interface{} // 前端渲染页面
 
@@ -23,14 +26,17 @@ type CollectorMgr struct {
 	contextId  uint64
 	enable     bool
 	ctx        *pine.Context
-	collectors map[string]AbstractCollector
+	collectors []AbstractCollector
 }
 
 func NewCollectorMgr(ctx *pine.Context, enable bool) *CollectorMgr {
 	return &CollectorMgr{
-		enable:     enable,
-		collectors: map[string]AbstractCollector{},
-		contextId:  ctx.RequestCtx.ID(),
+		enable:    enable,
+		contextId: ctx.RequestCtx.ID(),
+		collectors: []AbstractCollector{
+			collector.NewServerDataCollector(),
+			collector.NewRequestDataCollector(),
+		},
 	}
 }
 
@@ -46,9 +52,7 @@ func (mgr *CollectorMgr) RegisterCollector(collectors ...AbstractCollector) {
 	if mgr.IsEnable() {
 		return
 	}
-	for _, collector := range collectors {
-		mgr.collectors[collector.GetName()] = collector
-	}
+	mgr.collectors = append(mgr.collectors, collectors...)
 }
 
 func (mgr *CollectorMgr) BuildHtmlTag() (string, error) {
@@ -62,9 +66,8 @@ func (mgr *CollectorMgr) BuildHtmlTag() (string, error) {
 }
 
 func (mgr *CollectorMgr) Destroy() {
-	for name, collector := range mgr.collectors {
+	for _, collector := range mgr.collectors {
 		collector.Destroy()
-		delete(mgr.collectors, name)
 	}
 	mgr.collectors = nil
 	mgr.ctx = nil

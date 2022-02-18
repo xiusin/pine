@@ -5,7 +5,6 @@
 package sessions
 
 import (
-	"strings"
 	"sync"
 
 	"github.com/xiusin/pine/cache"
@@ -16,12 +15,10 @@ const (
 	Destroyed
 )
 
-var sessPrefix = []byte("sess_")
-
 type Session struct {
 	sync.RWMutex
 	id   string
-	data map[string]entry
+	data map[string]interface{}
 
 	status int
 	store  AbstractSessionStore
@@ -29,13 +26,8 @@ type Session struct {
 	cookie *Cookie
 }
 
-type entry struct {
-	Value string `json:"value"`
-	Flush bool   `json:"flush"`
-}
-
 func newSession(id string, store AbstractSessionStore, cookie *Cookie) (*Session, error) {
-	entity := map[string]entry{}
+	entity := map[string]interface{}{}
 	sess := &Session{id: id, store: store, cookie: cookie}
 
 	if err := store.Get(sess.key(), &entity); err != nil && err != cache.ErrKeyNotFound {
@@ -50,26 +42,24 @@ func newSession(id string, store AbstractSessionStore, cookie *Cookie) (*Session
 
 func (sess *Session) GetId() string { return sess.id }
 
-func (sess *Session) Set(key string, val string) {
+func (sess *Session) Set(key string, val interface{}) {
 	sess.Lock()
-	sess.data[key] = entry{Value: val}
+	sess.data[key] = val
 	sess.Unlock()
 }
 
-func (sess *Session) Get(key string) string {
+func (sess *Session) All() map[string]interface{} {
 	sess.RLock()
-	var val entry
-	if val = sess.data[key]; val.Flush {
-		sess.Remove(key)
-	}
-	sess.RUnlock()
-	return val.Value
+	defer sess.RUnlock()
+
+	return sess.data
 }
 
-func (sess *Session) AddFlush(key string, val string) {
-	sess.Lock()
-	sess.data[key] = entry{Value: val, Flush: true}
-	sess.Unlock()
+func (sess *Session) Get(key string) interface{} {
+	sess.RLock()
+	defer sess.RUnlock()
+
+	return sess.data[key]
 }
 
 // Remove 移除某个key
@@ -117,8 +107,5 @@ func (sess *Session) Has(key string) bool {
 
 // makeKey 存储session的key
 func (sess *Session) key() string {
-	var buf strings.Builder
-	buf.Write(sessPrefix)
-	buf.WriteString(sess.id)
-	return buf.String()
+	return "sess_" + sess.id
 }

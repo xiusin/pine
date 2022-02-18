@@ -20,13 +20,14 @@ type AbstractSessionStore interface {
 
 type AbstractSession interface {
 	GetId() string
-	Set(string, string)
-	Get(string) string
+	Set(string, interface{})
+	Get(string) interface{}
 	Has(string) bool
-	AddFlush(string, string)
 	Remove(string)
 	Destroy() error
 	Save() error
+
+	All() map[string]interface{}
 }
 
 type Sessions struct {
@@ -40,16 +41,12 @@ type Config struct {
 	Expires    time.Duration
 }
 
-const defaultSessionCookieName = "pine_session_id"
-
-var defaultSessionLiftTime = time.Second * 604800 // 默认最长为7天
-
 func New(provider AbstractSessionStore, cfg *Config) *Sessions {
 	if len(cfg.CookieName) == 0 {
-		cfg.CookieName = defaultSessionCookieName
+		cfg.CookieName = "pine_session_id"
 	}
 	if cfg.Expires.Seconds() == 0 {
-		cfg.Expires = defaultSessionLiftTime
+		cfg.Expires = time.Second * 604800
 	}
 	return &Sessions{provider: provider, cfg: cfg}
 }
