@@ -136,7 +136,7 @@ func New() *Application {
 
 	app.SetNotFound(func(c *Context) {
 		if len(c.Msg) == 0 {
-			c.Msg = "Not Found"
+			c.Msg = fasthttp.StatusMessage(fasthttp.StatusNotFound)
 		}
 		c.Response.Header.SetContentType(ContentTypeHTML)
 		_ = DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": fasthttp.StatusNotFound})
@@ -144,7 +144,7 @@ func New() *Application {
 
 	app.NotAllowMethod(func(c *Context) {
 		if len(c.Msg) == 0 {
-			c.Msg = "Method not allowed"
+			c.Msg = fasthttp.StatusMessage(fasthttp.StatusForbidden)
 		}
 		c.Response.Header.SetContentType(ContentTypeHTML)
 		_ = DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": fasthttp.StatusMethodNotAllowed})
