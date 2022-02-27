@@ -393,7 +393,6 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 			}
 		}
 	}
-
 	for _, pattern := range sortedPattern {
 		routes := patternRoutes[pattern]
 		reg := regexp.MustCompile(pattern)
@@ -532,7 +531,7 @@ func (r *Router) Static(urlPath, dir string, stripSlashes ...int) {
 	}
 	routePath := path.Join(urlPath, "*"+FilePathParam)
 	r.GET(routePath, handler)
-	r.HEAD(routePath, handler)
+	//r.HEAD(routePath, handler)
 }
 
 func (r *Router) StaticFile(path, file string, mws ...Handler) {

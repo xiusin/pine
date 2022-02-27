@@ -18,7 +18,7 @@ require (
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/valyala/fasthttp v1.32.0
 	github.com/valyala/fastjson v1.6.3
-	github.com/xiusin/logger v0.0.10-0.20220103084022-9cb8378d9b03
+	github.com/xiusin/logger v0.0.10-0.20220129022857-69c2a6f6a736
 )
 
 require (

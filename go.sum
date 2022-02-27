@@ -136,6 +136,8 @@ github.com/valyala/fastrand v1.1.0/go.mod h1:HWqCzkrkg6QXT8V2EXWvXCoow7vLwOFN002
 github.com/valyala/tcplisten v1.0.0/go.mod h1:T0xQ8SeCZGxckz9qRXTfG43PvQ/mcWh7FwZEA7Ioqkc=
 github.com/xiusin/logger v0.0.10-0.20220103084022-9cb8378d9b03 h1:o3vENhiqDP4DlqK2AEf4Qr7nCZhvfT9UWdDfhaApPPs=
 github.com/xiusin/logger v0.0.10-0.20220103084022-9cb8378d9b03/go.mod h1:fEzFJfh865KMxYsx3maW7dRFEubGNcZy6wbzAqVMfF8=
+github.com/xiusin/logger v0.0.10-0.20220129022857-69c2a6f6a736 h1:3s//N1JiUevJQd20U4B0Kjmj9n9hkX65ct8VfJkioz0=
+github.com/xiusin/logger v0.0.10-0.20220129022857-69c2a6f6a736/go.mod h1:fEzFJfh865KMxYsx3maW7dRFEubGNcZy6wbzAqVMfF8=
 github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 h1:QldyIu/L63oPpyvQmHgvgickp1Yw510KJOqX7H24mg8=
 github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778/go.mod h1:2MuV+tbUrU1zIOPMxZ5EncGwgmMJsa+9ucAQZXxsObs=
 github.com/xordataexchange/crypt v0.0.3-0.20170626215501-b2862e3d0a77/go.mod h1:aYKd//L2LvnjZzWKhF00oedf4jCCReLcmhLdhm1A27Q=

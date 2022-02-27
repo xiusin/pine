@@ -24,6 +24,9 @@ func main() {
 		}
 		ctx.Next()
 	})
+
+
+	app.Static("/uploads", "./resources/uploads")
 	app.ANY("/get", func(ctx *pine.Context) {
 		// atomic.AddUint32(&v, 1)
 		// fmt.Println(v)
