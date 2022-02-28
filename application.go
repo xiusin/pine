@@ -339,6 +339,7 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 		sortedPattern = append(sortedPattern, pattern)
 	} else {
 		r.methodRoutes[method][path] = route
+		r.methodRoutes[fasthttp.MethodOptions][path] = route // 默认options方法
 	}
 }
 
@@ -388,7 +389,7 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 		p := strings.Join(pathInfo[:i], urlSeparator)
 		groupRouter, ok := r.groups[p]
 		if ok {
-			if route := groupRouter.lookupGroupRoute(i, method, pathInfo, &fullPath); route != nil {
+			if route := groupRouter.lookupGroupRoute(i, method, pathInfo, fullPath); route != nil {
 				return route
 			}
 		}
@@ -415,8 +416,9 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 	return nil
 }
 
-func (r *Router) lookupGroupRoute(i int, method string, pathInfo []string, fullPath *string) *RouteEntry {
+func (r *Router) lookupGroupRoute(i int, method string, pathInfo []string, fullPath string) *RouteEntry {
 	p := urlSeparator + strings.Join(pathInfo[i:], urlSeparator)
+
 	for routePath, route := range r.methodRoutes[method] {
 		if routePath != p || route.Method != method {
 			continue
@@ -427,9 +429,10 @@ func (r *Router) lookupGroupRoute(i int, method string, pathInfo []string, fullP
 		}
 		return route
 	}
+
 	if r.groups != nil {
 		for _, v := range r.groups {
-			if i+1 < len(pathInfo) && strings.Contains(*fullPath, v.prefix) {
+			if i+1 < len(pathInfo) && strings.Contains(fullPath, v.prefix) {
 				if route := v.lookupGroupRoute(i+1, method, pathInfo, fullPath); route != nil {
 					return route
 				}
