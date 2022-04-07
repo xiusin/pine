@@ -28,7 +28,7 @@ func New(viewDir, ext string, reload bool) *PineJet {
 	return template
 }
 
-func (p *PineJet) AddFunc(funcName string, funcEntry interface{}) {
+func (p *PineJet) AddFunc(funcName string, funcEntry any) {
 	p.Set.AddGlobalFunc(funcName, funcEntry.(jet.Func))
 }
 
@@ -36,7 +36,7 @@ func (p *PineJet) Ext() string {
 	return p.ext
 }
 
-func (p *PineJet) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
+func (p *PineJet) HTML(writer io.Writer, name string, binding map[string]any) error {
 	if runtime.GOOS == "windows" {
 		name = strings.Replace(name, "\\", "/", -1)
 	}

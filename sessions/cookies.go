@@ -10,10 +10,9 @@ type Cookie struct {
 }
 
 type AbstractCookieTranscoder interface {
-	Encode(cookieName string, value interface{}) (string, error)
-	Decode(cookieName string, cookieValue string, v interface{}) error
+	Encode(cookieName string, value any) (string, error)
+	Decode(cookieName string, cookieValue string, v any) error
 }
-
 
 func NewCookie(ctx *fasthttp.RequestCtx, transcoder AbstractCookieTranscoder) *Cookie {
 	return &Cookie{ctx, transcoder}

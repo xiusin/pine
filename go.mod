@@ -1,6 +1,6 @@
 module github.com/xiusin/pine
 
-go 1.17
+go 1.18
 
 require (
 	github.com/CloudyKit/jet v2.1.3-0.20180809161101-62edd43e4f88+incompatible

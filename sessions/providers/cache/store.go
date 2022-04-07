@@ -18,11 +18,11 @@ func NewStore(cache cache.AbstractCache) *Store {
 	return &Store{cache}
 }
 
-func (store *Store) Get(key string, receiver interface{}) error {
+func (store *Store) Get(key string, receiver any) error {
 	return store.Cache.GetWithUnmarshal(key, receiver)
 }
 
-func (store *Store) Save(id string, val interface{}) error {
+func (store *Store) Save(id string, val any) error {
 	s, err := json.Marshal(val)
 	if err != nil {
 		return err

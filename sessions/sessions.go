@@ -13,21 +13,21 @@ import (
 )
 
 type AbstractSessionStore interface {
-	Get(string, interface{}) error
-	Save(string, interface{}) error
+	Get(string, any) error
+	Save(string, any) error
 	Delete(string) error
 }
 
 type AbstractSession interface {
 	GetId() string
-	Set(string, interface{})
-	Get(string) interface{}
+	Set(string, any)
+	Get(string) any
 	Has(string) bool
 	Remove(string)
 	Destroy() error
 	Save() error
 
-	All() map[string]interface{}
+	All() map[string]any
 }
 
 type Sessions struct {

@@ -132,7 +132,7 @@ func New() *Application {
 		recoverHandler: defaultRecoverHandler,
 	}
 
-	app.pool.New = func() interface{} { return newContext(app) }
+	app.pool.New = func() any { return newContext(app) }
 
 	app.SetNotFound(func(c *Context) {
 		if len(c.Msg) == 0 {
@@ -160,7 +160,7 @@ func (r *Router) register(controller IController, prefix ...string) {
 	if len(prefix) == 0 {
 		prefix = append(prefix, "")
 	}
-	if v, implemented := interface{}(controller).(IRegisterHandler); implemented {
+	if v, implemented := any(controller).(IRegisterHandler); implemented {
 		v.RegisterRoute(wrapper)
 	} else {
 		val, typ := reflect.ValueOf(controller), reflect.TypeOf(controller)
@@ -460,7 +460,7 @@ func (r *Router) Use(middleWares ...Handler) {
 	r.middleWares = append(r.middleWares, middleWares...)
 }
 
-func (r *Router) Favicon(file interface{}) {
+func (r *Router) Favicon(file any) {
 	r.GET("/favicon.ico", func(c *Context) {
 		if filename, ok := file.(string); ok {
 			if mimeType := gomime.TypeByExtension(filepath.Ext(filename)); len(mimeType) > 0 {

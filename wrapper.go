@@ -95,7 +95,7 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 	ctx := c.MethodByName("Ctx").Call(nil)[0].Interface().(*Context)
 
 	if cmr.hasShareField {
-		cmr.share.Range(func(key, value interface{}) bool {
+		cmr.share.Range(func(key, value any) bool {
 			c.Elem().FieldByName(key.(string)).Set(value.(reflect.Value))
 			return true
 		})

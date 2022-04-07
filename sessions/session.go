@@ -18,7 +18,7 @@ const (
 type Session struct {
 	sync.RWMutex
 	id   string
-	data map[string]interface{}
+	data map[string]any
 
 	status int
 	store  AbstractSessionStore
@@ -27,7 +27,7 @@ type Session struct {
 }
 
 func newSession(id string, store AbstractSessionStore, cookie *Cookie) (*Session, error) {
-	entity := map[string]interface{}{}
+	entity := map[string]any{}
 	sess := &Session{id: id, store: store, cookie: cookie}
 
 	if err := store.Get(sess.key(), &entity); err != nil && err != cache.ErrKeyNotFound {
@@ -42,20 +42,20 @@ func newSession(id string, store AbstractSessionStore, cookie *Cookie) (*Session
 
 func (sess *Session) GetId() string { return sess.id }
 
-func (sess *Session) Set(key string, val interface{}) {
+func (sess *Session) Set(key string, val any) {
 	sess.Lock()
 	sess.data[key] = val
 	sess.Unlock()
 }
 
-func (sess *Session) All() map[string]interface{} {
+func (sess *Session) All() map[string]any {
 	sess.RLock()
 	defer sess.RUnlock()
 
 	return sess.data
 }
 
-func (sess *Session) Get(key string) interface{} {
+func (sess *Session) Get(key string) any {
 	sess.RLock()
 	defer sess.RUnlock()
 
