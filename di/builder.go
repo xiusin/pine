@@ -1,4 +1,4 @@
-// Copyright 2014 Manu Martinez-Almeida.  All rights reserved.
+// Copyright All rights reserved.
 // Use of this source code is governed by a MIT style
 // license that can be found in the LICENSE file.
 
@@ -14,26 +14,26 @@ import (
 var ErrNotSupportedType = fmt.Errorf("unsupported type")
 
 type AbstractBuilder interface {
-	Bind(interface{}, BuildHandler) *Definition
-	Singleton(interface{}, BuildHandler) *Definition
-	Instance(interface{}, ...interface{}) *Definition
+	Bind(any, BuildHandler) *Definition
+	Singleton(any, BuildHandler) *Definition
+	Instance(any, ...any) *Definition
 	Register(...AbstractServiceProvider)
 
-	Set(interface{}, BuildHandler, bool) *Definition
-	SetWithParams(interface{}, BuildWithHandler) *Definition
+	Set(any, BuildHandler, bool) *Definition
+	SetWithParams(any, BuildWithHandler) *Definition
 	Add(*Definition)
-	Get(interface{}) (interface{}, error)
-	GetWithParams(interface{}, ...interface{}) (interface{}, error)
-	MustGet(interface{}, ...interface{}) interface{}
-	GetDefinition(interface{}) (*Definition, error)
-	Exists(interface{}) bool
+	Get(any) (any, error)
+	GetWithParams(any, ...any) (any, error)
+	MustGet(any, ...any) any
+	GetDefinition(any) (*Definition, error)
+	Exists(any) bool
 }
 type builder struct {
 	// alias    map[string]string
 	services sync.Map
 }
-type BuildHandler func(builder AbstractBuilder) (interface{}, error)
-type BuildWithHandler func(builder AbstractBuilder, params ...interface{}) (interface{}, error)
+type BuildHandler func(builder AbstractBuilder) (any, error)
+type BuildWithHandler func(builder AbstractBuilder, params ...any) (any, error)
 
 //reflect.TypeOf((*logger.AbstractLogger)(nil)).Elem()) 直接反射类型， 后续判断是否可以100%反射pkgPath
 
@@ -41,7 +41,7 @@ const formatErrServiceNotExists = "service %s not exists"
 
 var ErrServiceSingleton = errors.New("service is singleton, cannot use it with GetWithParams")
 
-func (b *builder) GetDefinition(serviceAny interface{}) (*Definition, error) {
+func (b *builder) GetDefinition(serviceAny any) (*Definition, error) {
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
@@ -50,27 +50,27 @@ func (b *builder) GetDefinition(serviceAny interface{}) (*Definition, error) {
 	return service.(*Definition), nil
 }
 
-func (b *builder) Instance(serviceAny interface{}, instance ...interface{}) *Definition {
+func (b *builder) Instance(serviceAny any, instance ...any) *Definition {
 	if len(instance) == 0 {
 		if reflect.ValueOf(serviceAny).Kind() != reflect.Ptr {
 			panic(ErrNotSupportedType)
 		}
-		instance = []interface{}{serviceAny}
+		instance = []any{serviceAny}
 	}
-	return b.Set(serviceAny, func(builder AbstractBuilder) (interface{}, error) {
+	return b.Set(serviceAny, func(builder AbstractBuilder) (any, error) {
 		return instance[0], nil
 	}, true)
 }
 
-func (b *builder) Bind(serviceAny interface{}, handler BuildHandler) *Definition {
+func (b *builder) Bind(serviceAny any, handler BuildHandler) *Definition {
 	return b.Set(serviceAny, handler, false)
 }
 
-func (b *builder) Singleton(serviceAny interface{}, handler BuildHandler) *Definition {
+func (b *builder) Singleton(serviceAny any, handler BuildHandler) *Definition {
 	return b.Set(serviceAny, handler, true)
 }
 
-func (b *builder) Set(serviceAny interface{}, handler BuildHandler, singleton bool) *Definition {
+func (b *builder) Set(serviceAny any, handler BuildHandler, singleton bool) *Definition {
 	var def *Definition
 	serviceName := ResolveServiceName(serviceAny)
 	def = NewDefinition(serviceName, handler, singleton)
@@ -78,7 +78,7 @@ func (b *builder) Set(serviceAny interface{}, handler BuildHandler, singleton bo
 	return def
 }
 
-func ResolveServiceName(service interface{}) string {
+func ResolveServiceName(service any) string {
 	switch service := service.(type) {
 	case string:
 		return service
@@ -101,7 +101,7 @@ func GetFullName(p reflect.Type) string {
 	return fmt.Sprintf("%s@%s", p.PkgPath(), serviceName)
 }
 
-func (b *builder) SetWithParams(serviceAny interface{}, handler BuildWithHandler) *Definition {
+func (b *builder) SetWithParams(serviceAny any, handler BuildWithHandler) *Definition {
 	serviceName := ResolveServiceName(serviceAny)
 	def := NewParamsDefinition(serviceName, handler)
 	b.services.Store(def.serviceName, def)
@@ -118,7 +118,7 @@ func (b *builder) Register(providers ...AbstractServiceProvider) {
 	}
 }
 
-func (b *builder) Get(serviceAny interface{}) (interface{}, error) {
+func (b *builder) Get(serviceAny any) (any, error) {
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
@@ -131,7 +131,7 @@ func (b *builder) Get(serviceAny interface{}) (interface{}, error) {
 	return s, nil
 }
 
-func (b *builder) GetWithParams(serviceAny interface{}, params ...interface{}) (interface{}, error) {
+func (b *builder) GetWithParams(serviceAny any, params ...any) (any, error) {
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
@@ -147,8 +147,8 @@ func (b *builder) GetWithParams(serviceAny interface{}, params ...interface{}) (
 	return s, nil
 }
 
-func (b *builder) MustGet(serviceAny interface{}, params ...interface{}) interface{} {
-	var s interface{}
+func (b *builder) MustGet(serviceAny any, params ...any) any {
+	var s any
 	var err error
 	serviceName := ResolveServiceName(serviceAny)
 	if len(params) == 0 {
@@ -162,10 +162,10 @@ func (b *builder) MustGet(serviceAny interface{}, params ...interface{}) interfa
 	return s
 }
 
-func (b *builder) Exists(serviceAny interface{}) bool {
+func (b *builder) Exists(serviceAny any) bool {
 	var exists = false
 	serviceName := ResolveServiceName(serviceAny)
-	b.services.Range(func(key, value interface{}) bool {
+	b.services.Range(func(key, value any) bool {
 		if key.(string) == serviceName {
 			exists = true
 			return false
@@ -181,33 +181,33 @@ func GetDefaultDI() AbstractBuilder {
 	return di
 }
 
-func Get(serviceAny interface{}) (interface{}, error) {
+func Get(serviceAny any) (any, error) {
 	return di.Get(serviceAny)
 }
 
-func MustGet(serviceAny interface{}, params ...interface{}) interface{} {
+func MustGet(serviceAny any, params ...any) any {
 	return di.MustGet(serviceAny, params...)
 }
 
-func Exists(serviceAny interface{}) bool {
+func Exists(serviceAny any) bool {
 	return di.Exists(serviceAny)
 }
 
 // Remove 移除服务
-func Remove(serviceAny interface{}) {
+func Remove(serviceAny any) {
 	di.services.Delete(ResolveServiceName(serviceAny))
 }
 
 // Bind 绑定非共享服务
-func Bind(serviceAny interface{}, handler BuildHandler) *Definition {
+func Bind(serviceAny any, handler BuildHandler) *Definition {
 	return di.Bind(serviceAny, handler)
 }
 
-func Bound(serviceAny interface{}) bool {
+func Bound(serviceAny any) bool {
 	return Exists(serviceAny)
 }
 
-func IsShare(serviceAny interface{}) bool {
+func IsShare(serviceAny any) bool {
 	if Bound(serviceAny) {
 		return (di.MustGet(serviceAny).(*Definition)).IsSingleton()
 	} else {
@@ -215,11 +215,11 @@ func IsShare(serviceAny interface{}) bool {
 	}
 }
 
-func Set(serviceAny interface{}, handler BuildHandler, singleton bool) *Definition {
+func Set(serviceAny any, handler BuildHandler, singleton bool) *Definition {
 	return di.Set(serviceAny, handler, singleton)
 }
 
-func Attempt(serviceAny interface{}, handler BuildHandler, singleton bool) *Definition {
+func Attempt(serviceAny any, handler BuildHandler, singleton bool) *Definition {
 	if Bound(serviceAny) {
 		return nil
 	} else {
@@ -227,15 +227,15 @@ func Attempt(serviceAny interface{}, handler BuildHandler, singleton bool) *Defi
 	}
 }
 
-func Instance(serviceAny interface{}, instance ...interface{}) *Definition {
+func Instance(serviceAny any, instance ...any) *Definition {
 	return di.Instance(serviceAny, instance...)
 }
 
-func SetWithParams(serviceAny interface{}, handler BuildWithHandler) *Definition {
+func SetWithParams(serviceAny any, handler BuildWithHandler) *Definition {
 	return di.SetWithParams(serviceAny, handler)
 }
 
-func GetWithParams(serviceName string, params ...interface{}) (interface{}, error) {
+func GetWithParams(serviceName string, params ...any) (any, error) {
 	return di.GetWithParams(serviceName, params...)
 }
 
@@ -245,7 +245,7 @@ func Register(providers ...AbstractServiceProvider) {
 
 // InjectOn 作用, 解析object对象内可识别的字段自动注入, 引用服务非数据安全, 需要自行管理
 // object 需要被注入的对象, 仅注入为nil的属性字段
-func InjectOn(ptr interface{}) {
+func InjectOn(ptr any) {
 	value := reflect.ValueOf(ptr)
 	if value.Kind() != reflect.Ptr && value.Elem().Kind() != reflect.Struct {
 		panic(ErrNotSupportedType)
@@ -263,7 +263,7 @@ func InjectOn(ptr interface{}) {
 
 func List() []string {
 	var names []string
-	di.services.Range(func(key, value interface{}) bool {
+	di.services.Range(func(key, value any) bool {
 		names = append(names, key.(string))
 		return true
 	})

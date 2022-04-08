@@ -1,15 +1,16 @@
-// Copyright 2014 Manu Martinez-Almeida.  All rights reserved.
+// Copyright All rights reserved.
 // Use of this source code is governed by a MIT style
 // license that can be found in the LICENSE file.
 
 package pine
 
 import (
-	"github.com/dgrr/http2"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+
+	"github.com/dgrr/http2"
 
 	"github.com/gookit/color"
 	"github.com/valyala/fasthttp"

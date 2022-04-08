@@ -31,7 +31,7 @@ func (c RequestDataCollector) GetName() string {
 	panic("implement me")
 }
 
-func (c RequestDataCollector) GetTitle() interface{} {
+func (c RequestDataCollector) GetTitle() any {
 	panic("implement me")
 }
 
