@@ -17,6 +17,10 @@ func (c Params) reset() {
 	}
 }
 
+func (c Params) SetQQQ[T comparable](key, value string) {
+	c[key] = value
+}
+
 func (c Params) Set(key, value string) {
 	c[key] = value
 }
