@@ -6,6 +6,7 @@ package cache
 
 import (
 	"encoding/json"
+
 	"github.com/xiusin/pine/cache"
 )
 
@@ -18,11 +19,7 @@ func NewStore(cache cache.AbstractCache) *Store {
 }
 
 func (store *Store) Get(key string, receiver interface{}) error {
-	sess, err := store.Cache.Get(key)
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(sess, receiver)
+	return store.Cache.GetWithUnmarshal(key, receiver)
 }
 
 func (store *Store) Save(id string, val interface{}) error {
@@ -36,4 +33,3 @@ func (store *Store) Save(id string, val interface{}) error {
 func (store *Store) Delete(id string) error {
 	return store.Cache.Delete(id)
 }
-

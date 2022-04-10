@@ -4,6 +4,11 @@
 
 package cache
 
+import (
+	"errors"
+)
+
+type RememberCallback func() (interface{}, error)
 
 type AbstractCache interface {
 	Get(string) ([]byte, error)
@@ -14,4 +19,14 @@ type AbstractCache interface {
 
 	Delete(string) error
 	Exists(string) bool
+
+	Remember(string, interface{}, RememberCallback, ...int) error
+
+	GetProvider() interface{}
+}
+
+var ErrKeyNotFound = errors.New("key not found or expired")
+
+func IsErrKeyNotFound(err error) bool {
+	return err == ErrKeyNotFound
 }

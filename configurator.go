@@ -5,10 +5,15 @@
 package pine
 
 import (
+	"github.com/xiusin/pine/sessions"
 	"time"
-
-	"github.com/xiusin/pine/sessions/cookie_transcoder"
 )
+
+type TimeoutConf struct {
+	Enable   bool
+	Duration time.Duration
+	Msg      string
+}
 
 type Configuration struct {
 	maxMultipartMemory        int64
@@ -16,26 +21,24 @@ type Configuration struct {
 	withoutStartupLog         bool
 	gracefulShutdown          bool
 	autoParseControllerResult bool
-	autoParseForm             bool
 	useCookie                 bool
-	CookieTranscoder          cookie_transcoder.AbstractCookieTranscoder
+	CookieTranscoder          sessions.AbstractCookieTranscoder
 	defaultResponseType       string
 	compressGzip              bool
-	timeoutEnable             bool
-	timeoutDuration           time.Duration
-	timeoutMsg                string
+	timeout                   TimeoutConf
+	tlsSecretFile             string
+	tlsKeyFile                string
 }
 
 type AbstractReadonlyConfiguration interface {
 	GetServerName() string
-	GetAutoParseForm() bool
 	GetUseCookie() bool
 	GetMaxMultipartMemory() int64
 	GetAutoParseControllerResult() bool
-	GetCookieTranscoder() cookie_transcoder.AbstractCookieTranscoder
+	GetCookieTranscoder() sessions.AbstractCookieTranscoder
 	GetDefaultResponseType() string
 	GetCompressGzip() bool
-	GetTimeout() (bool, time.Duration, string)
+	GetTimeout() TimeoutConf
 }
 
 type Configurator func(o *Configuration)
@@ -58,7 +61,7 @@ func WithServerName(srvName string) Configurator {
 	}
 }
 
-func WithCookieTranscoder(transcoder cookie_transcoder.AbstractCookieTranscoder) Configurator {
+func WithCookieTranscoder(transcoder sessions.AbstractCookieTranscoder) Configurator {
 	return func(o *Configuration) {
 		o.CookieTranscoder = transcoder
 	}
@@ -94,11 +97,16 @@ func WithCompressGzip(enable bool) Configurator {
 	}
 }
 
-func WithTimeout(enable bool, duration time.Duration, msg string) Configurator {
+func WithTimeout(conf TimeoutConf) Configurator {
 	return func(o *Configuration) {
-		o.timeoutEnable = enable
-		o.timeoutDuration = duration
-		o.timeoutMsg = msg
+		o.timeout = conf
+	}
+}
+
+func WithTlsFile(key, secret string) Configurator {
+	return func(o *Configuration) {
+		o.tlsKeyFile = key
+		o.tlsSecretFile = secret
 	}
 }
 
@@ -110,15 +118,11 @@ func (c *Configuration) GetUseCookie() bool {
 	return c.useCookie
 }
 
-func (c *Configuration) GetAutoParseForm() bool {
-	return c.autoParseForm
-}
-
 func (c *Configuration) GetAutoParseControllerResult() bool {
 	return c.autoParseControllerResult
 }
 
-func (c *Configuration) GetCookieTranscoder() cookie_transcoder.AbstractCookieTranscoder {
+func (c *Configuration) GetCookieTranscoder() sessions.AbstractCookieTranscoder {
 	return c.CookieTranscoder
 }
 
@@ -134,6 +138,6 @@ func (c *Configuration) GetCompressGzip() bool {
 	return c.compressGzip
 }
 
-func (c *Configuration) GetTimeout() (bool, time.Duration, string) {
-	return c.timeoutEnable, c.timeoutDuration, c.timeoutMsg
+func (c *Configuration) GetTimeout() TimeoutConf {
+	return c.timeout
 }

@@ -1,42 +1,34 @@
 package sessions
 
 import (
-	"github.com/xiusin/pine/sessions/cookie_transcoder"
-	"net/http"
+	"github.com/valyala/fasthttp"
 )
 
 type Cookie struct {
-	r          *http.Request
-	w          http.ResponseWriter
-	transcoder cookie_transcoder.AbstractCookieTranscoder
+	ctx        *fasthttp.RequestCtx
+	transcoder AbstractCookieTranscoder
 }
 
-func NewCookie(r *http.Request, w http.ResponseWriter, transcoder cookie_transcoder.AbstractCookieTranscoder) *Cookie {
-	return &Cookie{
-		r:          r,
-		w:          w,
-		transcoder: transcoder,
-	}
+type AbstractCookieTranscoder interface {
+	Encode(cookieName string, value interface{}) (string, error)
+	Decode(cookieName string, cookieValue string, v interface{}) error
 }
 
-func (c *Cookie) Reset(r *http.Request, w http.ResponseWriter) {
-	c.r = r
-	c.w = w
+
+func NewCookie(ctx *fasthttp.RequestCtx, transcoder AbstractCookieTranscoder) *Cookie {
+	return &Cookie{ctx, transcoder}
+}
+
+func (c *Cookie) Reset(ctx *fasthttp.RequestCtx) {
+	c.ctx = ctx
 }
 
 func (c *Cookie) Get(name string) string {
-	var value string
-	cookie, err := c.r.Cookie(name)
-
-	if err != nil && err != http.ErrNoCookie {
-		panic(err)
-	} else if cookie != nil {
-
-		if c.transcoder != nil {
-			c.transcoder.Decode(name, cookie.Value, &value)
-		} else {
-			value = cookie.Value
-		}
+	value := string(c.ctx.Request.Header.Cookie(name))
+	if c.transcoder != nil {
+		var cookie string
+		_ = c.transcoder.Decode(name, value, &cookie)
+		return cookie
 	}
 	return value
 }
@@ -44,28 +36,28 @@ func (c *Cookie) Get(name string) string {
 func (c *Cookie) Set(name string, value string, maxAge int) {
 	if c.transcoder != nil {
 		var err error
-		value, err = c.transcoder.Encode(name, value)
-		if err != nil {
+		if value, err = c.transcoder.Encode(name, value); err != nil {
 			panic(err)
 		}
 	}
-	cookie := &http.Cookie{
-		Name:   name,
-		Value:  value,
-		Path:   "/",
-		MaxAge: maxAge,
+
+	cookie := fasthttp.AcquireCookie()
+	fasthttp.ReleaseCookie(cookie)
+	cookie.SetKey(name)
+	cookie.SetValue(value)
+	cookie.SetPath("/")
+	cookie.SetHTTPOnly(true)
+
+	if len(c.ctx.URI().Scheme()) == 5 {
+		cookie.SetSecure(true)
 	}
-	http.SetCookie(c.w, cookie)
+
+	cookie.SetSameSite(fasthttp.CookieSameSiteDefaultMode)
+	cookie.SetMaxAge(maxAge)
+
+	c.ctx.Response.Header.SetCookie(cookie)
 }
 
 func (c *Cookie) Delete(name string) {
-	http.SetCookie(
-		c.w,
-		&http.Cookie{
-			Name:   name,
-			Path:   "/", //must set
-			Value:  "",
-			MaxAge: -1,
-		},
-	)
+	c.Set(name, "", -1)
 }

@@ -14,42 +14,41 @@ import (
 	"unsafe"
 
 	"github.com/gorilla/schema"
+	"github.com/valyala/fasthttp"
 	"github.com/xiusin/logger"
-	"github.com/xiusin/pine/di"
 	"github.com/xiusin/pine/sessions"
-	"io/ioutil"
-	"mime/multipart"
-	"net"
-	"net/http"
-	"strconv"
-	"strings"
 )
 
 var schemaDecoder = schema.NewDecoder()
 
 type Context struct {
-	// Input
 	*input
 	// application
 	app *Application
-	// response object
-	res http.ResponseWriter
-	// request object
-	req *http.Request
+
+	*fasthttp.RequestCtx
+
 	// matched routerEntry
 	route *RouteEntry
+
 	//  reader service
 	render *Render
+
 	// cookie cookie manager
 	cookie *sessions.Cookie
+
 	// SessionManager
 	sess sessions.AbstractSession
+
 	// Request params
-	params params
+	params Params
+
 	// Stop middleware iteration
 	stopped bool
+
 	// Current middleware iteration index, init with -1
 	middlewareIndex int
+
 	// Temporary recording error information
 	Msg string
 
@@ -62,28 +61,29 @@ func newContext(app *Application) *Context {
 	return &Context{
 		middlewareIndex: -1,
 		app:             app,
-		keys:            map[string]interface{}{},
 		autoParseValue:  app.ReadonlyConfiguration.GetAutoParseControllerResult(),
 	}
 }
 
-func (c *Context) beginRequest(res http.ResponseWriter, req *http.Request) {
-	c.req = req
-	c.res = res
-	if c.app.configuration.useCookie {
+func (c *Context) beginRequest(ctx *fasthttp.RequestCtx) {
+	c.RequestCtx = ctx
+	if c.app.ReadonlyConfiguration.GetUseCookie() {
 		if c.cookie == nil {
-			c.cookie = sessions.NewCookie(req, res, c.app.configuration.CookieTranscoder)
+			c.cookie = sessions.NewCookie(ctx, c.app.configuration.CookieTranscoder)
 		} else {
-			c.cookie.Reset(req, res)
+			c.cookie.Reset(ctx)
 		}
-		c.sess = nil
 	}
+
 	if c.render != nil {
-		c.render.reset(c.res)
+		c.render.reset(c.RequestCtx)
 	}
-	if len(c.app.configuration.serverName) > 0 {
-		res.Header().Set("Server", c.app.configuration.serverName)
-	}
+
+	c.input = newInput(c)
+}
+
+func (c *Context) Clone() {
+
 }
 
 func (c *Context) reset() {
@@ -91,15 +91,11 @@ func (c *Context) reset() {
 	c.sess = nil
 	c.input = nil
 	c.loggerEntity = nil
-
+	c.RequestCtx = nil
 	c.middlewareIndex = -1
 	c.stopped = false
 	c.Msg = ""
-	if len(c.keys) > 0 {
-		for k := range c.keys {
-			delete(c.keys, k)
-		}
-	}
+
 	if c.params != nil {
 		c.params.reset()
 	}
@@ -107,7 +103,7 @@ func (c *Context) reset() {
 
 func (c *Context) endRequest(recoverHandler Handler) {
 	if err := recover(); err != nil {
-		c.SetStatus(http.StatusInternalServerError)
+		c.SetStatus(fasthttp.StatusInternalServerError)
 		c.Msg = fmt.Sprintf("%s", err)
 		recoverHandler(c)
 	}
@@ -133,7 +129,7 @@ func (c *Context) WriteHTMLBytes(data []byte) error {
 
 func (c *Context) Render() *Render {
 	if c.render == nil {
-		c.render = newRender(c.res)
+		c.render = newRender(c.RequestCtx)
 	}
 	return c.render
 }
@@ -145,41 +141,37 @@ func (c *Context) Input() *input {
 	return c.input
 }
 
-func (c *Context) Params() params {
+func (c *Context) Params() Params {
 	if c.params == nil {
-		c.params = newParams()
+		c.params = Params{}
 	}
 	return c.params
 }
 
-func (c *Context) Request() *http.Request {
-	return c.req
-}
-
 func (c *Context) Header(key string) string {
-	return c.req.Header.Get(key)
+	return string(c.Request.Header.Peek(key))
 }
 
 func (c *Context) Logger() logger.AbstractLogger {
 	return Logger()
 }
 
-func (c *Context) Writer(writers ...http.ResponseWriter) http.ResponseWriter {
-	if writers != nil {
-		c.res = writers[0]
+func (c *Context) LoggerEntity() *logger.LogEntity {
+	if c.loggerEntity == nil {
+		c.loggerEntity = Logger().EntityLogger().(*logger.LogEntity)
 	}
-	return c.res
+	return c.loggerEntity
 }
 
 func (c *Context) Redirect(url string, statusHeader ...int) {
 	if len(statusHeader) == 0 {
-		statusHeader = []int{http.StatusFound}
+		statusHeader = []int{fasthttp.StatusFound}
 	}
-	http.Redirect(c.res, c.req, url, statusHeader[0])
+	c.RequestCtx.Redirect(url, statusHeader[0])
 }
 
 func (c *Context) sessions() *sessions.Sessions {
-	return Make(di.ServicePineSessions).(*sessions.Sessions)
+	return Make(&sessions.Sessions{}).(*sessions.Sessions)
 }
 
 func (c *Context) Session(sessIns ...sessions.AbstractSession) sessions.AbstractSession {
@@ -195,6 +187,16 @@ func (c *Context) Session(sessIns ...sessions.AbstractSession) sessions.Abstract
 		}
 	}
 	return c.sess
+}
+
+func dispatchRequest(a *Application) func(ctx *fasthttp.RequestCtx) {
+	return func(ctx *fasthttp.RequestCtx) {
+		c := a.pool.Get().(*Context)
+		defer a.pool.Put(c)
+		defer c.endRequest(a.recoverHandler)
+		c.beginRequest(ctx)
+		a.handle(c)
+	}
 }
 
 func (c *Context) Next() {
@@ -224,10 +226,6 @@ func (c *Context) IsStopped() bool {
 	return c.stopped
 }
 
-func (c *Context) getRoute() *RouteEntry {
-	return c.route
-}
-
 func (c *Context) setRoute(route *RouteEntry) *Context {
 	c.route = route
 	return c
@@ -236,38 +234,31 @@ func (c *Context) setRoute(route *RouteEntry) *Context {
 func (c *Context) Abort(statusCode int, msg ...string) {
 	c.SetStatus(statusCode)
 	c.Stop()
+	c.Msg = fasthttp.StatusMessage(statusCode)
+
 	if len(msg) > 0 {
 		c.Msg = msg[0]
 	}
-	if handler, ok := errCodeCallHandler[statusCode]; ok {
+	c.ResetBody()
+	if handler, ok := codeCallHandler[statusCode]; ok {
 		handler(c)
-	} else {
-		panic(errors.New(c.Msg))
 	}
 }
 
 func (c *Context) SendFile(filepath string) {
-	http.ServeFile(c.res, c.req, filepath)
+	fasthttp.ServeFile(c.RequestCtx, filepath)
 }
 
 func (c *Context) SetStatus(statusCode int) {
-	c.res.WriteHeader(statusCode)
+	c.SetStatusCode(statusCode)
 }
 
 func (c *Context) Set(key string, value interface{}) {
-	c.keys[key] = value
+	c.RequestCtx.SetUserValue(key, value)
 }
 
 func (c *Context) IsAjax() bool {
 	return c.Header("X-Requested-With") == "XMLHttpRequest"
-}
-
-func (c *Context) IsGet() bool {
-	return strings.EqualFold(c.req.Method, http.MethodGet)
-}
-
-func (c *Context) IsPost() bool {
-	return strings.EqualFold(c.req.Method, http.MethodPost)
 }
 
 func (c *Context) ClientIP() string {
@@ -279,7 +270,7 @@ func (c *Context) ClientIP() string {
 	if clientIP != "" {
 		return clientIP
 	}
-	if ip, _, err := net.SplitHostPort(strings.TrimSpace(c.req.RemoteAddr)); err == nil {
+	if ip, _, err := net.SplitHostPort(c.RemoteAddr().String()); err == nil {
 		return ip
 	}
 	return ""
@@ -291,170 +282,36 @@ func (c *Context) Path() string {
 }
 
 func (c *Context) BindJSON(rev interface{}) error {
-	data, err := c.GetBody()
-	if err != nil {
-		return err
-	}
-	return json.Unmarshal(data, rev)
+	return json.Unmarshal(c.PostBody(), rev)
 }
 
 func (c *Context) BindForm(rev interface{}) error {
-	values := c.PostData()
-	if len(values) == 0 {
-		return nil
+	if values := c.Input().PostForm(); len(values) > 0 {
+		return schemaDecoder.Decode(rev, values)
 	}
-
-	return schemaDecoder.Decode(rev, values)
-}
-
-func (c *Context) GetBody() ([]byte, error) {
-	return ioutil.ReadAll(c.req.Body)
-}
-
-func (c *Context) GetData() map[string][]string {
-	return c.req.URL.Query()
-}
-
-func (c *Context) GetInt(key string, defaultVal ...int) (val int, err error) {
-	val, err = strconv.Atoi(c.req.URL.Query().Get(key))
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return
-}
-
-func (c *Context) GetInt64(key string, defaultVal ...int64) (val int64, err error) {
-	val, err = strconv.ParseInt(c.req.URL.Query().Get(key), 10, 64)
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return val, err
-}
-
-func (c *Context) GetBool(key string, defaultVal ...bool) (val bool, err error) {
-	val, err = strconv.ParseBool(c.req.URL.Query().Get(key))
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return val, err
-}
-
-func (c *Context) GetFloat64(key string, defaultVal ...float64) (val float64, err error) {
-	val, err = strconv.ParseFloat(c.req.URL.Query().Get(key), 64)
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return
-}
-
-func (c *Context) URLParam(key string) string {
-	return c.GetString(key)
-}
-
-func (c *Context) URLParamInt64(key string) (int64, error) {
-	return c.GetInt64(key)
-}
-
-func (c *Context) URLParamInt(key string) (int, error) {
-	return c.GetInt(key)
-}
-
-func (c *Context) GetString(key string, defaultVal ...string) string {
-	val := c.req.URL.Query().Get(key)
-	if val == "" && len(defaultVal) > 0 {
-		val = defaultVal[0]
-	}
-	return val
-}
-
-func (c *Context) GetStrings(key string) (val []string) {
-	val, _ = c.req.URL.Query()[key]
-	return
-}
-
-func (c *Context) PostInt(key string, defaultVal ...int) (val int, err error) {
-	val, err = strconv.Atoi(c.req.PostFormValue(key))
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return
-}
-
-func (c *Context) PostValue(key string) string {
-	return c.PostString(key)
-}
-
-func (c *Context) FormValue(key string) string {
-	return c.PostString(key)
-}
-
-func (c *Context) PostString(key string, defaultVal ...string) string {
-	val := c.req.PostFormValue(key)
-	if val == "" && len(defaultVal) > 0 {
-		val = defaultVal[0]
-	}
-	return val
-}
-
-func (c *Context) PostInt64(key string, defaultVal ...int64) (val int64, err error) {
-	val, err = strconv.ParseInt(c.req.PostFormValue(key), 10, 64)
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return
-}
-
-func (c *Context) PostFloat64(key string, defaultVal ...float64) (val float64, err error) {
-	val, err = strconv.ParseFloat(c.req.PostFormValue(key), 64)
-	if err != nil && len(defaultVal) > 0 {
-		val, err = defaultVal[0], nil
-	}
-	return
-}
-
-func (c *Context) PostData() map[string][]string {
-	return c.req.PostForm
-}
-
-func (c *Context) PostStrings(key string) (val []string, ok bool) {
-	val, ok = c.req.PostForm[key]
-	return
-}
-
-func (c *Context) Files(key string) (multipart.File, *multipart.FileHeader, error) {
-	return c.req.FormFile(key)
+	return errors.New("no post data")
 }
 
 func (c *Context) Value(key string) interface{} {
-	if val, ok := c.keys[key]; ok {
-		return val
-	}
-	return nil
+	return c.RequestCtx.Value(key)
 }
 
-func (c *Context) cookies() *sessions.Cookie {
-	if c.cookie == nil {
-		panic("Please use `cookies` middleware")
+func (c *Context) HandlerName() string {
+	if len(c.route.HandlerName) == 0 {
+		pc, _, _, _ := runtime.Caller(1)
+		c.route.HandlerName = runtime.FuncForPC(pc).Name()
 	}
-	return c.cookie
+	return c.route.HandlerName
 }
 
 func (c *Context) SetCookie(name string, value string, maxAge int) {
-	c.cookies().Set(name, value, maxAge)
-}
-
-func (c *Context) ExistsCookie(name string) bool {
-	_, err := c.req.Cookie(name)
-	if err != nil {
-		return false
-	}
-	return true
+	c.cookie.Set(name, value, maxAge)
 }
 
 func (c *Context) GetCookie(name string) string {
-	return c.cookies().Get(name)
+	return c.cookie.Get(name)
 }
 
 func (c *Context) RemoveCookie(name string) {
-	c.cookies().Delete(name)
+	c.cookie.Delete(name)
 }

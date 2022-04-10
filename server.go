@@ -5,77 +5,69 @@
 package pine
 
 import (
-	"fmt"
-	"github.com/fatih/color"
-	"log"
-	"net/http"
+	"github.com/dgrr/http2"
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
+
+	"github.com/gookit/color"
+	"github.com/valyala/fasthttp"
 )
 
 type ServerHandler func(*Application) error
 
-const zeroIP = "0.0.0.0"
-const defaultAddressWithPort = zeroIP + ":9528"
-
-func (a *Application) newServer(s *http.Server, tls bool) *http.Server {
-	if s.Handler == nil {
-		s.Handler = a.handler
-	} else {
-		a.handler = s.Handler
+func (a *Application) setupInfo(addr string) {
+	if pos := strings.Index(addr, ":"); pos > 0 {
+		a.hostname = addr[:pos]
 	}
-	if s.ErrorLog == nil {
-		s.ErrorLog = log.New(
-			os.Stdout,
-			color.RedString("%s", "[ERRO] "),
-			log.Lshortfile|log.LstdFlags,
-		)
+	scheme := "http"
+	if len(a.configuration.tlsKeyFile) > 0 && len(a.configuration.tlsSecretFile) > 0 {
+		scheme += "s"
 	}
-	if len(s.Addr) == 0 {
-		s.Addr = defaultAddressWithPort
-	}
-	addrInfo := strings.Split(s.Addr, ":")
-	if len(addrInfo[0]) == 0 {
-		addrInfo[0] = zeroIP
-	}
-	a.hostname = addrInfo[0]
 	if !a.configuration.withoutStartupLog {
-		a.printSetupInfo(s.Addr, tls)
+		a.DumpRouteTable()
+		color.Green.Println(logo)
+		color.Red.Printf("pine server now listening on: %s://%s\n", scheme, addr)
 	}
-	quitCh := make(chan os.Signal)
-	signal.Notify(quitCh, os.Interrupt, os.Kill)
-	go a.gracefulShutdown(s, quitCh)
-	return s
-}
-
-func Server(s *http.Server) ServerHandler {
-	return func(a *Application) error {
-		s := a.newServer(s, false)
-		return s.ListenAndServe()
-	}
-}
-
-func (a *Application) printSetupInfo(addr string, tls bool) {
-	if strings.HasPrefix(addr, ":") {
-		addr = fmt.Sprintf("%s%s", a.hostname, addr)
-	}
-	protocol := "http"
-	if tls {
-		addr = "https"
-	}
-	addr = color.GreenString(fmt.Sprintf("%s://%s", protocol, addr))
-	fmt.Println(color.GreenString("%s", logo))
-	fmt.Println(color.New(color.Bold).Sprintf("\nServer now listening on: %s/\n", addr))
 }
 
 func Addr(addr string) ServerHandler {
-	srv := &http.Server{Addr: addr}
-	return Server(srv)
-}
+	return func(a *Application) error {
+		s := &fasthttp.Server{
+			Name:    a.configuration.serverName,
+			Logger:  Logger(),
+			Handler: dispatchRequest(a),
+			ErrorHandler: func(ctx *fasthttp.RequestCtx, err error) {
+				Logger().Errorf("server error: %s", err)
+			},
+		}
 
-func Func(f func() error) ServerHandler {
-	return func(_ *Application) error {
-		return f()
+		a.setupInfo(addr)
+
+		if a.configuration.maxMultipartMemory > 0 {
+			s.MaxRequestBodySize = int(a.configuration.maxMultipartMemory)
+		}
+
+		if a.configuration.compressGzip {
+			s.Handler = fasthttp.CompressHandler(s.Handler)
+		}
+
+		if conf := a.configuration.timeout; conf.Enable {
+			s.Handler = fasthttp.TimeoutHandler(s.Handler, conf.Duration, conf.Msg)
+		}
+
+		if a.configuration.gracefulShutdown {
+			a.quitCh = make(chan os.Signal)
+			signal.Notify(a.quitCh, os.Interrupt, syscall.SIGTERM)
+			go a.gracefulShutdown(s, a.quitCh)
+		}
+
+		if len(a.configuration.tlsSecretFile) > 0 && len(a.configuration.tlsKeyFile) > 0 {
+			http2.ConfigureServer(s, http2.ServerConfig{})
+			return s.ListenAndServeTLS(addr, a.configuration.tlsSecretFile, a.configuration.tlsKeyFile)
+		}
+
+		return s.ListenAndServe(addr)
 	}
 }

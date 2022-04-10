@@ -5,12 +5,11 @@
 package pine
 
 import (
+	"reflect"
+
 	"github.com/xiusin/logger"
 	"github.com/xiusin/pine/sessions"
-	"reflect"
 )
-
-const ControllerSuffix = "Controller"
 
 type Controller struct {
 	context *Context
@@ -20,21 +19,18 @@ var _ IController = (*Controller)(nil)
 
 type IController interface {
 	Ctx() *Context
-
+	Input() *input
 	Render() *Render
 
 	Logger() logger.AbstractLogger
 	Session() sessions.AbstractSession
-	Cookie() *sessions.Cookie
 }
 
-// 自动映射controller需要忽略的方法, 阻止自动注册路由时注册对应的函数
 var reflectingNeedIgnoreMethods = map[string]struct{}{}
 
 func init() {
-	rt := reflect.TypeOf(&Controller{})
-	for i := 0; i < rt.NumMethod(); i++ {
-		reflectingNeedIgnoreMethods[rt.Method(i).Name] = struct{}{}
+	for typo, i := reflect.TypeOf(&Controller{}), 0; i < typo.NumMethod(); i++ {
+		reflectingNeedIgnoreMethods[typo.Method(i).Name] = struct{}{}
 	}
 }
 
@@ -42,20 +38,12 @@ func (c *Controller) Ctx() *Context {
 	return c.context
 }
 
-func (c *Controller) Cookie() *sessions.Cookie {
-	return c.context.cookie
-}
-
 func (c *Controller) Render() *Render {
 	return c.context.Render()
 }
 
-func (c *Controller) Param() params {
-	return c.context.params
-}
-
 func (c *Controller) View(name string) {
-	c.context.Render().HTML(name)
+	c.Render().HTML(name)
 }
 
 func (c *Controller) Logger() logger.AbstractLogger {
@@ -66,6 +54,10 @@ func (c *Controller) Session() sessions.AbstractSession {
 	return c.context.Session()
 }
 
+func (c *Controller) Input() *input {
+	return c.Ctx().Input()
+}
+
 func (c *Controller) ViewData(key string, val interface{}) {
-	c.context.Render().ViewData(key, val)
+	c.Render().ViewData(key, val)
 }

@@ -11,7 +11,14 @@ import (
 	"sync"
 )
 
+var ErrNotSupportedType = fmt.Errorf("unsupported type")
+
 type AbstractBuilder interface {
+	Bind(interface{}, BuildHandler) *Definition
+	Singleton(interface{}, BuildHandler) *Definition
+	Instance(interface{}, ...interface{}) *Definition
+	Register(...AbstractServiceProvider)
+
 	Set(interface{}, BuildHandler, bool) *Definition
 	SetWithParams(interface{}, BuildWithHandler) *Definition
 	Add(*Definition)
@@ -22,18 +29,13 @@ type AbstractBuilder interface {
 	Exists(interface{}) bool
 }
 type builder struct {
+	// alias    map[string]string
 	services sync.Map
 }
 type BuildHandler func(builder AbstractBuilder) (interface{}, error)
 type BuildWithHandler func(builder AbstractBuilder, params ...interface{}) (interface{}, error)
 
 //reflect.TypeOf((*logger.AbstractLogger)(nil)).Elem()) 直接反射类型， 后续判断是否可以100%反射pkgPath
-
-const ServicePineApplication = "pine.application"
-const ServicePineSessions = "pine.sessions"
-const ServicePineLogger = "pine.logger"
-const ServicePineRender = "pine.render"
-const ServicePineCache = "cache.AbstractCache"
 
 const formatErrServiceNotExists = "service %s not exists"
 
@@ -48,6 +50,26 @@ func (b *builder) GetDefinition(serviceAny interface{}) (*Definition, error) {
 	return service.(*Definition), nil
 }
 
+func (b *builder) Instance(serviceAny interface{}, instance ...interface{}) *Definition {
+	if len(instance) == 0 {
+		if reflect.ValueOf(serviceAny).Kind() != reflect.Ptr {
+			panic(ErrNotSupportedType)
+		}
+		instance = []interface{}{serviceAny}
+	}
+	return b.Set(serviceAny, func(builder AbstractBuilder) (interface{}, error) {
+		return instance[0], nil
+	}, true)
+}
+
+func (b *builder) Bind(serviceAny interface{}, handler BuildHandler) *Definition {
+	return b.Set(serviceAny, handler, false)
+}
+
+func (b *builder) Singleton(serviceAny interface{}, handler BuildHandler) *Definition {
+	return b.Set(serviceAny, handler, true)
+}
+
 func (b *builder) Set(serviceAny interface{}, handler BuildHandler, singleton bool) *Definition {
 	var def *Definition
 	serviceName := ResolveServiceName(serviceAny)
@@ -60,14 +82,23 @@ func ResolveServiceName(service interface{}) string {
 	switch service := service.(type) {
 	case string:
 		return service
+	case nil:
+		panic(fmt.Errorf("service name nil is not support"))
 	default:
-		ty := reflect.TypeOf(service)
-		if ty.Kind() == reflect.Ptr {
-			// todo 解决统一接口类型反射, 暂时使用输入字符串的方式解决
-			return ty.String()
+		typo := reflect.TypeOf(service)
+		if typo.Kind() == reflect.Ptr {
+			return GetFullName(typo)
 		}
-		panic(fmt.Sprintf("serviceName type(%s) is not support", ty.String()))
+		panic(fmt.Errorf("service name type(%s) is not support", typo.String()))
 	}
+}
+
+func GetFullName(p reflect.Type) string {
+	serviceName := p.String()
+	for p.Kind() == reflect.Ptr {
+		p = p.Elem()
+	}
+	return fmt.Sprintf("%s@%s", p.PkgPath(), serviceName)
 }
 
 func (b *builder) SetWithParams(serviceAny interface{}, handler BuildWithHandler) *Definition {
@@ -79,6 +110,12 @@ func (b *builder) SetWithParams(serviceAny interface{}, handler BuildWithHandler
 
 func (b *builder) Add(def *Definition) {
 	b.services.Store(def.serviceName, def)
+}
+
+func (b *builder) Register(providers ...AbstractServiceProvider) {
+	for _, provider := range providers {
+		provider.Register(di)
+	}
 }
 
 func (b *builder) Get(serviceAny interface{}) (interface{}, error) {
@@ -156,8 +193,42 @@ func Exists(serviceAny interface{}) bool {
 	return di.Exists(serviceAny)
 }
 
+// Remove 移除服务
+func Remove(serviceAny interface{}) {
+	di.services.Delete(ResolveServiceName(serviceAny))
+}
+
+// Bind 绑定非共享服务
+func Bind(serviceAny interface{}, handler BuildHandler) *Definition {
+	return di.Bind(serviceAny, handler)
+}
+
+func Bound(serviceAny interface{}) bool {
+	return Exists(serviceAny)
+}
+
+func IsShare(serviceAny interface{}) bool {
+	if Bound(serviceAny) {
+		return (di.MustGet(serviceAny).(*Definition)).IsSingleton()
+	} else {
+		return false
+	}
+}
+
 func Set(serviceAny interface{}, handler BuildHandler, singleton bool) *Definition {
 	return di.Set(serviceAny, handler, singleton)
+}
+
+func Attempt(serviceAny interface{}, handler BuildHandler, singleton bool) *Definition {
+	if Bound(serviceAny) {
+		return nil
+	} else {
+		return Set(serviceAny, handler, singleton)
+	}
+}
+
+func Instance(serviceAny interface{}, instance ...interface{}) *Definition {
+	return di.Instance(serviceAny, instance...)
 }
 
 func SetWithParams(serviceAny interface{}, handler BuildWithHandler) *Definition {
@@ -168,7 +239,28 @@ func GetWithParams(serviceName string, params ...interface{}) (interface{}, erro
 	return di.GetWithParams(serviceName, params...)
 }
 
-// get all registered services
+func Register(providers ...AbstractServiceProvider) {
+	di.Register(providers...)
+}
+
+// InjectOn 作用, 解析object对象内可识别的字段自动注入, 引用服务非数据安全, 需要自行管理
+// object 需要被注入的对象, 仅注入为nil的属性字段
+func InjectOn(ptr interface{}) {
+	value := reflect.ValueOf(ptr)
+	if value.Kind() != reflect.Ptr && value.Elem().Kind() != reflect.Struct {
+		panic(ErrNotSupportedType)
+	}
+
+	for i, fieldNum := 0, value.Elem().NumField(); i < fieldNum; i++ {
+		field := value.Elem().Field(i)
+		if field.Kind() == reflect.Ptr && field.IsNil() {
+			if service, err := di.Get(field.Interface()); err == nil {
+				field.Set(reflect.ValueOf(service))
+			}
+		}
+	}
+}
+
 func List() []string {
 	var names []string
 	di.services.Range(func(key, value interface{}) bool {

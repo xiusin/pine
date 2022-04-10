@@ -8,37 +8,31 @@ import (
 	"strconv"
 )
 
-type params map[string]string
+type Params map[string]string
 
-func newParams() params {
-	return params{}
-}
-
-func (c params) reset() {
-	// compile to mapclear @see runtime/map.go
+// compile to @see runtime/map.go:mapclear
+func (c Params) reset() {
 	for k := range c {
 		delete(c, k)
 	}
 }
 
-func (c params) Set(key, value string) {
+func (c Params) Set(key, value string) {
 	c[key] = value
 }
 
-func (c params) Get(key string) string {
-	value, _ := c[key]
-	return value
+func (c Params) Get(key string) string {
+	return c[key]
 }
 
-func (c params) GetDefault(key, defaultVal string) string {
-	val := c.Get(key)
-	if val != "" {
+func (c Params) GetDefault(key, defaultVal string) string {
+	if val := c.Get(key); len(val) > 0 {
 		return val
 	}
 	return defaultVal
 }
 
-func (c params) GetInt(key string, defaultVal ...int) (val int, err error) {
+func (c Params) GetInt(key string, defaultVal ...int) (val int, err error) {
 	val, err = strconv.Atoi(c.Get(key))
 	if err != nil && len(defaultVal) > 0 {
 		val, err = defaultVal[0], nil
@@ -46,7 +40,7 @@ func (c params) GetInt(key string, defaultVal ...int) (val int, err error) {
 	return
 }
 
-func (c params) GetInt64(key string, defaultVal ...int64) (val int64, err error) {
+func (c Params) GetInt64(key string, defaultVal ...int64) (val int64, err error) {
 	val, err = strconv.ParseInt(c.Get(key), 10, 64)
 	if err != nil && len(defaultVal) > 0 {
 		val, err = defaultVal[0], nil
@@ -54,10 +48,22 @@ func (c params) GetInt64(key string, defaultVal ...int64) (val int64, err error)
 	return
 }
 
-func (c params) GetFloat64(key string, defaultVal ...float64) (val float64, err error) {
+func (c Params) GetFloat64(key string, defaultVal ...float64) (val float64, err error) {
 	val, err = strconv.ParseFloat(c.Get(key), 64)
 	if err != nil && len(defaultVal) > 0 {
 		val, err = defaultVal[0], nil
 	}
 	return
+}
+
+func (c Params) GetBool(key string, defaultVal bool) bool {
+	val := c.Get(key)
+	if len(val) == 0 {
+		return defaultVal
+	}
+	if v, err := strconv.ParseBool(val); err != nil {
+		return defaultVal
+	} else {
+		return v
+	}
 }

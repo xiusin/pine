@@ -5,51 +5,107 @@
 package sessions
 
 import (
-	"fmt"
+	"sync"
+
+	"github.com/xiusin/pine/cache"
 )
 
-const defaultSessionName = "pine_sessionid"
+const (
+	Modified = iota
+	Destroyed
+)
 
 type Session struct {
-	id    string
-	store AbstractSessionStore
+	sync.RWMutex
+	id   string
+	data map[string]interface{}
+
+	status int
+	store  AbstractSessionStore
+
+	cookie *Cookie
 }
 
-type entry struct {
-	Val            string
-	Flush          bool
-}
+func newSession(id string, store AbstractSessionStore, cookie *Cookie) (*Session, error) {
+	entity := map[string]interface{}{}
+	sess := &Session{id: id, store: store, cookie: cookie}
 
-func newSession(id string, store AbstractSessionStore) (*Session, error) {
-	sess := &Session{
-		store: store,
-		id:    id,
+	if err := store.Get(sess.key(), &entity); err != nil && err != cache.ErrKeyNotFound {
+		return nil, err
 	}
+
+	sess.data = entity
+	sess.status = Modified
+
 	return sess, nil
 }
 
-func (sess *Session) Set(key string, val string) {
-	sess.store.Save(sess.makeKey(key), &entry{Val: val})
+func (sess *Session) GetId() string { return sess.id }
+
+func (sess *Session) Set(key string, val interface{}) {
+	sess.Lock()
+	sess.data[key] = val
+	sess.Unlock()
 }
 
-func (sess *Session) Get(key string) string {
-	var val entry
-	if err := sess.store.Get(sess.makeKey(key), &val); err == nil {
-		if val.Flush {
-			sess.Remove(key)
-		}
-	}
-	return val.Val
+func (sess *Session) All() map[string]interface{} {
+	sess.RLock()
+	defer sess.RUnlock()
+
+	return sess.data
 }
 
-func (sess *Session) AddFlush(key string, val string) {
-	 sess.store.Save(sess.makeKey(key), &entry{Val: val, Flush: true})
+func (sess *Session) Get(key string) interface{} {
+	sess.RLock()
+	defer sess.RUnlock()
+
+	return sess.data[key]
 }
 
+// Remove 移除某个key
 func (sess *Session) Remove(key string) {
-	sess.store.Delete(sess.makeKey(key))
+	sess.Lock()
+	delete(sess.data, key)
+	sess.Unlock()
 }
 
-func (sess *Session) makeKey(key string) string {
-	return fmt.Sprintf("%s_%s", sess.id, key)
+func (sess *Session) Save() error {
+	if sess.status == Destroyed {
+		return nil
+	}
+
+	err := sess.store.Save(sess.key(), &sess.data)
+	for k := range sess.data {
+		delete(sess.data, k)
+	}
+	sess.data = nil
+	return err
+}
+
+// Destroy 销毁整个sess信息
+func (sess *Session) Destroy() error {
+	sess.Lock()
+	defer sess.Unlock()
+
+	sess.data = nil
+	sess.status = Destroyed
+
+	sess.cookie.Delete(sess.id)
+	return sess.store.Delete(sess.key())
+}
+
+// Has 检查是否存在Key
+func (sess *Session) Has(key string) bool {
+	sess.RLock()
+	defer sess.RUnlock()
+	var exist bool
+	if sess.data != nil {
+		_, exist = sess.data[key]
+	}
+	return exist
+}
+
+// makeKey 存储session的key
+func (sess *Session) key() string {
+	return "sess_" + sess.id
 }

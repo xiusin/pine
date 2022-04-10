@@ -7,8 +7,9 @@ package sessions
 import (
 	"crypto/md5"
 	"encoding/hex"
-	uuid "github.com/satori/go.uuid"
 	"time"
+
+	uuid "github.com/satori/go.uuid"
 )
 
 type AbstractSessionStore interface {
@@ -18,15 +19,21 @@ type AbstractSessionStore interface {
 }
 
 type AbstractSession interface {
-	Set(string, string)
-	Get(string) string
-	AddFlush(string, string)
+	GetId() string
+	Set(string, interface{})
+	Get(string) interface{}
+	Has(string) bool
 	Remove(string)
+	Destroy() error
+	Save() error
+
+	All() map[string]interface{}
 }
 
 type Sessions struct {
 	provider AbstractSessionStore
 	cfg      *Config
+	// manager  map[string]AbstractSession 先去除掉manager, 目前没有想好如何合理的释放对象
 }
 
 type Config struct {
@@ -36,30 +43,28 @@ type Config struct {
 
 func New(provider AbstractSessionStore, cfg *Config) *Sessions {
 	if len(cfg.CookieName) == 0 {
-		cfg.CookieName = defaultSessionName
+		cfg.CookieName = "pine_session_id"
 	}
-	return &Sessions{
-		provider: provider,
-		cfg:      cfg,
+	if cfg.Expires.Seconds() == 0 {
+		cfg.Expires = time.Second * 604800
 	}
+	return &Sessions{provider: provider, cfg: cfg}
 }
 
-func GetSessionId() string {
+func sessionId() string {
 	hash := md5.New()
 	hash.Write(uuid.NewV4().Bytes())
 	bytes := hash.Sum(nil)
 	return hex.EncodeToString(bytes)[:16]
 }
 
+// Session 获取session对象
 func (m *Sessions) Session(cookie *Cookie) (sess AbstractSession, err error) {
 	sessID := cookie.Get(m.cfg.CookieName)
 	if len(sessID) == 0 {
-		sessID = GetSessionId()
-		cookie.Set(
-			m.cfg.CookieName,
-			sessID,
-			int(m.cfg.Expires.Seconds()),
-		)
+		sessID = sessionId()
+		cookie.Set(m.cfg.CookieName, sessID, int(m.cfg.Expires.Seconds()))
 	}
-	return newSession(sessID, m.provider)
+
+	return newSession(sessID, m.provider, cookie)
 }

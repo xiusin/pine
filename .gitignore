@@ -2,3 +2,5 @@
 /vendor/
 go.sum
 .DS_Store
+.lh
+.vscode
