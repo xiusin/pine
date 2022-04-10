@@ -5,9 +5,11 @@
 package pine
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -25,7 +27,7 @@ import (
 	"github.com/xiusin/pine/di"
 )
 
-const Version = "dev 0.1.0"
+const Version = "net/http 0.1.0"
 
 const logo = `
   ____  _            
@@ -114,6 +116,10 @@ type Application struct {
 	recoverHandler        Handler
 	configuration         *Configuration
 	ReadonlyConfiguration AbstractReadonlyConfiguration
+}
+
+func (a *Application) ServeHTTP(writer http.ResponseWriter, request *http.Request) {
+
 }
 
 func init() {
@@ -232,13 +238,13 @@ func (a *Application) Close() {
 	a.quitCh <- os.Interrupt
 }
 
-func (a *Application) gracefulShutdown(srv *fasthttp.Server, quit <-chan os.Signal) {
+func (a *Application) gracefulShutdown(srv *http.Server, quit <-chan os.Signal) {
 	<-quit
 	for _, beforeHandler := range shutdownBeforeHandler {
 		beforeHandler()
 	}
 
-	if err := srv.Shutdown(); err != nil {
+	if err := srv.Shutdown(context.Background()); err != nil {
 		panic(fmt.Errorf("could not gracefully shutdown the server: %s", err.Error()))
 	}
 }

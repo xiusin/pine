@@ -5,14 +5,13 @@
 package pine
 
 import (
-	"github.com/dgrr/http2"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 
 	"github.com/gookit/color"
-	"github.com/valyala/fasthttp"
 )
 
 type ServerHandler func(*Application) error
@@ -34,28 +33,26 @@ func (a *Application) setupInfo(addr string) {
 
 func Addr(addr string) ServerHandler {
 	return func(a *Application) error {
-		s := &fasthttp.Server{
-			Name:    a.configuration.serverName,
-			Logger:  Logger(),
-			Handler: dispatchRequest(a),
-			ErrorHandler: func(ctx *fasthttp.RequestCtx, err error) {
-				Logger().Errorf("server error: %s", err)
-			},
+
+		s := &http.Server{
+			//Name:    a.configuration.serverName,
+			Addr: addr,
+			Handler: a,
 		}
 
 		a.setupInfo(addr)
 
-		if a.configuration.maxMultipartMemory > 0 {
-			s.MaxRequestBodySize = int(a.configuration.maxMultipartMemory)
-		}
+		//if a.configuration.maxMultipartMemory > 0 {
+		//	s.m = int(a.configuration.maxMultipartMemory)
+		//}
 
-		if a.configuration.compressGzip {
-			s.Handler = fasthttp.CompressHandler(s.Handler)
-		}
+		//if a.configuration.compressGzip {
+		//	s.Handler = fasthttp.CompressHandler(s.Handler)
+		//}
 
-		if conf := a.configuration.timeout; conf.Enable {
-			s.Handler = fasthttp.TimeoutHandler(s.Handler, conf.Duration, conf.Msg)
-		}
+		//if conf := a.configuration.timeout; conf.Enable {
+		//	s.Handler = fasthttp.TimeoutHandler(s.Handler, conf.Duration, conf.Msg)
+		//}
 
 		if a.configuration.gracefulShutdown {
 			a.quitCh = make(chan os.Signal)
@@ -63,11 +60,11 @@ func Addr(addr string) ServerHandler {
 			go a.gracefulShutdown(s, a.quitCh)
 		}
 
-		if len(a.configuration.tlsSecretFile) > 0 && len(a.configuration.tlsKeyFile) > 0 {
-			http2.ConfigureServer(s, http2.ServerConfig{})
-			return s.ListenAndServeTLS(addr, a.configuration.tlsSecretFile, a.configuration.tlsKeyFile)
-		}
+		//if len(a.configuration.tlsSecretFile) > 0 && len(a.configuration.tlsKeyFile) > 0 {
+		//	http2.ConfigureServer(s, http2.ServerConfig{})
+		//	return s.ListenAndServeTLS(addr, a.configuration.tlsSecretFile, a.configuration.tlsKeyFile)
+		//}
 
-		return s.ListenAndServe(addr)
+		return s.ListenAndServe()
 	}
 }
