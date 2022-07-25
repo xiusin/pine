@@ -527,8 +527,7 @@ func (r *Router) Static(urlPath, dir string, stripSlashes ...int) {
 	handler := func(c *Context) {
 		fName := c.params.Get(FilePathParam)
 		if len(fName) == 0 {
-			c.Abort(fasthttp.StatusNotFound)
-			return
+			fName = "index.html"
 		}
 		fileServer(c.RequestCtx)
 	}
