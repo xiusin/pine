@@ -5,7 +5,6 @@
 package pine
 
 import (
-	"github.com/dgrr/http2"
 	"os"
 	"os/signal"
 	"strings"
@@ -63,10 +62,10 @@ func Addr(addr string) ServerHandler {
 			go a.gracefulShutdown(s, a.quitCh)
 		}
 
-		if len(a.configuration.tlsSecretFile) > 0 && len(a.configuration.tlsKeyFile) > 0 {
-			http2.ConfigureServer(s, http2.ServerConfig{})
-			return s.ListenAndServeTLS(addr, a.configuration.tlsSecretFile, a.configuration.tlsKeyFile)
-		}
+		// if len(a.configuration.tlsSecretFile) > 0 && len(a.configuration.tlsKeyFile) > 0 {
+		// 	http2.ConfigureServer(s, http2.ServerConfig{})
+		// 	return s.ListenAndServeTLS(addr, a.configuration.tlsSecretFile, a.configuration.tlsKeyFile)
+		// }
 
 		return s.ListenAndServe(addr)
 	}
