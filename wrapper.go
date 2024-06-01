@@ -112,37 +112,38 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 		defer func() { destruct.Call(nil) }()
 	}
 
-	cmr.Lock()
-	defer cmr.Unlock()
-	var exist bool
-	if ins, exist = cmr.reflectMethod[method]; !exist {
-		// 反射执行函数参数, 解析并设置可获取的参数类型
-		mt := c.MethodByName(method).Type()
-
-		if numIn := mt.NumIn(); numIn > 0 {
-			for i := 0; i < numIn; i++ {
-				if in := mt.In(i); in.Kind() == reflect.Ptr || in.Kind() == reflect.Interface {
-					if in.Kind() == reflect.Interface { // 解析interface类型的服务, 如cache.AbstractCache
-						if di.Exists(in.String()) {
-							ins = append(ins, reflect.ValueOf(di.MustGet(in.String())))
-						} else {
-							panic(fmt.Errorf("con't resolve service `%s` in di", in))
+	func() {
+		cmr.Lock()
+		defer cmr.Unlock()
+		var exist bool
+		if ins, exist = cmr.reflectMethod[method]; !exist {
+			// 反射执行函数参数, 解析并设置可获取的参数类型
+			mt := c.MethodByName(method).Type()
+			if numIn := mt.NumIn(); numIn > 0 {
+				for i := 0; i < numIn; i++ {
+					if in := mt.In(i); in.Kind() == reflect.Ptr || in.Kind() == reflect.Interface {
+						if in.Kind() == reflect.Interface { // 解析interface类型的服务, 如cache.AbstractCache
+							if di.Exists(in.String()) {
+								ins = append(ins, reflect.ValueOf(di.MustGet(in.String())))
+							} else {
+								panic(fmt.Errorf("con't resolve service `%s` in di", in))
+							}
+						} else { // 解析指针类型的服务: 如: *string, *int
+							inV := reflect.New(in.Elem())
+							if di.Exists(inV.Interface()) {
+								ins = append(ins, reflect.ValueOf(di.MustGet(inV.Interface())))
+							} else {
+								panic(fmt.Errorf("con't resolve service `%s` in di", inV))
+							}
 						}
-					} else { // 解析指针类型的服务: 如: *string, *int
-						inV := reflect.New(in.Elem())
-						if di.Exists(inV.Interface()) {
-							ins = append(ins, reflect.ValueOf(di.MustGet(inV.Interface())))
-						} else {
-							panic(fmt.Errorf("con't resolve service `%s` in di", inV))
-						}
+					} else {
+						panic(fmt.Errorf("controller %s method: %s params(NO.%d)(%s)  not support. only ptr or interface ", c.Type().String(), mt.Name(), i, in.String()))
 					}
-				} else {
-					panic(fmt.Errorf("controller %s method: %s params(NO.%d)(%s)  not support. only ptr or interface ", c.Type().String(), mt.Name(), i, in.String()))
 				}
+				cmr.reflectMethod[method] = ins
 			}
-			cmr.reflectMethod[method] = ins
 		}
-	}
+	}()
 
 	values := c.MethodByName(method).Call(ins)
 
@@ -156,7 +157,7 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 	if ctx.autoParseValue && len(values) == 1 {
 		var body []byte
 		for _, val := range values {
-			skip := false
+			var skip bool
 			switch val.Kind() {
 			case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
 				skip = val.IsNil()
