@@ -3,7 +3,7 @@
 
 package pointer
 
-func To[T interface{}](t T) *T {
+func To[T any](t T) *T {
 	return &t
 }
 

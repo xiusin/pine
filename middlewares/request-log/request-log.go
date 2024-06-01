@@ -20,7 +20,7 @@ func RequestRecorder(minDuration ...time.Duration) pine.Handler {
 					return
 				}
 			}
-			statusInfo := ""
+			var statusInfo string
 			status := c.Response.StatusCode()
 			if status == 0 || status == fasthttp.StatusOK {
 				statusInfo = color.GreenString("%d", fasthttp.StatusOK)

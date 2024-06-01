@@ -30,8 +30,8 @@ import (
 const Version = "net/http 0.1.0"
 
 const logo = `
-  ____  _            
- |  _ \(_)_ __   ___ 
+  ____  _
+ |  _ \(_)_ __   ___
  | |_) | | '_ \ / _ \
  |  __/| | | | |  __/
  |_|   |_|_| |_|\___|`
@@ -75,14 +75,12 @@ type RouteEntry struct {
 
 type AbstractRouter interface {
 	AddRoute(method, path string, handle Handler, mws ...Handler)
-
 	ANY(path string, handle Handler, mws ...Handler)
 	GET(path string, handle Handler, mws ...Handler)
 	POST(path string, handle Handler, mws ...Handler)
 	HEAD(path string, handle Handler, mws ...Handler)
 	PUT(path string, handle Handler, mws ...Handler)
 	DELETE(path string, handle Handler, mws ...Handler)
-
 	StaticFile(string, string, ...Handler)
 	Static(string, string, ...int)
 }

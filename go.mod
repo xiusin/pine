@@ -8,7 +8,6 @@ require (
 	github.com/bits-and-blooms/bloom v1.0.1-0.20210513151749-57921726402d
 	github.com/cubewise-code/go-mime v0.0.0-20200519001935-8c5762b177d8
 	github.com/dgraph-io/badger/v2 v2.0.2
-	github.com/dgrr/http2 v0.3.3
 	github.com/fatih/color v1.13.0
 	github.com/gomodule/redigo v2.0.0+incompatible
 	github.com/gookit/color v1.5.0
@@ -40,7 +39,6 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
-	github.com/valyala/fastrand v1.1.0 // indirect
 	github.com/xo/terminfo v0.0.0-20210125001918-ca9a967f8778 // indirect
 	golang.org/x/net v0.0.0-20210510120150-4163338589ed // indirect
 	golang.org/x/sys v0.0.0-20211113001501-0c823b97ae02 // indirect

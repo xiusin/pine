@@ -156,7 +156,7 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 	if ctx.autoParseValue && len(values) == 1 {
 		var body []byte
 		for _, val := range values {
-			skip := false
+			var skip bool
 			switch val.Kind() {
 			case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Ptr, reflect.Slice, reflect.UnsafePointer:
 				skip = val.IsNil()

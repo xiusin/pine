@@ -21,7 +21,6 @@ type IController interface {
 	Ctx() *Context
 	Input() *input
 	Render() *Render
-
 	Logger() logger.AbstractLogger
 	Session() sessions.AbstractSession
 }
