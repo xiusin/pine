@@ -29,7 +29,7 @@ func (r *ServerDataCollector) GetName() string {
 	return "Server"
 }
 
-func (r *ServerDataCollector) GetTitle() interface{} {
+func (r *ServerDataCollector) GetTitle() any {
 	return "Server"
 }
 
@@ -37,7 +37,7 @@ func (r *ServerDataCollector) GetRoute() string {
 	return ""
 }
 
-func (r *ServerDataCollector) GetWidgets() interface{} {
+func (r *ServerDataCollector) GetWidgets() any {
 	panic("implement me")
 }
 

@@ -10,7 +10,7 @@ import (
 )
 
 // Make 获取给定参数的实例
-func Make(service interface{}, params ...interface{}) interface{} {
+func Make(service any, params ...any) any {
 	return di.MustGet(service, params...)
 }
 
@@ -20,6 +20,7 @@ func Logger() logger.AbstractLogger {
 }
 
 var serviceApp = (*Application)(nil)
+
 // App 获取应用实例
 func App() *Application {
 	return Make(serviceApp).(*Application)

@@ -27,7 +27,7 @@ type input struct {
 	ctx  *Context
 	form *multipart.Form
 	err  error
-	data map[string]interface{}
+	data map[string]any
 }
 
 func newInput(ctx *Context) *input {
@@ -37,7 +37,7 @@ func newInput(ctx *Context) *input {
 }
 
 // All 返回所有数据
-func (i *input) All() map[string]interface{} {
+func (i *input) All() map[string]any {
 	return i.data
 }
 
@@ -47,7 +47,7 @@ func (i *input) IsJson() bool {
 }
 
 // Add 新增数据
-func (i *input) Add(key string, value interface{}) {
+func (i *input) Add(key string, value any) {
 	if _, exist := i.data[key]; !exist {
 		i.data[key] = value
 	}
@@ -61,18 +61,18 @@ func (i *input) Has(key string) bool {
 }
 
 // Set 设置数据
-func (i *input) Set(key string, value interface{}) {
+func (i *input) Set(key string, value any) {
 	i.data[key] = value
 }
 
 // Get 获取数据
-func (i *input) Get(key string) interface{} {
+func (i *input) Get(key string) any {
 	return i.data[key]
 }
 
 // Only 获取指定Key的值
-func (i *input) Only(keys ...string) map[string]interface{} {
-	var data = map[string]interface{}{}
+func (i *input) Only(keys ...string) map[string]any {
+	var data = map[string]any{}
 	for _, key := range keys {
 		data[key] = i.data[key]
 	}
@@ -98,14 +98,14 @@ func (i *input) LastErr() error {
 }
 
 func (i *input) ResetFromContext() {
-	data := map[string]interface{}{}
-	bodyJsonData := map[string]interface{}{}
+	data := map[string]any{}
+	bodyJsonData := map[string]any{}
 	postData := i.ctx.RequestCtx.PostBody()
 	if i.IsJson() && len(postData) > 0 {
 		if postData[0] == 123 /** { **/ {
 			i.err = json.Unmarshal(postData, &bodyJsonData)
 		} else if postData[0] == 91 /** [ **/ {
-			var arrData []interface{}
+			var arrData []any
 			i.err = json.Unmarshal(postData, &arrData)
 			bodyJsonData[GoRawBody] = arrData
 		}

@@ -9,18 +9,18 @@ import (
 )
 
 func main() {
-	//di.Set("render", func(builder di.AbstractBuilder) (i interface{}, e error) {
+	//di.Set("render", func(builder di.AbstractBuilder) (i any, e error) {
 	//	return view.New("views", true), nil
 	//}, true)
 
-	//di.Set("render", func(builder di.AbstractBuilder) (i interface{}, e error) {
+	//di.Set("render", func(builder di.AbstractBuilder) (i any, e error) {
 	//	plushEngine := plush.New("views", true)
 	//	plushEngine.AddFunc("echo", func(name string) string{
 	//		return "hello " + name
 	//	})
 	//	return plushEngine, nil
 	//}, true)
-	// di.Set("render", func(builder di.AbstractBuilder) (i interface{}, e error) {
+	// di.Set("render", func(builder di.AbstractBuilder) (i any, e error) {
 	// 	pongo2.RegisterFilter("hello", func(in *pongo2.Value, param *pongo2.Value) (out *pongo2.Value, err *pongo2.Error) {
 	// 		return pongo2.AsValue("hello " + in.String()), nil
 	// 	})
@@ -29,7 +29,7 @@ func main() {
 
 	//
 	//
-	//di.Set("cache.ICache", func(builder di.AbstractBuilder) (i interface{}, e error) {
+	//di.Set("cache.ICache", func(builder di.AbstractBuilder) (i any, e error) {
 	//	handler, err := cache2.NewAdapter("badger", &badger.Option{
 	//		Path: path.StoragePath("data"),
 	//		TTL:  600,
@@ -37,7 +37,7 @@ func main() {
 	//	return handler, err
 	//}, true)
 	//
-	//di.Set("sessionManager", func(builder di.AbstractBuilder) (i interface{}, e error) {
+	//di.Set("sessionManager", func(builder di.AbstractBuilder) (i any, e error) {
 	//	return sessions.New(cache.NewStore(&cache.Config{
 	//		Cache:        di.MustGet("cache.ICache").(cache2.ICache),
 	//		CookieMaxAge: 600,

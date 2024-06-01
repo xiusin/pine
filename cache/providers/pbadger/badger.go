@@ -25,7 +25,7 @@ func New(ttl int, cfg badgerDB.Options) *pBadger {
 	}
 }
 
-func (c *pBadger) GetWithUnmarshal(key string, receiver interface{}) error {
+func (c *pBadger) GetWithUnmarshal(key string, receiver any) error {
 	if data, err := c.Get(key); err == nil {
 		return cache.UnMarshal(data, receiver)
 	} else {
@@ -33,7 +33,7 @@ func (c *pBadger) GetWithUnmarshal(key string, receiver interface{}) error {
 	}
 }
 
-func (c *pBadger) SetWithMarshal(key string, receiver interface{}, ttl ...int) error {
+func (c *pBadger) SetWithMarshal(key string, receiver any, ttl ...int) error {
 	if data, err := cache.Marshal(receiver); err == nil {
 		return c.Set(key, data, ttl...)
 	} else {
@@ -64,7 +64,7 @@ func (c *pBadger) Set(key string, val []byte, ttl ...int) error {
 	})
 }
 
-func (c *pBadger) Remember(key string, receiver interface{}, call func() (interface{}, error), ttl ...int) (err error) {
+func (c *pBadger) Remember(key string, receiver any, call func() (any, error), ttl ...int) (err error) {
 	defer func() {
 		if recoverErr := recover(); recoverErr != nil {
 			err = recoverErr.(error)
@@ -77,7 +77,7 @@ func (c *pBadger) Remember(key string, receiver interface{}, call func() (interf
 		return err
 	}
 
-	var value interface{}
+	var value any
 	if value, err = call(); err == nil {
 		reflect.ValueOf(receiver).Elem().Set(reflect.ValueOf(value).Elem())
 		err = c.SetWithMarshal(key, value, ttl...)
@@ -116,6 +116,6 @@ func (c *pBadger) getEntry(key string, val []byte, ttl []int) *badgerDB.Entry {
 	return e
 }
 
-func (c *pBadger) GetProvider() interface{} {
+func (c *pBadger) GetProvider() any {
 	return c.DB
 }

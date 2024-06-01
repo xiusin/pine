@@ -15,7 +15,7 @@ import (
 	"github.com/xiusin/pine/render"
 )
 
-type H map[string]interface{}
+type H map[string]any
 
 var engines = map[string]render.AbstractRenderer{}
 
@@ -62,7 +62,7 @@ func (c *Render) reset(ctx *fasthttp.RequestCtx) {
 	}
 	c.applied = false
 }
-func (c *Render) JSON(v interface{}) error {
+func (c *Render) JSON(v any) error {
 	c.writer.Response.Header.Set(HeaderContentType, ContentTypeJSON)
 
 	return responseJson(c.writer, v, "")
@@ -91,24 +91,24 @@ func (c *Render) GetEngine(ext string) render.AbstractRenderer {
 	return c.engines[ext]
 }
 
-func (c *Render) JSONP(callback string, v interface{}) error {
+func (c *Render) JSONP(callback string, v any) error {
 	c.writer.Response.Header.Set(HeaderContentType, ContentTypeJSON)
 
 	return responseJson(c.writer, v, callback)
 }
 
-func (c *Render) ViewData(key string, val interface{}) {
+func (c *Render) ViewData(key string, val any) {
 	if c.tplData == nil {
 		c.tplData = H{}
 	}
 	c.tplData[key] = val
 }
 
-func (c *Render) GetViewData() map[string]interface{} {
+func (c *Render) GetViewData() map[string]any {
 	return c.tplData
 }
 
-func (c *Render) XML(v interface{}) error {
+func (c *Render) XML(v any) error {
 	c.writer.Response.Header.Set(HeaderContentType, ContentTypeXML)
 
 	b, err := xml.MarshalIndent(v, "", " ")
@@ -119,7 +119,7 @@ func (c *Render) XML(v interface{}) error {
 	return err
 }
 
-func responseJson(writer io.Writer, v interface{}, callback string) error {
+func responseJson(writer io.Writer, v any, callback string) error {
 	b, err := json.Marshal(v)
 	if err == nil {
 		if len(callback) == 0 {

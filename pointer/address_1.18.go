@@ -3,12 +3,12 @@
 
 package pointer
 
-func To[T interface{}](t T) *T {
+func To[T any](t T) *T {
 	return &t
 }
 
 func ToOrNil[T comparable](t T) *T {
-	if z, ok := interface{}(t).(interface{ IsZero() bool }); ok {
+	if z, ok := any(t).(interface{ IsZero() bool }); ok {
 		if z.IsZero() {
 			return nil
 		}
@@ -22,7 +22,7 @@ func ToOrNil[T comparable](t T) *T {
 	return &t
 }
 
-func Get[T interface{}](t *T) T {
+func Get[T any](t *T) T {
 	if t == nil {
 		var zero T
 		return zero

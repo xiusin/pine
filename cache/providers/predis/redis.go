@@ -20,7 +20,7 @@ type pineRedis struct {
 
 func New(ttl int, pool *redisgo.Pool) *pineRedis { return &pineRedis{ttl: ttl, Pool: pool} }
 
-func (r *pineRedis) GetProvider() interface{} { return r.Pool }
+func (r *pineRedis) GetProvider() any { return r.Pool }
 
 func (r *pineRedis) Get(key string) (byts []byte, err error) {
 	client := r.Pool.Get()
@@ -32,7 +32,7 @@ func (r *pineRedis) Get(key string) (byts []byte, err error) {
 	return
 }
 
-func (r *pineRedis) GetWithUnmarshal(key string, receiver interface{}) (err error) {
+func (r *pineRedis) GetWithUnmarshal(key string, receiver any) (err error) {
 	var data []byte
 	if data, err = r.Get(key); err != nil {
 		return err
@@ -43,7 +43,7 @@ func (r *pineRedis) GetWithUnmarshal(key string, receiver interface{}) (err erro
 }
 
 func (r *pineRedis) Set(key string, val []byte, ttl ...int) (err error) {
-	params := []interface{}{key, val}
+	params := []any{key, val}
 	if len(ttl) == 0 {
 		ttl = []int{r.ttl}
 	}
@@ -60,7 +60,7 @@ func (r *pineRedis) Set(key string, val []byte, ttl ...int) (err error) {
 	return
 }
 
-func (r *pineRedis) SetWithMarshal(key string, data interface{}, ttl ...int) (err error) {
+func (r *pineRedis) SetWithMarshal(key string, data any, ttl ...int) (err error) {
 	var byts []byte
 	if byts, err = cache.Marshal(data); err != nil {
 		err = r.Set(key, byts, ttl...)
@@ -77,7 +77,7 @@ func (r *pineRedis) Delete(key string) error {
 	return err
 }
 
-func (r *pineRedis) Remember(key string, receiver interface{}, call func() (interface{}, error), ttl ...int) (err error) {
+func (r *pineRedis) Remember(key string, receiver any, call func() (any, error), ttl ...int) (err error) {
 	defer func() {
 		if recoverErr := recover(); recoverErr != nil {
 			err = recoverErr.(error)
@@ -88,7 +88,7 @@ func (r *pineRedis) Remember(key string, receiver interface{}, call func() (inte
 	defer r.Unlock()
 
 	if err = r.GetWithUnmarshal(key, receiver); cache.IsErrKeyNotFound(err) {
-		var value interface{}
+		var value any
 		if value, err = call(); err == nil {
 			if err = r.SetWithMarshal(key, receiver, ttl...); err == nil {
 				reflect.ValueOf(receiver).Elem().Set(reflect.ValueOf(value).Elem())

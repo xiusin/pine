@@ -79,7 +79,7 @@ func (e *errHandler) init() {
 func (e *errHandler) errors(c *pine.Context, errmsg string, trace []byte) {
 	jsData, _ := json.Marshal(e.fileContent)
 	var buf bytes.Buffer
-	if err := debugTemplate.Execute(&buf, map[string]interface{}{
+	if err := debugTemplate.Execute(&buf, map[string]any{
 		"stack":     template.HTML(trace),
 		"error":     errmsg,
 		"fileMap":   string(jsData),
@@ -98,7 +98,7 @@ func (e *errHandler) showTraceInfo(errMsg, traceMsg string, isAjax bool) []byte 
 	var trace []map[string]string
 	var fileContentMap []string
 
-	l, idx, jsonRet, buf := len(msgs), 1, map[string]interface{}{}, bytes.NewBuffer([]byte{})
+	l, idx, jsonRet, buf := len(msgs), 1, map[string]any{}, bytes.NewBuffer([]byte{})
 	for i := 0; i < l; i += 2 {
 		paths := strings.Split(msgs[i+1], ":")
 		paths[0] = strings.Trim(paths[0], "\t")

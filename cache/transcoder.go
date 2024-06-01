@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 )
 
-type Marshaller func(interface{}) ([]byte, error)
-type UnMarshaller func([]byte, interface{}) error
+type Marshaller func(any) ([]byte, error)
+type UnMarshaller func([]byte, any) error
 
 type transcoder struct {
 	Marshal   Marshaller
@@ -25,10 +25,10 @@ func SetTranscoderFunc(marshaller Marshaller, unMarshaller UnMarshaller) {
 	}
 }
 
-func Marshal(data interface{}) ([]byte, error) {
+func Marshal(data any) ([]byte, error) {
 	return defaultTranscoder.Marshal(data)
 }
 
-func UnMarshal(data []byte, receiver interface{}) error {
+func UnMarshal(data []byte, receiver any) error {
 	return defaultTranscoder.UnMarshal(data, receiver)
 }

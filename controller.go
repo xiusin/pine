@@ -58,6 +58,6 @@ func (c *Controller) Input() *input {
 	return c.Ctx().Input()
 }
 
-func (c *Controller) ViewData(key string, val interface{}) {
+func (c *Controller) ViewData(key string, val any) {
 	c.Render().ViewData(key, val)
 }

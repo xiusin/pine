@@ -10,7 +10,7 @@ import (
 
 type AbstractRenderer interface {
 	Ext() string
-	AddFunc(string, interface{})
+	AddFunc(string, any)
 
-	HTML(writer io.Writer, name string, binding map[string]interface{}) error
+	HTML(writer io.Writer, name string, binding map[string]any) error
 }

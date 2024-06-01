@@ -25,10 +25,10 @@ type UserController struct {
 //	//user.Ctx().Render().Text([]byte("hello world"))
 //}
 
-//func (user *UserController) GetLogin() interface{} {
+//func (user *UserController) GetLogin() any {
 //	index, _ := user.Ctx().GetInt("index", 0)
 //	var p map[string]string
-//	var m = map[int]interface{}{
+//	var m = map[int]any{
 //		0: "hello world",
 //		1: 1,
 //		2: 2.1,
@@ -36,7 +36,7 @@ type UserController struct {
 //			Name string
 //		}{Name: "xiusin"},
 //		4: [5]int{1, 2, 3, 4, 5},
-//		5: map[int]interface{}{
+//		5: map[int]any{
 //			0: "hello world",
 //			1: 1,
 //			2: 2.1,
@@ -46,7 +46,7 @@ type UserController struct {
 //			4: [5]int{1, 2, 3, 4, 5},
 //		},
 //		6: true,
-//		7: []interface{}{1,"hello", []int{1,2,3,4}, []byte("hello"),errors.New("hello"), nil, p},
+//		7: []any{1,"hello", []int{1,2,3,4}, []byte("hello"),errors.New("hello"), nil, p},
 //		10: &struct {
 //			Name string
 //		}{Name: "pointer"},

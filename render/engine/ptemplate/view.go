@@ -89,13 +89,13 @@ func (engine *Engine) Ext() string {
 	return engine.ext
 }
 
-func (engine *Engine) AddFunc(funcName string, funcEntry interface{}) {
+func (engine *Engine) AddFunc(funcName string, funcEntry any) {
 	if reflect.ValueOf(funcEntry).Kind() == reflect.Func {
 		engine.funcMap[funcName] = funcEntry
 	}
 }
 
-func (engine *Engine) HTML(writer io.Writer, name string, binding map[string]interface{}) error {
+func (engine *Engine) HTML(writer io.Writer, name string, binding map[string]any) error {
 	if engine.fs == nil {
 		if engine.reload {
 			funcMap := engine.funcMap

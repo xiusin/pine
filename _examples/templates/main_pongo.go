@@ -10,7 +10,7 @@ import (
 func main() {
 	app := pine.New()
 
-	di.Set("render", func(builder di.AbstractBuilder) (i interface{}, e error) {
+	di.Set("render", func(builder di.AbstractBuilder) (i any, e error) {
 		p := pongo.New("views", ".html", false)
 		// reload = true 每次都会重载模板
 		p.AddFunc("hello", func(in *pongo2.Value, param *pongo2.Value) (out *pongo2.Value, err *pongo2.Error) {

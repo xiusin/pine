@@ -27,7 +27,7 @@ func (r *pBigCache) Get(key string) (byts []byte, err error) {
 	return
 }
 
-func (r *pBigCache) GetWithUnmarshal(key string, receiver interface{}) (err error) {
+func (r *pBigCache) GetWithUnmarshal(key string, receiver any) (err error) {
 	var byts []byte
 	if byts, err = r.Get(key); err == nil {
 		err = cache.UnMarshal(byts, receiver)
@@ -42,7 +42,7 @@ func (r *pBigCache) Set(key string, val []byte, ttl ...int) (err error) {
 	return err
 }
 
-func (r *pBigCache) SetWithMarshal(key string, data interface{}, ttl ...int) error {
+func (r *pBigCache) SetWithMarshal(key string, data any, ttl ...int) error {
 	if byts, err := cache.Marshal(data); err != nil {
 		return err
 	} else {
@@ -52,14 +52,14 @@ func (r *pBigCache) SetWithMarshal(key string, data interface{}, ttl ...int) err
 
 func (r *pBigCache) Delete(key string) error { return r.BigCache.Delete(key) }
 
-func (r *pBigCache) Remember(key string, receiver interface{}, call cache.RememberCallback, ttl ...int) (err error) {
+func (r *pBigCache) Remember(key string, receiver any, call cache.RememberCallback, ttl ...int) (err error) {
 	defer func() {
 		if recoverErr := recover(); recoverErr != nil {
 			err = recoverErr.(error)
 		}
 	}()
 	if err = r.GetWithUnmarshal(key, receiver); cache.IsErrKeyNotFound(err) {
-		var value interface{}
+		var value any
 		if value, err = call(); err == nil {
 			if err = r.SetWithMarshal(key, receiver, ttl...); err == nil {
 				reflect.ValueOf(receiver).Elem().Set(reflect.ValueOf(value).Elem())
@@ -69,7 +69,7 @@ func (r *pBigCache) Remember(key string, receiver interface{}, call cache.Rememb
 	return
 }
 
-func (r *pBigCache) GetProvider() interface{} { return r.BigCache }
+func (r *pBigCache) GetProvider() any { return r.BigCache }
 
 func (r *pBigCache) Exists(key string) bool {
 	var err error

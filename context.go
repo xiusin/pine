@@ -118,7 +118,7 @@ func (c *Context) Write(data []byte) error {
 	return c.Render().Bytes(data)
 }
 
-func (c *Context) WriteJSON(v interface{}) error {
+func (c *Context) WriteJSON(v any) error {
 	return c.Render().JSON(v)
 }
 
@@ -253,7 +253,7 @@ func (c *Context) SetStatus(statusCode int) {
 	c.SetStatusCode(statusCode)
 }
 
-func (c *Context) Set(key string, value interface{}) {
+func (c *Context) Set(key string, value any) {
 	c.RequestCtx.SetUserValue(key, value)
 }
 
@@ -281,18 +281,18 @@ func (c *Context) Path() string {
 	return *(*string)(unsafe.Pointer(&method))
 }
 
-func (c *Context) BindJSON(rev interface{}) error {
+func (c *Context) BindJSON(rev any) error {
 	return json.Unmarshal(c.PostBody(), rev)
 }
 
-func (c *Context) BindForm(rev interface{}) error {
+func (c *Context) BindForm(rev any) error {
 	if values := c.Input().PostForm(); len(values) > 0 {
 		return schemaDecoder.Decode(rev, values)
 	}
 	return errors.New("no post data")
 }
 
-func (c *Context) Value(key string) interface{} {
+func (c *Context) Value(key string) any {
 	return c.RequestCtx.Value(key)
 }
 

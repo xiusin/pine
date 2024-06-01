@@ -7,7 +7,7 @@ import (
 type RequestDataCollector struct {
 	cookie  map[string]string
 	get     map[string][]string
-	raw     interface{}
+	raw     any
 	post    map[string][]string
 	session map[string]string
 	headers map[string]string
@@ -31,7 +31,7 @@ func (c RequestDataCollector) GetName() string {
 	panic("implement me")
 }
 
-func (c RequestDataCollector) GetTitle() interface{} {
+func (c RequestDataCollector) GetTitle() any {
 	panic("implement me")
 }
 
@@ -39,7 +39,7 @@ func (c RequestDataCollector) GetRoute() string {
 	panic("implement me")
 }
 
-func (c RequestDataCollector) GetWidgets() interface{} {
+func (c RequestDataCollector) GetWidgets() any {
 	panic("implement me")
 }
 

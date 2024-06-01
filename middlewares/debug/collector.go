@@ -13,11 +13,11 @@ type AbstractCollector interface {
 
 	SetContext(ctx *pine.Context)
 
-	GetTitle() interface{} // 前端渲染页面
+	GetTitle() any // 前端渲染页面
 
 	GetRoute() string // 路由
 
-	GetWidgets() interface{} // 获取渲染数据
+	GetWidgets() any // 获取渲染数据
 
 	Destroy()
 }
