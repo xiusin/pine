@@ -12,23 +12,6 @@ import (
 	uuid "github.com/satori/go.uuid"
 )
 
-type AbstractSessionStore interface {
-	Get(string, any) error
-	Save(string, any) error
-	Delete(string) error
-}
-
-type AbstractSession interface {
-	GetId() string
-	Set(string, any)
-	Get(string) any
-	Has(string) bool
-	Remove(string)
-	Destroy() error
-	Save() error
-
-	All() map[string]any
-}
 
 type Sessions struct {
 	provider AbstractSessionStore

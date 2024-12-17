@@ -1,0 +1,61 @@
+{
+    "folders": [
+        {
+            "path": "."
+        }
+    ],
+    "extensions": {
+        "recommendations": [
+            "GuodongSun.vscode-git-cruise", // git 历史管理
+            "maciejdems.add-to-gitignore", // 添加到忽略
+            "JanBn.git-last-commit-message", // 快速提交
+            "k--kato.intellij-idea-keybindings", // idea 快捷键
+            "nicohlr.pycharm", // 主题
+            "anweber.vscode-httpyac", // http 接口测试
+            "saber2pr.file-git-history", // 文件历史记录
+            "mk12.better-git-line-blame", // git blame
+            "alefragnani.Bookmarks", // 书签
+            "MS-CEINTL.vscode-language-pack-zh-hans", // 中文
+            "streetsidesoftware.code-spell-checker", // 拼写检查
+            "be5invis.vscode-icontheme-nomo-dark", // icon图标
+            "eenaree.webstorm-new-dark", // 主题
+            "srmeyers.git-prefix", // git 提交前缀
+            "golang.go", // golang
+            "ohanedan.lowlight-go-errors", // 错误低亮
+            "whosydd.go-tags", // 为结构体快捷增加标签
+            "farnetani.ddl-to-go-struct", // 将DDL转换为结构体
+            "usernamehw.errorlens", // 错误提示
+            "chadalen.vscode-jetbrains-icon-theme",
+        ]
+    },
+    "settings": {
+        "editor.lineHeight": 1.7,
+        "gopls": {
+            "analyses": {
+                "composites": false // 忽略指定优化警告
+            }
+        },
+        "go.lintTool": "revive", // 选择lint
+        "cSpell.words": [],
+        "editor.fontSize": 15,
+        "files.autoSave": "off",
+        "editor.fontFamily": "'Envy Code R VS','Hack','Droid Sans Mono',Menlo, Monaco, 'Courier New', monospace",
+        "window.autoDetectColorScheme": true,
+        "workbench.iconTheme": "vscode-jetbrains-icon-theme-2023-dark",
+        "editor.fontWeight": "300",
+        "merge-conflict.autoNavigateNextConflict.enabled": true,
+        "simpleBrowser.focusLockIndicator.enabled": false,
+    },
+    "launch": {
+        "version": "0.2.0",
+        "configurations": [
+            {
+                "name": "调试项目",
+                "type": "go",
+                "request": "launch",
+                "mode": "debug",
+                "program": "${workspaceFolder}/main.go"
+            },
+        ]
+    }
+}

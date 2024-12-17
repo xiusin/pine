@@ -8,6 +8,7 @@ import (
 	"reflect"
 
 	"github.com/xiusin/logger"
+	"github.com/xiusin/pine/contracts"
 	"github.com/xiusin/pine/sessions"
 )
 
@@ -22,8 +23,8 @@ type IController interface {
 	Input() *input
 	Render() *Render
 
-	Logger() logger.AbstractLogger
-	Session() sessions.AbstractSession
+	Logger() contracts.Logger
+	Session() contracts.Session
 }
 
 var reflectingNeedIgnoreMethods = map[string]struct{}{}

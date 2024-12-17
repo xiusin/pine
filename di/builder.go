@@ -37,7 +37,7 @@ type BuildWithHandler func(builder AbstractBuilder, params ...any) (any, error)
 
 //reflect.TypeOf((*logger.AbstractLogger)(nil)).Elem()) 直接反射类型， 后续判断是否可以100%反射pkgPath
 
-const formatErrServiceNotExists = "service %s not exists"
+const ErrServiceNotExistsFormat = "service %s not exists"
 
 var ErrServiceSingleton = errors.New("service is singleton, cannot use it with GetWithParams")
 
@@ -45,7 +45,7 @@ func (b *builder) GetDefinition(serviceAny any) (*Definition, error) {
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
-		return nil, fmt.Errorf(formatErrServiceNotExists, serviceName)
+		return nil, fmt.Errorf(ErrServiceNotExistsFormat, serviceName)
 	}
 	return service.(*Definition), nil
 }
@@ -193,12 +193,10 @@ func Exists(serviceAny any) bool {
 	return di.Exists(serviceAny)
 }
 
-// Remove 移除服务
 func Remove(serviceAny any) {
 	di.services.Delete(ResolveServiceName(serviceAny))
 }
 
-// Bind 绑定非共享服务
 func Bind(serviceAny any, handler BuildHandler) *Definition {
 	return di.Bind(serviceAny, handler)
 }

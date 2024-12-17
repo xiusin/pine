@@ -2,19 +2,15 @@ package sessions
 
 import (
 	"github.com/valyala/fasthttp"
+	"github.com/xiusin/pine/contracts"
 )
 
 type Cookie struct {
 	ctx        *fasthttp.RequestCtx
-	transcoder AbstractCookieTranscoder
+	transcoder contracts.CookieTranscoder
 }
 
-type AbstractCookieTranscoder interface {
-	Encode(cookieName string, value any) (string, error)
-	Decode(cookieName string, cookieValue string, v any) error
-}
-
-func NewCookie(ctx *fasthttp.RequestCtx, transcoder AbstractCookieTranscoder) *Cookie {
+func NewCookie(ctx *fasthttp.RequestCtx, transcoder contracts.CookieTranscoder) *Cookie {
 	return &Cookie{ctx, transcoder}
 }
 
