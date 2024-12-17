@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/xiusin/pine/contracts"
 	"net"
 	"runtime"
 	"strings"
@@ -15,14 +16,13 @@ import (
 
 	"github.com/gorilla/schema"
 	"github.com/valyala/fasthttp"
-	"github.com/xiusin/logger"
 	"github.com/xiusin/pine/sessions"
 )
 
 var schemaDecoder = schema.NewDecoder()
 
 type Context struct {
-	*input
+	input *Input
 	// application
 	app *Application
 
@@ -38,7 +38,7 @@ type Context struct {
 	cookie *sessions.Cookie
 
 	// SessionManager
-	sess sessions.AbstractSession
+	sess contracts.Session
 
 	// Request params
 	params Params
@@ -51,8 +51,6 @@ type Context struct {
 
 	// Temporary recording error information
 	Msg string
-
-	loggerEntity *logger.LogEntity
 
 	autoParseValue bool
 }
@@ -90,7 +88,6 @@ func (c *Context) reset() {
 	c.route = nil
 	c.sess = nil
 	c.input = nil
-	c.loggerEntity = nil
 	c.RequestCtx = nil
 	c.middlewareIndex = -1
 	c.stopped = false
@@ -134,7 +131,7 @@ func (c *Context) Render() *Render {
 	return c.render
 }
 
-func (c *Context) Input() *input {
+func (c *Context) Input() *Input {
 	if c.input == nil {
 		c.input = newInput(c)
 	}
@@ -152,15 +149,8 @@ func (c *Context) Header(key string) string {
 	return string(c.Request.Header.Peek(key))
 }
 
-func (c *Context) Logger() logger.AbstractLogger {
+func (c *Context) Logger() contracts.Logger {
 	return Logger()
-}
-
-func (c *Context) LoggerEntity() *logger.LogEntity {
-	if c.loggerEntity == nil {
-		c.loggerEntity = Logger().EntityLogger().(*logger.LogEntity)
-	}
-	return c.loggerEntity
 }
 
 func (c *Context) Redirect(url string, statusHeader ...int) {
@@ -174,7 +164,7 @@ func (c *Context) sessions() *sessions.Sessions {
 	return Make(&sessions.Sessions{}).(*sessions.Sessions)
 }
 
-func (c *Context) Session(sessIns ...sessions.AbstractSession) sessions.AbstractSession {
+func (c *Context) Session(sessIns ...contracts.Session) contracts.Session {
 	if c.sess == nil {
 		if len(sessIns) > 0 {
 			c.sess = sessIns[0]

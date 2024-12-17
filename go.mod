@@ -1,6 +1,6 @@
 module github.com/xiusin/pine
 
-go 1.18
+go 1.20
 
 require (
 	github.com/CloudyKit/jet v2.1.3-0.20180809161101-62edd43e4f88+incompatible
@@ -17,7 +17,6 @@ require (
 	github.com/syndtr/goleveldb v1.0.0
 	github.com/valyala/fasthttp v1.54.0
 	github.com/valyala/fastjson v1.6.4
-	github.com/xiusin/logger v0.0.10-0.20220129022857-69c2a6f6a736
 )
 
 require (
@@ -43,7 +42,6 @@ require (
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	golang.org/x/net v0.25.0 // indirect
 	golang.org/x/sys v0.20.0 // indirect
-	golang.org/x/term v0.20.0 // indirect
 	google.golang.org/protobuf v1.34.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 )

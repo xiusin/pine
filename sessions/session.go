@@ -5,6 +5,7 @@
 package sessions
 
 import (
+	"github.com/xiusin/pine/contracts"
 	"sync"
 
 	"github.com/xiusin/pine/cache"
@@ -21,12 +22,12 @@ type Session struct {
 	data map[string]any
 
 	status int
-	store  AbstractSessionStore
+	store  contracts.SessionStore
 
 	cookie *Cookie
 }
 
-func newSession(id string, store AbstractSessionStore, cookie *Cookie) (*Session, error) {
+func newSession(id string, store contracts.SessionStore, cookie *Cookie) (*Session, error) {
 	entity := map[string]any{}
 	sess := &Session{id: id, store: store, cookie: cookie}
 

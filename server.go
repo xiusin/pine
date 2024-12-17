@@ -35,10 +35,9 @@ func Addr(addr string) ServerHandler {
 	return func(a *Application) error {
 		s := &fasthttp.Server{
 			Name:    a.configuration.serverName,
-			Logger:  Logger(),
 			Handler: dispatchRequest(a),
 			ErrorHandler: func(ctx *fasthttp.RequestCtx, err error) {
-				Logger().Errorf("server error: %s", err)
+				Logger().Error("server error: %s", err)
 			},
 		}
 
@@ -61,11 +60,6 @@ func Addr(addr string) ServerHandler {
 			signal.Notify(a.quitCh, os.Interrupt, syscall.SIGTERM)
 			go a.gracefulShutdown(s, a.quitCh)
 		}
-
-		// if len(a.configuration.tlsSecretFile) > 0 && len(a.configuration.tlsKeyFile) > 0 {
-		// 	http2.ConfigureServer(s, http2.ServerConfig{})
-		// 	return s.ListenAndServeTLS(addr, a.configuration.tlsSecretFile, a.configuration.tlsKeyFile)
-		// }
 
 		return s.ListenAndServe(addr)
 	}

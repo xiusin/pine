@@ -7,9 +7,7 @@ package pine
 import (
 	"reflect"
 
-	"github.com/xiusin/logger"
 	"github.com/xiusin/pine/contracts"
-	"github.com/xiusin/pine/sessions"
 )
 
 type Controller struct {
@@ -20,7 +18,7 @@ var _ IController = (*Controller)(nil)
 
 type IController interface {
 	Ctx() *Context
-	Input() *input
+	Input() *Input
 	Render() *Render
 
 	Logger() contracts.Logger
@@ -47,15 +45,15 @@ func (c *Controller) View(name string) {
 	c.Render().HTML(name)
 }
 
-func (c *Controller) Logger() logger.AbstractLogger {
+func (c *Controller) Logger() contracts.Logger {
 	return c.context.Logger()
 }
 
-func (c *Controller) Session() sessions.AbstractSession {
+func (c *Controller) Session() contracts.Session {
 	return c.context.Session()
 }
 
-func (c *Controller) Input() *input {
+func (c *Controller) Input() *Input {
 	return c.Ctx().Input()
 }
 

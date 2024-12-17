@@ -23,55 +23,55 @@ const GoRawBody = "pine://input"
 
 var EmptyBytes = []byte("")
 
-type input struct {
+type Input struct {
 	ctx  *Context
 	form *multipart.Form
 	err  error
 	data map[string]any
 }
 
-func newInput(ctx *Context) *input {
-	v := &input{ctx: ctx}
+func newInput(ctx *Context) *Input {
+	v := &Input{ctx: ctx}
 	v.ResetFromContext()
 	return v
 }
 
 // All 返回所有数据
-func (i *input) All() map[string]any {
+func (i *Input) All() map[string]any {
 	return i.data
 }
 
 // IsJson 判断是否为json提交
-func (i *input) IsJson() bool {
+func (i *Input) IsJson() bool {
 	return strings.Contains(i.ctx.Header(fasthttp.HeaderContentType), "/json")
 }
 
 // Add 新增数据
-func (i *input) Add(key string, value any) {
+func (i *Input) Add(key string, value any) {
 	if _, exist := i.data[key]; !exist {
 		i.data[key] = value
 	}
 }
 
 // Has 是否存在某个key数据
-func (i *input) Has(key string) bool {
+func (i *Input) Has(key string) bool {
 	var exist bool
 	_, exist = i.data[key]
 	return exist
 }
 
 // Set 设置数据
-func (i *input) Set(key string, value any) {
+func (i *Input) Set(key string, value any) {
 	i.data[key] = value
 }
 
 // Get 获取数据
-func (i *input) Get(key string) any {
+func (i *Input) Get(key string) any {
 	return i.data[key]
 }
 
 // Only 获取指定Key的值
-func (i *input) Only(keys ...string) map[string]any {
+func (i *Input) Only(keys ...string) map[string]any {
 	var data = map[string]any{}
 	for _, key := range keys {
 		data[key] = i.data[key]
@@ -80,24 +80,24 @@ func (i *input) Only(keys ...string) map[string]any {
 }
 
 // Del 删除数据
-func (i *input) Del(keys ...string) {
+func (i *Input) Del(keys ...string) {
 	for _, key := range keys {
 		delete(i.data, key)
 	}
 }
 
 // Clear 清除数据
-func (i *input) Clear() {
+func (i *Input) Clear() {
 	for key := range i.data {
 		delete(i.data, key)
 	}
 }
 
-func (i *input) LastErr() error {
+func (i *Input) LastErr() error {
 	return i.err
 }
 
-func (i *input) ResetFromContext() {
+func (i *Input) ResetFromContext() {
 	data := map[string]any{}
 	bodyJsonData := map[string]any{}
 	postData := i.ctx.RequestCtx.PostBody()
@@ -140,14 +140,14 @@ func (i *input) ResetFromContext() {
 	i.data = data
 }
 
-func (i *input) GetForm() *multipart.Form {
+func (i *Input) GetForm() *multipart.Form {
 	if i.form == nil {
 		i.form, _ = i.ctx.MultipartForm()
 	}
 	return i.form
 }
 
-func (i *input) PostForm() map[string][]string {
+func (i *Input) PostForm() map[string][]string {
 	data := map[string][]string{}
 	i.ctx.PostArgs().VisitAll(func(key, value []byte) {
 		data[string(key)] = []string{string(value)}
@@ -159,7 +159,7 @@ func (i *input) PostForm() map[string][]string {
 }
 
 // DelExcept 删除指定keys之外的数据
-func (i *input) DelExcept(keys ...string) {
+func (i *Input) DelExcept(keys ...string) {
 	for k := range i.data {
 		for _, exceptKey := range keys {
 			if exceptKey != k {
@@ -169,14 +169,14 @@ func (i *input) DelExcept(keys ...string) {
 	}
 }
 
-func (i *input) str2bytes(s string) []byte {
+func (i *Input) str2bytes(s string) []byte {
 	x := (*[2]uintptr)(unsafe.Pointer(&s))
 	h := [3]uintptr{x[0], x[1], x[1]}
 	return *(*[]byte)(unsafe.Pointer(&h))
 }
 
 // GetDeep 深层获取value
-func (i *input) GetDeep(key string) (*fastjson.Value, error) {
+func (i *Input) GetDeep(key string) (*fastjson.Value, error) {
 	pars := strings.Split(key, ".")
 	if i.Has(pars[0]) {
 		data, err := i.GetBytes(pars[0])
@@ -199,7 +199,7 @@ func (i *input) GetDeep(key string) (*fastjson.Value, error) {
 }
 
 // GetBytes 获取bytes数据， 仅个别类型
-func (i *input) GetBytes(key string) ([]byte, error) {
+func (i *Input) GetBytes(key string) ([]byte, error) {
 	if i.Has(key) {
 		switch value := i.Get(key); value.(type) {
 		case bool:
@@ -219,7 +219,7 @@ func (i *input) GetBytes(key string) ([]byte, error) {
 	return nil, ErrKeyNotFound
 }
 
-func (i *input) GetInt(key string, defaultVal ...int) (val int, err error) {
+func (i *Input) GetInt(key string, defaultVal ...int) (val int, err error) {
 	var byts []byte
 	if byts, err = i.GetBytes(key); err == nil {
 		if val, err = strconv.Atoi(*(*string)(unsafe.Pointer(&byts))); err != nil && len(defaultVal) > 0 {
@@ -229,7 +229,7 @@ func (i *input) GetInt(key string, defaultVal ...int) (val int, err error) {
 	return
 }
 
-func (i *input) GetInt64(key string, defaultVal ...int64) (val int64, err error) {
+func (i *Input) GetInt64(key string, defaultVal ...int64) (val int64, err error) {
 	var byts []byte
 	if byts, err = i.GetBytes(key); err == nil {
 		if val, err = strconv.ParseInt(*(*string)(unsafe.Pointer(&byts)), 10, 64); err != nil && len(defaultVal) > 0 {
@@ -239,7 +239,7 @@ func (i *input) GetInt64(key string, defaultVal ...int64) (val int64, err error)
 	return
 }
 
-func (i *input) GetBool(key string, defaultVal ...bool) (val bool, err error) {
+func (i *Input) GetBool(key string, defaultVal ...bool) (val bool, err error) {
 	var byts []byte
 	if byts, err = i.GetBytes(key); err == nil {
 		if val, err = strconv.ParseBool(*(*string)(unsafe.Pointer(&byts))); err != nil && len(defaultVal) > 0 {
@@ -249,7 +249,7 @@ func (i *input) GetBool(key string, defaultVal ...bool) (val bool, err error) {
 	return val, err
 }
 
-func (i *input) GetFloat64(key string, defaultVal ...float64) (val float64, err error) {
+func (i *Input) GetFloat64(key string, defaultVal ...float64) (val float64, err error) {
 	var byts []byte
 	if byts, err = i.GetBytes(key); err == nil {
 		if val, err = strconv.ParseFloat(*(*string)(unsafe.Pointer(&byts)), 64); err != nil && len(defaultVal) > 0 {
@@ -259,14 +259,14 @@ func (i *input) GetFloat64(key string, defaultVal ...float64) (val float64, err 
 	return
 }
 
-func (i *input) GetFormStrings(key string) []string {
+func (i *Input) GetFormStrings(key string) []string {
 	if i.GetForm() != nil {
 		return i.GetForm().Value[key]
 	}
 	return nil
 }
 
-func (i *input) GetString(key string, defaultVal ...string) (val string, err error) {
+func (i *Input) GetString(key string, defaultVal ...string) (val string, err error) {
 	var byts []byte
 	if byts, err = i.GetBytes(key); err == nil {
 		if len(byts) > 0 {
@@ -278,6 +278,6 @@ func (i *input) GetString(key string, defaultVal ...string) (val string, err err
 	return
 }
 
-func (i *input) Files(key string) (*multipart.FileHeader, error) {
+func (i *Input) Files(key string) (*multipart.FileHeader, error) {
 	return i.ctx.FormFile(key)
 }

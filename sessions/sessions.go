@@ -7,14 +7,14 @@ package sessions
 import (
 	"crypto/md5"
 	"encoding/hex"
+	"github.com/xiusin/pine/contracts"
 	"time"
 
 	uuid "github.com/satori/go.uuid"
 )
 
-
 type Sessions struct {
-	provider AbstractSessionStore
+	provider contracts.SessionStore
 	cfg      *Config
 	// manager  map[string]AbstractSession 先去除掉manager, 目前没有想好如何合理的释放对象
 }
@@ -24,7 +24,7 @@ type Config struct {
 	Expires    time.Duration
 }
 
-func New(provider AbstractSessionStore, cfg *Config) *Sessions {
+func New(provider contracts.SessionStore, cfg *Config) *Sessions {
 	if len(cfg.CookieName) == 0 {
 		cfg.CookieName = "pine_session_id"
 	}
@@ -42,7 +42,7 @@ func sessionId() string {
 }
 
 // Session 获取session对象
-func (m *Sessions) Session(cookie *Cookie) (sess AbstractSession, err error) {
+func (m *Sessions) Session(cookie *Cookie) (sess contracts.Session, err error) {
 	sessID := cookie.Get(m.cfg.CookieName)
 	if len(sessID) == 0 {
 		sessID = sessionId()

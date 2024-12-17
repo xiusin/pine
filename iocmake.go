@@ -5,8 +5,9 @@
 package pine
 
 import (
-	"github.com/xiusin/logger"
+	"github.com/xiusin/pine/contracts"
 	"github.com/xiusin/pine/di"
+	"log/slog"
 )
 
 // Make 获取给定参数的实例
@@ -15,8 +16,8 @@ func Make(service any, params ...any) any {
 }
 
 // Logger 获取日志实例
-func Logger() logger.AbstractLogger {
-	return Make(logger.GetDefault()).(logger.AbstractLogger)
+func Logger() contracts.Logger {
+	return Make(slog.Default()).(contracts.Logger)
 }
 
 var serviceApp = (*Application)(nil)

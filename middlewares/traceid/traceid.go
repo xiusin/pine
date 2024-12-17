@@ -1,27 +1,23 @@
 package traceid
 
 import (
-	"crypto/md5"
-	"encoding/hex"
-	"fmt"
+	uuid "github.com/satori/go.uuid"
 	"github.com/xiusin/pine"
-	"math/rand"
-	"sync"
-	"time"
 )
 
-var l sync.Mutex
+const Key = "trace_id"
+
+const HeaderKey = "X-Trace-ID"
 
 func TraceId() pine.Handler {
 	return func(ctx *pine.Context) {
-		hash := md5.New()
-		l.Lock()
-		hash.Write([]byte(fmt.Sprintf("%d%d", time.Now().UnixNano(), rand.Int63())))
-		traceId := hex.EncodeToString(hash.Sum(nil))
-		ctx.Response.Header.Set("Req-Trace-ID", traceId)
-		ctx.LoggerEntity().Id(traceId)
-		l.Unlock()
+		traceId := uuid.NewV4().String()
+		ctx.Set(Key, traceId)
+		if len(ctx.Header(HeaderKey)) == 0 {
+			ctx.Request.Header.Set(HeaderKey, traceId)
+		}
 
+		ctx.Response.Header.Set(HeaderKey, traceId)
 		ctx.Next()
 	}
 }

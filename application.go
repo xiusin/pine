@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,8 +16,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-
-	"github.com/xiusin/logger"
 
 	"io/fs"
 
@@ -117,7 +116,7 @@ type Application struct {
 }
 
 func init() {
-	di.Instance(logger.GetDefault())
+	di.Instance(slog.Default())
 }
 
 func New() *Application {

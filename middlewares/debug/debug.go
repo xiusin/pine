@@ -58,7 +58,7 @@ func Recover(r *pine.Application) pine.Handler {
 		defaultHandler.init()
 		stack := string(debug.Stack())
 		c.ResetBody()
-		c.Logger().Printf("msg: %s  Method: %s  Path: %s", c.Msg, c.Method(), c.Path())
+		c.Logger().Info("msg: %s  Method: %s  Path: %s", c.Msg, c.Method(), c.Path())
 		if c.IsAjax() {
 			c.Response.Header.Add("Content-Type", pine.ContentTypeJSON)
 			_ = c.Write(defaultHandler.showTraceInfo(c.Msg, stack, true))

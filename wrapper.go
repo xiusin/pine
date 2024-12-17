@@ -59,7 +59,7 @@ func (cmr *routerWrapper) warpHandler(method string, controller IController) Han
 				func() {
 					defer func() {
 						if err := recover(); err != nil {
-							Logger().Warning("reflect", field.Name, "failed", "reason: ", err)
+							Logger().Warn("reflect", field.Name, "failed", "reason: ", err)
 						}
 					}()
 					// 自动构建指针对应的类型
@@ -148,7 +148,7 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 	values := c.MethodByName(method).Call(ins)
 
 	if len(values) > 1 {
-		Logger().Warning("can't support auto parse multi values")
+		Logger().Warn("can't support auto parse multi values")
 	}
 
 	// 查看是否设置了解析返回值

@@ -25,9 +25,9 @@ func main() {
 		ctx.Next()
 	})
 
-
 	app.Static("/uploads", "./resources/uploads")
 	app.ANY("/get", func(ctx *pine.Context) {
+		pine.Logger().Info("get request")
 		// atomic.AddUint32(&v, 1)
 		// fmt.Println(v)
 		// ctx.WriteString("current req: " + strconv.Itoa(int(v)))
@@ -91,5 +91,5 @@ func main() {
 	// brew install mkcert
 	// mkdir .cert
 	// mkcert -key-file .cert/key.pem -cert-file .cert/cert.pem "localhost"
-	//app.Run(pine.Addr("localhost:9528"), pine.WithTlsFile(".cert/key.pem", ".cert/cert.pem"))
+	app.Run(pine.Addr("localhost:9528"))
 }

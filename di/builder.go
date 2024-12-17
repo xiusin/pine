@@ -122,7 +122,7 @@ func (b *builder) Get(serviceAny any) (any, error) {
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
-		return nil, fmt.Errorf(formatErrServiceNotExists, serviceName)
+		return nil, fmt.Errorf(ErrServiceNotExistsFormat, serviceName)
 	}
 	s, err := service.(*Definition).resolve(b)
 	if err != nil {
@@ -135,7 +135,7 @@ func (b *builder) GetWithParams(serviceAny any, params ...any) (any, error) {
 	serviceName := ResolveServiceName(serviceAny)
 	service, ok := b.services.Load(serviceName)
 	if !ok {
-		return nil, fmt.Errorf(formatErrServiceNotExists, serviceName)
+		return nil, fmt.Errorf(ErrServiceNotExistsFormat, serviceName)
 	}
 	if service.(*Definition).IsSingleton() {
 		return nil, ErrServiceSingleton
