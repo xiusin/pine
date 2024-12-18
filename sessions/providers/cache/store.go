@@ -7,14 +7,14 @@ package cache
 import (
 	"encoding/json"
 
-	"github.com/xiusin/pine/cache"
+	"github.com/xiusin/pine/contracts"
 )
 
 type Store struct {
-	Cache cache.AbstractCache
+	Cache contracts.Cache
 }
 
-func NewStore(cache cache.AbstractCache) *Store {
+func NewStore(cache contracts.Cache) *Store {
 	return &Store{cache}
 }
 
