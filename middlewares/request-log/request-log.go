@@ -30,12 +30,13 @@ func RequestRecorder(minDuration ...time.Duration) pine.Handler {
 				statusInfo = color.YellowString("%d", status)
 				statusInfo += fmt.Sprintf(": (%s)", c.Msg)
 			}
-			c.Logger().Debugf(
-				"%s | %s | %s | path: %s",
-				statusInfo,
-				fmt.Sprintf("%5s", c.Method()),
-				fmt.Sprintf("%.4fs", usedTime.Seconds()),
-				c.Request.RequestURI(),
+			c.Logger().Debug(
+				fmt.Sprintf("%s | %s | %s | path: %s",
+					statusInfo,
+					fmt.Sprintf("%5s", c.Method()),
+					fmt.Sprintf("%.4fs", usedTime.Seconds()),
+					c.Request.RequestURI(),
+				),
 			)
 			color.Unset()
 		}

@@ -2,7 +2,7 @@ package contracts
 
 type RememberCallback func() (any, error)
 
-type AbstractCache interface {
+type Cache interface {
 	Get(string) ([]byte, error)
 	GetWithUnmarshal(string, any) error
 

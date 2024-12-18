@@ -5,6 +5,7 @@
 package pbadger
 
 import (
+	"github.com/xiusin/pine/contracts"
 	"reflect"
 	"time"
 
@@ -64,7 +65,7 @@ func (c *pBadger) Set(key string, val []byte, ttl ...int) error {
 	})
 }
 
-func (c *pBadger) Remember(key string, receiver any, call func() (any, error), ttl ...int) (err error) {
+func (c *pBadger) Remember(key string, receiver any, call contracts.RememberCallback, ttl ...int) (err error) {
 	defer func() {
 		if recoverErr := recover(); recoverErr != nil {
 			err = recoverErr.(error)

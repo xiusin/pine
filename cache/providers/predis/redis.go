@@ -5,6 +5,7 @@
 package predis
 
 import (
+	"github.com/xiusin/pine/contracts"
 	"reflect"
 	"sync"
 
@@ -77,7 +78,7 @@ func (r *pineRedis) Delete(key string) error {
 	return err
 }
 
-func (r *pineRedis) Remember(key string, receiver any, call func() (any, error), ttl ...int) (err error) {
+func (r *pineRedis) Remember(key string, receiver any, call contracts.RememberCallback, ttl ...int) (err error) {
 	defer func() {
 		if recoverErr := recover(); recoverErr != nil {
 			err = recoverErr.(error)

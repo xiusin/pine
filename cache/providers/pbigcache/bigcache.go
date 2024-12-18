@@ -7,6 +7,7 @@ package pbigcache
 import (
 	"github.com/allegro/bigcache/v3"
 	"github.com/xiusin/pine/cache"
+	"github.com/xiusin/pine/contracts"
 	"reflect"
 )
 
@@ -52,7 +53,7 @@ func (r *pBigCache) SetWithMarshal(key string, data any, ttl ...int) error {
 
 func (r *pBigCache) Delete(key string) error { return r.BigCache.Delete(key) }
 
-func (r *pBigCache) Remember(key string, receiver any, call cache.RememberCallback, ttl ...int) (err error) {
+func (r *pBigCache) Remember(key string, receiver any, call contracts.RememberCallback, ttl ...int) (err error) {
 	defer func() {
 		if recoverErr := recover(); recoverErr != nil {
 			err = recoverErr.(error)

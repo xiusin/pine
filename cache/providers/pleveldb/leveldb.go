@@ -5,6 +5,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/xiusin/pine"
 	"github.com/xiusin/pine/cache"
+	"github.com/xiusin/pine/contracts"
 	"reflect"
 )
 
@@ -55,7 +56,7 @@ func (r *pLeveldb) Delete(key string) error {
 	return r.DB.Delete([]byte(key), &opt.WriteOptions{Sync: true})
 }
 
-func (r *pLeveldb) Remember(key string, receiver any, call cache.RememberCallback, ttl ...int) (err error) {
+func (r *pLeveldb) Remember(key string, receiver any, call contracts.RememberCallback, ttl ...int) (err error) {
 	defer func() {
 		if recoverErr := recover(); recoverErr != nil {
 			err = recoverErr.(error)

@@ -6,7 +6,7 @@ import (
 )
 
 func Expvar(statRoute string) pine.Handler {
-	pine.Logger().Print("[Expvar] See stats at " + statRoute)
+	pine.Logger().Info("[Expvar] See stats at " + statRoute)
 	pine.App().GET(statRoute, func(ctx *pine.Context) {
 		expvarhandler.ExpvarHandler(ctx.RequestCtx)
 	})
