@@ -29,7 +29,7 @@
         ]
     },
     "settings": {
-        "editor.lineHeight": 1.7,
+        "editor.lineHeight": 1.4,
         "gopls": {
             "analyses": {
                 "composites": false // 忽略指定优化警告
@@ -37,7 +37,7 @@
         },
         "go.lintTool": "revive", // 选择lint
         "cSpell.words": [],
-        "editor.fontSize": 15,
+        "editor.fontSize": 10,
         "files.autoSave": "off",
         "editor.fontFamily": "'Envy Code R VS','Hack','Droid Sans Mono',Menlo, Monaco, 'Courier New', monospace",
         "window.autoDetectColorScheme": true,

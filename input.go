@@ -100,7 +100,7 @@ func (i *Input) LastErr() error {
 func (i *Input) ResetFromContext() {
 	data := map[string]any{}
 	bodyJsonData := map[string]any{}
-	postData := i.ctx.RequestCtx.PostBody()
+	postData := i.ctx.PostBody()
 	if i.IsJson() && len(postData) > 0 {
 		if postData[0] == 123 /** { **/ {
 			i.err = json.Unmarshal(postData, &bodyJsonData)
