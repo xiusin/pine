@@ -112,7 +112,7 @@ type Application struct {
 	quitCh                chan os.Signal
 	recoverHandler        Handler
 	configuration         *Configuration
-	ReadonlyConfiguration AbstractReadonlyConfiguration
+	ReadonlyConfiguration ReadonlyConfiguration
 }
 
 func init() {
@@ -276,7 +276,7 @@ func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 		}
 	}
 
-	a.ReadonlyConfiguration = AbstractReadonlyConfiguration(a.configuration)
+	a.ReadonlyConfiguration = a.configuration
 
 	if err := srv(a); err != nil {
 		panic(err)

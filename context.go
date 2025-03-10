@@ -8,11 +8,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/xiusin/pine/contracts"
 	"net"
 	"runtime"
 	"strings"
 	"unsafe"
+
+	"github.com/xiusin/pine/contracts"
 
 	"github.com/gorilla/schema"
 	"github.com/valyala/fasthttp"
@@ -20,6 +21,8 @@ import (
 )
 
 var schemaDecoder = schema.NewDecoder()
+
+var ErrNoPostData = errors.New("no post data")
 
 type Context struct {
 	input *Input
@@ -279,7 +282,7 @@ func (c *Context) BindForm(rev any) error {
 	if values := c.Input().PostForm(); len(values) > 0 {
 		return schemaDecoder.Decode(rev, values)
 	}
-	return errors.New("no post data")
+	return ErrNoPostData
 }
 
 func (c *Context) Value(key string) any {

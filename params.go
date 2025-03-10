@@ -61,9 +61,10 @@ func (c Params) GetBool(key string, defaultVal bool) bool {
 	if len(val) == 0 {
 		return defaultVal
 	}
-	if v, err := strconv.ParseBool(val); err != nil {
+
+	v, err := strconv.ParseBool(val)
+	if err != nil {
 		return defaultVal
-	} else {
-		return v
 	}
+	return v
 }

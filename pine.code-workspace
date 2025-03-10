@@ -37,7 +37,7 @@
         },
         "go.lintTool": "revive", // 选择lint
         "cSpell.words": [],
-        "editor.fontSize": 10,
+        "editor.fontSize": 14,
         "files.autoSave": "off",
         "editor.fontFamily": "'Envy Code R VS','Hack','Droid Sans Mono',Menlo, Monaco, 'Courier New', monospace",
         "window.autoDetectColorScheme": true,

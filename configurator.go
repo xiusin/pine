@@ -5,8 +5,9 @@
 package pine
 
 import (
-	"github.com/xiusin/pine/contracts"
 	"time"
+
+	"github.com/xiusin/pine/contracts"
 )
 
 type TimeoutConf struct {
@@ -30,7 +31,7 @@ type Configuration struct {
 	tlsKeyFile                string
 }
 
-type AbstractReadonlyConfiguration interface {
+type ReadonlyConfiguration interface {
 	GetServerName() string
 	GetUseCookie() bool
 	GetMaxMultipartMemory() int64

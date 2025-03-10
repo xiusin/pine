@@ -8,9 +8,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
-	"github.com/valyala/fasthttp"
 	"io"
 	"path/filepath"
+
+	"github.com/valyala/fasthttp"
 
 	"github.com/xiusin/pine/render"
 )
@@ -64,7 +65,6 @@ func (c *Render) reset(ctx *fasthttp.RequestCtx) {
 }
 func (c *Render) JSON(v any) error {
 	c.writer.Response.Header.Set(HeaderContentType, ContentTypeJSON)
-
 	return responseJson(c.writer, v, "")
 }
 

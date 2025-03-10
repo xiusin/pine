@@ -5,6 +5,7 @@
 package pine
 
 import (
+	"net/http"
 	"os"
 	"reflect"
 	"runtime"
@@ -29,7 +30,7 @@ func (r *Router) DumpRouteTable() {
 	var tables []RouterTableRow
 
 	for method, routers := range r.methodRoutes {
-		if len(routers) == 0 {
+		if len(routers) == 0 || method == http.MethodOptions {
 			continue
 		}
 		for s, entry := range routers {
