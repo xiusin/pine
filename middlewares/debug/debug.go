@@ -1,3 +1,7 @@
+// Copyright 2014 Manu Martinez-Almeida.  All rights reserved.
+// Use of this source code is governed by a MIT style
+// license that can be found in the LICENSE file.
+
 package debug
 
 import (
@@ -5,6 +9,7 @@ import (
 	"encoding/json"
 	"html/template"
 	"io/ioutil"
+	"net/http"
 	"path"
 	"runtime"
 	"runtime/debug"
@@ -32,6 +37,7 @@ type errHandler struct {
 
 var defaultHandler = &errHandler{}
 
+// DebugBar 调试栏中间件.
 func DebugBar(enable bool) pine.Handler {
 	return func(ctx *pine.Context) {
 		collectorMgr := NewCollectorMgr(ctx, enable)
@@ -40,13 +46,14 @@ func DebugBar(enable bool) pine.Handler {
 
 		collectorMgr.RegisterCollector()
 
-		if ctx.Response.StatusCode() == 200 {
+		if ctx.Response.StatusCode() == http.StatusOK {
 			collectorMgr.BuildHtmlTag()
 		}
 		collectorMgr.Destroy()
 	}
 }
 
+// Recover 返回 panic 恢复中间件, 输出调试页面.
 func Recover(r *pine.Application) pine.Handler {
 	once.Do(func() {
 		_, f, _, _ := runtime.Caller(0)
@@ -57,13 +64,13 @@ func Recover(r *pine.Application) pine.Handler {
 	return func(c *pine.Context) {
 		defaultHandler.init()
 		stack := string(debug.Stack())
-		c.ResetBody()
+		c.Response.ResetBody()
 		c.Logger().Info("msg: %s  Method: %s  Path: %s", c.Msg, c.Method(), c.Path())
 		if c.IsAjax() {
-			c.Response.Header.Add("Content-Type", pine.ContentTypeJSON)
+			c.Response.Header().Add("Content-Type", pine.ContentTypeJSON)
 			_ = c.Write(defaultHandler.showTraceInfo(c.Msg, stack, true))
 		} else {
-			c.Response.Header.Add("Content-Type", pine.ContentTypeHTML)
+			c.Response.Header().Add("Content-Type", pine.ContentTypeHTML)
 			defaultHandler.errors(c, c.Msg, defaultHandler.showTraceInfo(c.Msg, stack, false))
 		}
 	}
@@ -106,7 +113,7 @@ func (e *errHandler) showTraceInfo(errMsg, traceMsg string, isAjax bool) []byte 
 		if strings.Contains(msgs[i], "debug.Stack()") ||
 			strings.Contains(msgs[i], "endRequest") ||
 			strings.Contains(paths[0], "panic.go") ||
-			strings.Contains(paths[0], "valyala/fasthttp") ||
+			strings.Contains(paths[0], "net/http") ||
 			strings.Contains(paths[0], "debug.go") {
 			continue
 		}
@@ -173,9 +180,7 @@ func (e *errHandler) showTraceInfo(errMsg, traceMsg string, isAjax bool) []byte 
 		jsonRet["message"] = errMsg
 		s, _ := json.Marshal(jsonRet)
 		return s
-	} else {
-		e.fileContent = fileContentMap
-		return buf.Bytes()
 	}
-
+	e.fileContent = fileContentMap
+	return buf.Bytes()
 }

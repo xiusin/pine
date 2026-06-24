@@ -17,7 +17,7 @@ func TraceId() pine.Handler {
 			ctx.Request.Header.Set(HeaderKey, traceId)
 		}
 
-		ctx.Response.Header.Set(HeaderKey, traceId)
+		ctx.Response.Header().Set(HeaderKey, traceId)
 		ctx.Next()
 	}
 }
