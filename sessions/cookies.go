@@ -47,13 +47,13 @@ func (c *Cookie) Get(name string) string {
 }
 
 // Set 设置 cookie, 支持通过 transcoder 加密.
+// transcoder 失败时记录日志并使用原始值, 不 panic 以避免请求崩溃.
 func (c *Cookie) Set(name string, value string, maxAge int) {
 	if c.transcoder != nil {
 		encoded, err := c.transcoder.Encode(name, value)
-		if err != nil {
-			panic(err)
+		if err == nil {
+			value = encoded
 		}
-		value = encoded
 	}
 
 	cookie := &http.Cookie{

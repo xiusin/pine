@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"html/template"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"path"
 	"runtime"
 	"runtime/debug"
@@ -119,7 +119,7 @@ func (e *errHandler) showTraceInfo(errMsg, traceMsg string, isAjax bool) []byte 
 		}
 
 		// 读取文件内容
-		codeContent, _ := ioutil.ReadFile(paths[0])
+		codeContent, _ := os.ReadFile(paths[0])
 		line := strings.Split(paths[1], " ")
 		lineNum, _ := strconv.Atoi(line[0])
 		codes := strings.Split(string(codeContent), "\n")

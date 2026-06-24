@@ -8,8 +8,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"io"
 	"path/filepath"
+	"sync"
 
 	"github.com/xiusin/pine/render"
 )
@@ -26,7 +28,16 @@ const (
 	ContentTypeXML    = "text/xml; charset=utf-8"
 )
 
-var engines = map[string]render.AbstractRenderer{}
+// enginesMu 保护 engines map 的并发读写.
+var (
+	engines   = map[string]render.AbstractRenderer{}
+	enginesMu sync.RWMutex
+)
+
+// jsonpBufferPool 复用 JSONP 拼接用的 bytes.Buffer, 减少 GC 压力.
+var jsonpBufferPool = sync.Pool{
+	New: func() any { return &bytes.Buffer{} },
+}
 
 // Render 渲染器, 负责将各类数据写入响应.
 type Render struct {
@@ -36,24 +47,32 @@ type Render struct {
 	applied bool
 }
 
-// RegisterViewEngine 注册视图引擎.
+// RegisterViewEngine 注册视图引擎 (线程安全).
 func RegisterViewEngine(engine render.AbstractRenderer) {
 	if engine == nil {
 		panic("engine can not be nil")
 	}
+	enginesMu.Lock()
+	defer enginesMu.Unlock()
 	engines[engine.Ext()] = engine
 }
 
 func newRender(resp *Response) *Render {
+	enginesMu.RLock()
+	snapshot := make(map[string]render.AbstractRenderer, len(engines))
+	for k, v := range engines {
+		snapshot[k] = v
+	}
+	enginesMu.RUnlock()
 	return &Render{
-		engines: engines,
+		engines: snapshot,
 		writer:  resp,
 	}
 }
 
 // ContentType 设置响应 Content-Type.
 func (c *Render) ContentType(typ string) {
-	c.writer.Header().SetContentType(typ)
+	c.writer.Header().Set(HeaderContentType, typ)
 }
 
 // reset 重置渲染器状态, 复用于 context 池.
@@ -70,7 +89,7 @@ func (c *Render) reset(resp *Response) {
 
 // JSON 渲染 JSON 响应.
 func (c *Render) JSON(v any) error {
-	c.writer.Header().SetContentType(ContentTypeJSON)
+	c.writer.Header().Set(HeaderContentType, ContentTypeJSON)
 	return responseJSON(c.writer, v, "")
 }
 
@@ -86,18 +105,20 @@ func (c *Render) Bytes(v []byte) error {
 }
 
 // HTML 渲染 HTML 模板响应.
-func (c *Render) HTML(viewPath string) {
-	c.writer.Header().SetContentType(ContentTypeHTML)
+// 返回 error 而非 panic, 与其他渲染方法保持一致.
+func (c *Render) HTML(viewPath string) error {
+	c.writer.Header().Set(HeaderContentType, ContentTypeHTML)
 
 	engine := c.engines[filepath.Ext(viewPath)]
 	if engine == nil {
-		panic("no view engine registered for ext: " + filepath.Ext(viewPath))
+		return errors.New("no view engine registered for ext: " + filepath.Ext(viewPath))
 	}
 	if err := engine.HTML(c.writer.BodyWriter(), viewPath, c.tplData); err != nil {
-		panic(err)
+		return err
 	}
 
 	c.applied = true
+	return nil
 }
 
 // GetEngine 根据扩展名获取视图引擎.
@@ -107,7 +128,7 @@ func (c *Render) GetEngine(ext string) render.AbstractRenderer {
 
 // JSONP 渲染 JSONP 响应.
 func (c *Render) JSONP(callback string, v any) error {
-	c.writer.Header().SetContentType(ContentTypeJSON)
+	c.writer.Header().Set(HeaderContentType, ContentTypeJSON)
 	return responseJSON(c.writer, v, callback)
 }
 
@@ -126,7 +147,7 @@ func (c *Render) GetViewData() map[string]any {
 
 // XML 渲染 XML 响应.
 func (c *Render) XML(v any) error {
-	c.writer.Header().SetContentType(ContentTypeXML)
+	c.writer.Header().Set(HeaderContentType, ContentTypeXML)
 
 	b, err := xml.MarshalIndent(v, "", " ")
 	if err == nil {
@@ -137,6 +158,7 @@ func (c *Render) XML(v any) error {
 }
 
 // responseJSON 序列化为 JSON 并写入, 支持 JSONP 回调包装.
+// JSONP 场景复用 sync.Pool 中的 bytes.Buffer.
 func responseJSON(writer io.Writer, v any, callback string) error {
 	b, err := json.Marshal(v)
 	if err != nil {
@@ -146,11 +168,13 @@ func responseJSON(writer io.Writer, v any, callback string) error {
 		_, err = writer.Write(b)
 		return err
 	}
-	var ret bytes.Buffer
-	ret.WriteString(callback)
-	ret.WriteByte('(')
-	ret.Write(b)
-	ret.WriteByte(')')
-	_, err = writer.Write(ret.Bytes())
+	buf := jsonpBufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	buf.WriteString(callback)
+	buf.WriteByte('(')
+	buf.Write(b)
+	buf.WriteByte(')')
+	_, err = writer.Write(buf.Bytes())
+	jsonpBufferPool.Put(buf)
 	return err
 }

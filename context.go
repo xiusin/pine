@@ -12,6 +12,7 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"net/url"
 	"runtime"
 	"strings"
 
@@ -41,6 +42,9 @@ type Context struct {
 	// 匹配到的路由条目
 	route *RouteEntry
 
+	// 预构建的中间件链 (在 setRoute 时一次性构建, 避免 Next 中重复 append)
+	middlewareChain []Handler
+
 	// 渲染器
 	render *Render
 
@@ -58,6 +62,9 @@ type Context struct {
 
 	// 当前中间件索引, 初始 -1
 	middlewareIndex int
+
+	// handler 函数名 (存储在 Context 而非 RouteEntry, 避免并发数据竞争)
+	handlerName string
 
 	// 临时错误信息
 	Msg string
@@ -80,6 +87,7 @@ func (c *Context) beginRequest(w http.ResponseWriter, r *http.Request) {
 	c.middlewareIndex = -1
 	c.stopped = false
 	c.Msg = ""
+	c.handlerName = ""
 
 	if c.app.ReadonlyConfiguration.GetUseCookie() {
 		if c.cookie == nil {
@@ -102,6 +110,8 @@ func (c *Context) reset() {
 	c.sess = nil
 	c.input = nil
 	c.Request = nil
+	c.middlewareChain = nil
+	c.handlerName = ""
 	if c.Response != nil {
 		releaseResponse(c.Response)
 		c.Response = nil
@@ -121,16 +131,18 @@ func (c *Context) reset() {
 	}
 }
 
-// endRequest 请求结束清理, 包含 panic 恢复.
+// endRequest 请求结束清理, 包含 panic 恢复与响应 flush.
 func (c *Context) endRequest(recoverHandler Handler) {
 	if err := recover(); err != nil {
 		c.SetStatus(http.StatusInternalServerError)
 		c.Msg = fmt.Sprintf("%s", err)
-		recoverHandler(c)
+		if recoverHandler != nil {
+			recoverHandler(c)
+		}
 	}
-	// 统一 flush 响应
+	// 统一 flush 响应到底层 ResponseWriter
 	if c.Response != nil {
-		_ = c.Response.Flush()
+		c.Response.FlushResponse()
 	}
 	c.reset()
 }
@@ -152,7 +164,7 @@ func (c *Context) WriteJSON(v any) error {
 
 // WriteHTMLBytes 以 HTML 形式写入字节.
 func (c *Context) WriteHTMLBytes(data []byte) error {
-	c.Response.Header().SetContentType(ContentTypeHTML)
+	c.Response.Header().Set(HeaderContentType, ContentTypeHTML)
 	return c.Render().Bytes(data)
 }
 
@@ -232,18 +244,17 @@ func dispatchRequest(a *Application) http.HandlerFunc {
 }
 
 // Next 推进中间件迭代.
+// 使用预构建的 middlewareChain, 避免每次调用重复拼接切片.
 func (c *Context) Next() {
 	if c.stopped {
 		return
 	}
 	c.middlewareIndex++
-	mws := c.route.ExtendsMiddleWare[:]
-	mws = append(mws, c.route.Middleware...)
-	length := len(mws)
+	length := len(c.middlewareChain)
 	if length == c.middlewareIndex {
 		c.Handle()
 	} else if c.middlewareIndex < length {
-		mws[c.middlewareIndex](c)
+		c.middlewareChain[c.middlewareIndex](c)
 	}
 }
 
@@ -262,9 +273,15 @@ func (c *Context) IsStopped() bool {
 	return c.stopped
 }
 
-// setRoute 设置匹配到的路由条目.
+// setRoute 设置匹配到的路由条目, 并预构建中间件链.
 func (c *Context) setRoute(route *RouteEntry) *Context {
 	c.route = route
+	// 预构建完整中间件链, 避免 Next() 中重复 append 分配
+	chain := make([]Handler, 0, len(route.ExtendsMiddleWare)+len(route.Middleware))
+	chain = append(chain, route.ExtendsMiddleWare...)
+	chain = append(chain, route.Middleware...)
+	c.middlewareChain = chain
+	c.middlewareIndex = -1
 	return c
 }
 
@@ -283,9 +300,9 @@ func (c *Context) Abort(statusCode int, msg ...string) {
 	}
 }
 
-// SendFile 发送文件.
+// SendFile 发送文件, 传入原始请求以支持条件请求 (If-Modified-Since 等).
 func (c *Context) SendFile(filepath string) {
-	c.Response.SendFile(filepath)
+	c.Response.SendFile(filepath, c.Request)
 }
 
 // SetStatus 设置响应状态码.
@@ -324,10 +341,10 @@ func (c *Context) ClientIP() string {
 	if clientIP != "" {
 		return clientIP
 	}
-	if ip, _, err := net.SplitHostPort(c.RemoteAddr().String()); err == nil {
+	if ip, _, err := net.SplitHostPort(c.RemoteAddr()); err == nil {
 		return ip
 	}
-	return ""
+	return c.RemoteAddr()
 }
 
 // Path 返回请求路径.
@@ -358,46 +375,18 @@ func (c *Context) IsDelete() bool { return c.Request.Method == http.MethodDelete
 // IsOptions 是否 OPTIONS 请求.
 func (c *Context) IsOptions() bool { return c.Request.Method == http.MethodOptions }
 
-// RemoteAddr 返回远程地址.
-func (c *Context) RemoteAddr() net.Addr {
-	return addr{c.Request.RemoteAddr}
+// RemoteAddr 返回远程地址 (直接返回 string, 与 net/http 一致).
+func (c *Context) RemoteAddr() string {
+	return c.Request.RemoteAddr
 }
 
-// URI 返回 URI 信息包装.
-func (c *Context) URI() *URIInfo {
-	return &URIInfo{request: c.Request}
+// URI 返回请求 URL.
+func (c *Context) URI() *url.URL {
+	return c.Request.URL
 }
-
-// URIInfo 提供 RequestURI 等便捷方法, 平替 fasthttp.URI.
-type URIInfo struct {
-	request *http.Request
-}
-
-// RequestURI 返回完整请求 URI.
-func (u *URIInfo) RequestURI() string {
-	return u.request.URL.RequestURI()
-}
-
-// Scheme 返回协议 (http/https).
-func (u *URIInfo) Scheme() string {
-	if u.request.TLS != nil {
-		return "https"
-	}
-	return "http"
-}
-
-// Host 返回主机名.
-func (u *URIInfo) Host() string {
-	return u.request.Host
-}
-
-// addr 简单实现 net.Addr 接口.
-type addr struct{ s string }
-
-func (a addr) Network() string { return "tcp" }
-func (a addr) String() string  { return a.s }
 
 // PostBody 返回 POST 请求体字节.
+// 内部通过 bodyBuffer 缓存, 支持多次读取.
 func (c *Context) PostBody() []byte {
 	if c.Request.Body == nil {
 		return nil
@@ -415,26 +404,14 @@ func (c *Context) PostBody() []byte {
 }
 
 // PostArgs 返回 POST 表单 (application/x-www-form-urlencoded).
-func (c *Context) PostArgs() urlValues {
+func (c *Context) PostArgs() url.Values {
 	_ = c.Request.ParseForm()
-	return urlValues(c.Request.PostForm)
+	return c.Request.PostForm
 }
 
 // QueryArgs 返回 query 参数.
-func (c *Context) QueryArgs() urlValues {
-	return urlValues(c.Request.URL.Query())
-}
-
-// urlValues 包装 url.Values, 提供 VisitAll 兼容旧 API.
-type urlValues map[string][]string
-
-// VisitAll 遍历所有键值对.
-func (u urlValues) VisitAll(fn func(key, value []byte)) {
-	for k, vs := range u {
-		if len(vs) > 0 {
-			fn([]byte(k), []byte(vs[0]))
-		}
-	}
+func (c *Context) QueryArgs() url.Values {
+	return c.Request.URL.Query()
 }
 
 // MultipartForm 返回 multipart 表单.
@@ -476,12 +453,13 @@ func (c *Context) BindForm(rev any) error {
 }
 
 // HandlerName 返回当前处理器函数名.
+// 存储在 Context 而非 RouteEntry, 避免并发请求的数据竞争.
 func (c *Context) HandlerName() string {
-	if len(c.route.HandlerName) == 0 {
+	if len(c.handlerName) == 0 {
 		pc, _, _, _ := runtime.Caller(1)
-		c.route.HandlerName = runtime.FuncForPC(pc).Name()
+		c.handlerName = runtime.FuncForPC(pc).Name()
 	}
-	return c.route.HandlerName
+	return c.handlerName
 }
 
 // SetCookie 设置 cookie.
@@ -499,7 +477,7 @@ func (c *Context) RemoveCookie(name string) {
 	c.cookie.Delete(name)
 }
 
-// bodyBuffer 包装已读 body, 支持多次读取.
+// bodyBuffer 包装已读 body, 支持多次读取与 Seek (用于 http.ServeContent 等需要 io.ReadSeeker 的场景).
 type bodyBuffer struct {
 	data []byte
 	pos  int
@@ -514,6 +492,26 @@ func (b *bodyBuffer) Read(p []byte) (int, error) {
 	n := copy(p, b.data[b.pos:])
 	b.pos += n
 	return n, nil
+}
+
+// Seek 实现 io.Seeker, 支持 http.ServeContent 等需要随机读取的场景.
+func (b *bodyBuffer) Seek(offset int64, whence int) (int64, error) {
+	var abs int64
+	switch whence {
+	case io.SeekStart:
+		abs = offset
+	case io.SeekCurrent:
+		abs = int64(b.pos) + offset
+	case io.SeekEnd:
+		abs = int64(len(b.data)) + offset
+	default:
+		return 0, errors.New("bodyBuffer: invalid whence")
+	}
+	if abs < 0 {
+		return 0, errors.New("bodyBuffer: negative position")
+	}
+	b.pos = int(abs)
+	return abs, nil
 }
 
 func (b *bodyBuffer) Close() error { return nil }

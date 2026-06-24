@@ -154,14 +154,19 @@ func (i *Input) GetForm() *multipart.Form {
 }
 
 // PostForm 合并 POST 表单与 query 参数.
+// 直接使用 url.Values, 避免 string/[]byte 来回转换.
 func (i *Input) PostForm() map[string][]string {
 	data := map[string][]string{}
-	i.ctx.PostArgs().VisitAll(func(key, value []byte) {
-		data[string(key)] = []string{string(value)}
-	})
-	i.ctx.QueryArgs().VisitAll(func(key, value []byte) {
-		data[string(key)] = []string{string(value)}
-	})
+	for key, values := range i.ctx.PostArgs() {
+		if len(values) > 0 {
+			data[key] = values
+		}
+	}
+	for key, values := range i.ctx.QueryArgs() {
+		if len(values) > 0 {
+			data[key] = values
+		}
+	}
 	return data
 }
 

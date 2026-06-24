@@ -25,6 +25,6 @@ func RegisterCodeHandler(status int, handler Handler) {
 
 // defaultRecoverHandler 默认 panic 恢复处理器.
 func defaultRecoverHandler(c *Context) {
-	c.Response.Header().SetContentType(ContentTypeHTML)
+	c.Response.Header().Set(HeaderContentType, ContentTypeHTML)
 	_ = DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": http.StatusInternalServerError})
 }
