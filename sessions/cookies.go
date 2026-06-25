@@ -5,6 +5,7 @@
 package sessions
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/xiusin/pine/contracts"
@@ -53,6 +54,8 @@ func (c *Cookie) Set(name string, value string, maxAge int) {
 		encoded, err := c.transcoder.Encode(name, value)
 		if err == nil {
 			value = encoded
+		} else {
+			log.Printf("pine sessions: cookie transcoder encode failed for %q: %v", name, err)
 		}
 	}
 

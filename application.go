@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -89,7 +90,7 @@ type AbstractRouter interface {
 	DELETE(path string, handle Handler, mws ...Handler)
 
 	StaticFile(string, string, ...Handler)
-	Static(string, string, ...int)
+	Static(string, string)
 }
 
 // IRegisterHandler 可注册路由的控制器接口.
@@ -192,7 +193,7 @@ func (r *Router) register(controller IController, prefix ...string) {
 			}
 
 		}
-		reflectingNeedIgnoreMethods = nil
+		// 不再置 nil reflectingNeedIgnoreMethods, 允许多个 controller 注册时复用忽略列表
 	}
 }
 
@@ -216,7 +217,8 @@ func (r *Router) matchRegister(path, prefix string, handle Handler) {
 // Subdomain 创建子域名路由.
 func (r *Router) Subdomain(subdomain string) *Router {
 	s := &Router{
-		middleWares:          r.middleWares,
+		// 浅拷贝父级中间件, 避免子域 Use 影响父域 (与 Group 行为一致)
+		middleWares:          append([]Handler(nil), r.middleWares...),
 		groups:               map[string]*Router{},
 		registeredSubdomains: r.registeredSubdomains,
 	}
@@ -291,7 +293,8 @@ func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 
 	a.ReadonlyConfiguration = a.configuration
 
-	if err := srv(a); err != nil {
+	if err := srv(a); err != nil && err != http.ErrServerClosed {
+		// http.ErrServerClosed 是优雅关闭的正常返回, 不应 panic
 		panic(err)
 	}
 }
@@ -491,16 +494,16 @@ func (r *Router) Favicon(file any) {
 			if mimeType := gomime.TypeByExtension(filepath.Ext(filename)); len(mimeType) > 0 {
 				c.Response.Header().Set(HeaderContentType, mimeType)
 			}
-			if err := c.Response.SendFile(filename, c.Request); err != nil {
-				c.Abort(http.StatusInternalServerError, err.Error())
-			}
+			c.Response.SendFile(filename, c.Request)
 		} else if file, ok := file.(fs.File); ok {
 			defer file.Close()
 			info, _ := file.Stat()
 			if mimeType := gomime.TypeByExtension(filepath.Ext(info.Name())); len(mimeType) > 0 {
 				c.Response.Header().Set(HeaderContentType, mimeType)
 			}
-			c.Response.ReadAll(file, -1)
+			if err := c.Response.ReadAll(file, -1); err != nil {
+				c.Abort(http.StatusInternalServerError, err.Error())
+			}
 		} else {
 			panic(errors.New("unsupported type"))
 		}
@@ -511,7 +514,7 @@ func (r *Router) Favicon(file any) {
 // 使用流式传输, 避免大文件全量读取导致 OOM.
 func (r *Router) StaticFS(urlPath string, f fs.FS, filePrefix string, indexfile ...string) {
 	handler := func(c *Context) {
-		filename := c.params.Get(FilePathParam)
+		filename := c.Params().Get(FilePathParam)
 
 		if len(filename) == 0 {
 			if len(indexfile) == 0 {
@@ -538,7 +541,9 @@ func (r *Router) StaticFS(urlPath string, f fs.FS, filePrefix string, indexfile 
 		}
 		// 流式传输: 标记 streamed, 直接写入底层 ResponseWriter
 		w := c.Response.StreamFile()
-		io.Copy(w, file)
+		if _, err := io.Copy(w, file); err != nil {
+			c.Logger().Warn("static fs copy: " + err.Error())
+		}
 	}
 	routePath := path.Join(urlPath, "*"+FilePathParam)
 	r.GET(routePath, handler)
@@ -547,27 +552,25 @@ func (r *Router) StaticFS(urlPath string, f fs.FS, filePrefix string, indexfile 
 
 // Static 注册基于目录的静态文件服务, 平替 fasthttp.FSHandler.
 // 使用 http.FileServer + http.StripPrefix, 在注册时创建一次, 避免每次请求重建.
-func (r *Router) Static(urlPath, dir string, stripSlashes ...int) {
-	if len(stripSlashes) == 0 {
-		stripSlashes = []int{0}
-	}
-	_ = stripSlashes
+func (r *Router) Static(urlPath, dir string) {
 	// 注册时创建一次 FileServer, 避免每次请求重建
 	fileServer := http.StripPrefix(urlPath, http.FileServer(http.Dir(dir)))
 	handler := func(c *Context) {
-		fName := c.params.Get(FilePathParam)
+		fName := c.Params().Get(FilePathParam)
 		if len(fName) == 0 {
 			fName = "index.html"
 		}
-		// 重写请求路径以匹配 strip prefix
-		req := c.Request.Clone(c.Request.Context())
-		req.URL.Path = "/" + fName
+		// 重写请求路径以匹配 strip prefix.
+		// 使用 WithContext 浅拷贝 Request, 仅替换 URL, 避免深拷贝 header map 的开销.
+		req := c.Request.WithContext(c.Request.Context())
+		req.URL = &url.URL{Path: "/" + fName, RawQuery: c.Request.URL.RawQuery}
 		// 标记流式响应, 跳过缓冲
 		w := c.Response.StreamFile()
 		fileServer.ServeHTTP(w, req)
 	}
 	routePath := path.Join(urlPath, "*"+FilePathParam)
 	r.GET(routePath, handler)
+	r.HEAD(routePath, handler)
 }
 
 // StaticFile 注册单文件服务.
@@ -630,7 +633,7 @@ var upperCharRegexp = regexp.MustCompile("([A-Z])")
 // upperCharToUnderLine 大写字符转下划线.
 func upperCharToUnderLine(path string) string {
 	return strings.TrimLeft(upperCharRegexp.ReplaceAllStringFunc(path, func(s string) string {
-		return strings.ToLower("_" + strings.ToLower(s))
+		return strings.ToLower("_" + s)
 	}), "_")
 }
 

@@ -21,6 +21,7 @@ type gzipResponseWriter struct {
 	gz      *gzip.Writer
 	mu      sync.Mutex
 	written bool // WriteHeader 是否已调用
+	wrote   bool // 是否有数据写入 (用于判断是否需要写 gzip footer)
 	closed  bool // Close 是否已调用
 }
 
@@ -48,6 +49,7 @@ func (g *gzipResponseWriter) Write(p []byte) (int, error) {
 		g.written = true
 		g.ResponseWriter.WriteHeader(http.StatusOK)
 	}
+	g.wrote = true
 	return g.gz.Write(p)
 }
 
@@ -80,6 +82,8 @@ func (g *gzipResponseWriter) Unwrap() http.ResponseWriter {
 
 // Close 关闭 gzip writer 并归还到池.
 // 必须在 handler 返回后调用, 以 flush 剩余压缩数据.
+// 若从未写入数据 (如 204/304 响应), 跳过 gzip close 并移除 Content-Encoding header,
+// 避免对无 body 响应写入多余的 gzip footer.
 func (g *gzipResponseWriter) Close() error {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -88,7 +92,13 @@ func (g *gzipResponseWriter) Close() error {
 	}
 	g.closed = true
 	if g.gz != nil {
-		err := g.gz.Close()
+		var err error
+		if g.wrote {
+			err = g.gz.Close()
+		} else {
+			// 无数据写入, 移除 Content-Encoding, 不写 gzip footer
+			g.ResponseWriter.Header().Del("Content-Encoding")
+		}
 		gzipWriterPool.Put(g.gz)
 		g.gz = nil
 		return err

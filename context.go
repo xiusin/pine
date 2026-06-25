@@ -132,14 +132,29 @@ func (c *Context) reset() {
 }
 
 // endRequest 请求结束清理, 包含 panic 恢复与响应 flush.
+// 加固: recoverHandler 自身 panic 不会阻止 FlushResponse 与 reset,
+// 避免脏 Context 入池导致下个请求串数据.
+// 恢复时先重置 body, 避免 handler 写入的部分响应体与错误页拼接.
 func (c *Context) endRequest(recoverHandler Handler) {
-	if err := recover(); err != nil {
-		c.SetStatus(http.StatusInternalServerError)
-		c.Msg = fmt.Sprintf("%s", err)
-		if recoverHandler != nil {
-			recoverHandler(c)
+	func() {
+		defer func() {
+			if e := recover(); e != nil {
+				// recoverHandler 自身 panic, 记录但不向上传播
+				Logger().Error(fmt.Sprintf("recoverHandler panic: %s", e))
+			}
+		}()
+		if err := recover(); err != nil {
+			c.SetStatus(http.StatusInternalServerError)
+			c.Msg = fmt.Sprintf("%s", err)
+			// 重置已缓冲的部分响应体, 让 recoverHandler 从干净状态重写
+			if c.Response != nil {
+				c.Response.ResetBody()
+			}
+			if recoverHandler != nil {
+				recoverHandler(c)
+			}
 		}
-	}
+	}()
 	// 统一 flush 响应到底层 ResponseWriter
 	if c.Response != nil {
 		c.Response.FlushResponse()
@@ -176,7 +191,8 @@ func (c *Context) Render() *Render {
 	return c.render
 }
 
-// Input 返回输入解析器 (懒初始化).
+// Input 返回输入解析器.
+// beginRequest 已保证 input 初始化, 此处仅作防御性兜底.
 func (c *Context) Input() *Input {
 	if c.input == nil {
 		c.input = newInput(c)
@@ -463,18 +479,29 @@ func (c *Context) HandlerName() string {
 }
 
 // SetCookie 设置 cookie.
+// 若未启用 cookie (WithCookie), 则懒初始化, 保证 API 可用.
 func (c *Context) SetCookie(name string, value string, maxAge int) {
+	c.ensureCookie()
 	c.cookie.Set(name, value, maxAge)
 }
 
 // GetCookie 获取 cookie.
 func (c *Context) GetCookie(name string) string {
+	c.ensureCookie()
 	return c.cookie.Get(name)
 }
 
 // RemoveCookie 删除 cookie.
 func (c *Context) RemoveCookie(name string) {
+	c.ensureCookie()
 	c.cookie.Delete(name)
+}
+
+// ensureCookie 懒初始化 cookie 管理器, 允许未配置 WithCookie 时也能使用 cookie API.
+func (c *Context) ensureCookie() {
+	if c.cookie == nil {
+		c.cookie = sessions.NewCookie(c.Response.writer, c.Request, c.app.configuration.CookieTranscoder)
+	}
 }
 
 // bodyBuffer 包装已读 body, 支持多次读取与 Seek (用于 http.ServeContent 等需要 io.ReadSeeker 的场景).

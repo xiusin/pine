@@ -117,7 +117,7 @@ func (i *Input) ResetFromContext() {
 
 	// 合并 post form 与 query
 	for key, values := range i.PostForm() {
-		if len(values[0]) > 0 {
+		if len(values) > 0 && len(values[0]) > 0 {
 			data[key] = []byte(values[0])
 		} else {
 			data[key] = EmptyBytes
@@ -127,7 +127,7 @@ func (i *Input) ResetFromContext() {
 	// 合并 multipart form 字段
 	if multiForm, err := i.ctx.MultipartForm(); err == nil {
 		for key, values := range multiForm.Value {
-			if len(values[0]) > 0 {
+			if len(values) > 0 && len(values[0]) > 0 {
 				data[key] = []byte(values[0])
 			} else {
 				data[key] = EmptyBytes

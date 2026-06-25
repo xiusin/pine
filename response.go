@@ -135,13 +135,12 @@ func (r *Response) StatusCode() int {
 // Flush 实现 http.Flusher.
 // 仅流式模式下有效, 将底层缓冲 flush 到网络.
 // 非流式模式为 no-op (缓冲模式不支持中间 flush, 由 FlushResponse 在请求结束时统一输出).
+// 使用 http.ResponseController 穿透包装层 (如 gzip) 访问底层 Flusher.
 func (r *Response) Flush() {
 	if !r.streamed {
 		return
 	}
-	if f, ok := r.writer.(http.Flusher); ok {
-		f.Flush()
-	}
+	http.NewResponseController(r.writer).Flush()
 }
 
 // Hijack 实现 http.Hijacker, 委托给底层 writer.
@@ -205,20 +204,22 @@ func (r *Response) ResetBody() {
 
 // ReadAll 从 reader 读取数据写入响应体缓冲.
 // size > 0 时预分配容量以减少扩容.
-func (r *Response) ReadAll(reader io.Reader, size int) {
+// 返回读取过程中的错误.
+func (r *Response) ReadAll(reader io.Reader, size int) error {
 	r.body.Reset()
 	if size > 0 {
 		r.body.Grow(size)
 	}
-	_, _ = io.Copy(r.body, reader)
+	_, err := io.Copy(r.body, reader)
+	return err
 }
 
 // SendFile 发送文件, 自动处理条件请求 (If-Modified-Since / If-None-Match) 与 Content-Type.
 // req 为原始请求, 用于 HEAD 方法识别与条件请求头解析.
-func (r *Response) SendFile(filepath string, req *http.Request) error {
+// http.ServeFile 通过 ResponseWriter 写错误, 故无返回值.
+func (r *Response) SendFile(filepath string, req *http.Request) {
 	r.markStreamed()
 	http.ServeFile(r.writer, req, filepath)
-	return nil
 }
 
 // StreamFile 标记流式直写并返回底层 ResponseWriter,

@@ -11,6 +11,7 @@ import (
 	"errors"
 	"io"
 	"path/filepath"
+	"regexp"
 	"sync"
 
 	"github.com/xiusin/pine/render"
@@ -39,12 +40,15 @@ var jsonpBufferPool = sync.Pool{
 	New: func() any { return &bytes.Buffer{} },
 }
 
+// jsonpCallbackRegexp 校验 JSONP callback 函数名合法性, 防 XSS 注入.
+// 合法字符: 字母/数字/下划线/点/美元符号, 首字符不能为数字.
+var jsonpCallbackRegexp = regexp.MustCompile(`^[A-Za-z_$][\w.$]*$`)
+
 // Render 渲染器, 负责将各类数据写入响应.
 type Render struct {
 	engines map[string]render.AbstractRenderer
 	writer  *Response
 	tplData H
-	applied bool
 }
 
 // RegisterViewEngine 注册视图引擎 (线程安全).
@@ -84,7 +88,6 @@ func (c *Render) reset(resp *Response) {
 			delete(c.tplData, k)
 		}
 	}
-	c.applied = false
 }
 
 // JSON 渲染 JSON 响应.
@@ -95,6 +98,7 @@ func (c *Render) JSON(v any) error {
 
 // Text 渲染文本响应.
 func (c *Render) Text(v string) error {
+	c.writer.Header().Set(HeaderContentType, ContentTypeText)
 	return c.Bytes([]byte(v))
 }
 
@@ -113,12 +117,7 @@ func (c *Render) HTML(viewPath string) error {
 	if engine == nil {
 		return errors.New("no view engine registered for ext: " + filepath.Ext(viewPath))
 	}
-	if err := engine.HTML(c.writer.BodyWriter(), viewPath, c.tplData); err != nil {
-		return err
-	}
-
-	c.applied = true
-	return nil
+	return engine.HTML(c.writer.BodyWriter(), viewPath, c.tplData)
 }
 
 // GetEngine 根据扩展名获取视图引擎.
@@ -158,7 +157,7 @@ func (c *Render) XML(v any) error {
 }
 
 // responseJSON 序列化为 JSON 并写入, 支持 JSONP 回调包装.
-// JSONP 场景复用 sync.Pool 中的 bytes.Buffer.
+// JSONP 场景复用 sync.Pool 中的 bytes.Buffer, 并校验 callback 合法性防 XSS.
 func responseJSON(writer io.Writer, v any, callback string) error {
 	b, err := json.Marshal(v)
 	if err != nil {
@@ -167,6 +166,10 @@ func responseJSON(writer io.Writer, v any, callback string) error {
 	if len(callback) == 0 {
 		_, err = writer.Write(b)
 		return err
+	}
+	// 校验 callback 函数名合法性, 防止 XSS 注入
+	if !jsonpCallbackRegexp.MatchString(callback) {
+		return errors.New("invalid jsonp callback name")
 	}
 	buf := jsonpBufferPool.Get().(*bytes.Buffer)
 	buf.Reset()

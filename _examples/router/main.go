@@ -99,7 +99,7 @@ func main() {
 		g1 := g.Group("/group")
 		{
 			g1.GET("/index", func(ctx *pine.Context) {
-				ctx.Write(ctx.URI().RequestURI())
+				ctx.Write([]byte(ctx.URI().RequestURI()))
 			})
 		}
 	}

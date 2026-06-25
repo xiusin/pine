@@ -41,21 +41,26 @@ func Addr(addr string) ServerHandler {
 	return func(a *Application) error {
 		handler := dispatchRequest(a)
 
-		// 超时中间件 (注意: http.TimeoutHandler 会在 goroutine 中运行 handler,
-		// 与 sync.Pool 复用 Context 存在数据竞争风险, 故超时时不复用 Context)
-		if conf := a.configuration.timeout; conf.Enable {
-			handler = timeoutMiddleware(handler, conf.Duration, conf.Msg)
-		}
-
 		// gzip 压缩中间件
 		if a.configuration.compressGzip {
 			handler = gzipMiddleware(handler)
+		}
+
+		// 超时中间件: 使用独立的不复用 Context 的 dispatcher,
+		// 避免 http.TimeoutHandler 在 goroutine 中运行 handler 时
+		// 与 sync.Pool 复用 Context 产生数据竞争.
+		if conf := a.configuration.timeout; conf.Enable {
+			timeoutHandler := timeoutDispatcher(a, conf.Duration, conf.Msg)
+			handler = timeoutHandler
 		}
 
 		srv := &http.Server{
 			Addr:            addr,
 			Handler:         handler,
 			MaxHeaderBytes:  1 << 20, // 1MB
+			ReadTimeout:     a.configuration.readTimeout,
+			WriteTimeout:    a.configuration.writeTimeout,
+			IdleTimeout:     a.configuration.idleTimeout,
 		}
 
 		a.setupInfo(addr)
@@ -89,14 +94,23 @@ func (a *Application) gracefulShutdown(srv *http.Server, quit <-chan os.Signal) 
 	}
 }
 
-// timeoutMiddleware 超时中间件, 平替 fasthttp.TimeoutHandler.
-// 注意: http.TimeoutHandler 内部在 goroutine 中运行 handler 并在超时后返回 503.
-// 这意味着 handler 可能仍在运行, 不能复用 Context, 故此处不复用池中的 Context.
-func timeoutMiddleware(handler http.HandlerFunc, duration time.Duration, msg string) http.HandlerFunc {
+// timeoutDispatcher 超时中间件, 平替 fasthttp.TimeoutHandler.
+// 使用独立 dispatcher 不复用 sync.Pool 中的 Context,
+// 因为 http.TimeoutHandler 在独立 goroutine 中运行 handler, 超时后主请求返回 503,
+// 但 goroutine 中的 handler 仍可能在使用 Context, 复用会导致数据竞争.
+func timeoutDispatcher(a *Application, duration time.Duration, msg string) http.HandlerFunc {
 	if len(msg) == 0 {
 		msg = "Request timeout"
 	}
-	return http.TimeoutHandler(handler, duration, msg).ServeHTTP
+	inner := func(w http.ResponseWriter, r *http.Request) {
+		// 每次请求新建 Context, 不放入池, 避免与超时 goroutine 数据竞争
+		c := newContext(a)
+		c.beginRequest(w, r)
+		// endRequest 自带 recover, 但这里不依赖池, 所以直接 defer endRequest
+		defer c.endRequest(a.recoverHandler)
+		a.handle(c)
+	}
+	return http.TimeoutHandler(http.HandlerFunc(inner), duration, msg).ServeHTTP
 }
 
 // gzipMiddleware gzip 压缩中间件, 平替 fasthttp.CompressHandler.
