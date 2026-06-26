@@ -5,6 +5,7 @@
 package pine
 
 import (
+	"context"
 	"net/http"
 	"regexp"
 	"strings"
@@ -12,20 +13,20 @@ import (
 	"github.com/uptrace/bunrouter"
 )
 
-// 本文件用 bunrouter 的基数树 (Radix Tree) 替换原有的 map + 正则全量遍历路由.
+// 本文件采用混合路由策略, 替换原有的 map + 正则全量遍历路由.
 //
 // 选型依据 (go-web-framework-benchmark / Gin 基准测试, 2026 年):
 //   bunrouter : 10,281 ns/op,    0 allocs  (独立库, 支持混合路由, 仅次于 Gin 内部树)
 //   gin       :  9,944 ns/op,    0 allocs  (非独立库, 树不可复用)
-//   echo      : 11,072 ns/op,    0 allocs
 //   httprouter: 15,059 ns/op,  167 allocs  (不支持同层级混合静态/参数路由)
 //   chi       : 94,376 ns/op,  740 allocs
 //
-// bunrouter 优势:
-//   - 0 内存分配, 路径匹配 O(k) (k=路径长度)
-//   - 支持同层级混合静态/参数路由 (pine group 模式必需): /groups/index + /groups/:name
-//   - 路由优先级: 静态 > 命名参数 > 通配符, 消除歧义
-//   - 独立可复用库, API 与 net/http 兼容
+// 混合路由策略 (兼顾性能与完全兼容):
+//   - 基数树为主 (热路径, 0 alloc, O(k)): 处理所有可被树表达的路由
+//     包括 :name / :name<regex> / :int / :string / *name / 同层级混合静态+参数
+//   - 正则路由为辅 (回退层): 处理基数树无法表达的"段内混合参数"路由
+//     包括 :name:string / :name:int / cms_:pid<\d+>_:uid.html 等
+//   判定由 canExpressInTree 完成; 不可表达的路由编译为完整正则, 仅在基数树未命中时遍历.
 //
 // 兼容性: 保留 pine 原生路径语法, 通过 translatePath 翻译为 bunrouter 语法,
 // 并对 :name<regex> 形式保留参数正则约束, 命中后做轻量校验.
@@ -40,6 +41,9 @@ type paramConstraint struct {
 // 此时 dispatcher 不复用 sync.Pool, 避免与超时 goroutine 产生数据竞争.
 type timeoutCtxKey struct{}
 
+// regexFallbackKey 在 context 中传递 "基数树未命中" 标志, 供 ServeHTTP 回退正则路由.
+type regexFallbackKey struct{}
+
 // tableEntry 供 DumpRouteTable 使用的路由表条目快照.
 type tableEntry struct {
 	Method  string
@@ -47,7 +51,16 @@ type tableEntry struct {
 	Handler Handler
 }
 
-// routeTree 基于 bunrouter 基数树的高性能路由器.
+// regexRouteEntry 正则路由条目 (回退层).
+// 当 pine 路径无法被基数树表达 (段内混合参数) 时, 编译为完整正则, 在基数树未命中时遍历匹配.
+type regexRouteEntry struct {
+	method string
+	regex  *regexp.Regexp
+	names  []string // 参数名, 按 FindStringSubmatch 返回顺序
+	entry  *RouteEntry
+}
+
+// routeTree 基于 bunrouter 基数树 + 正则回退的高性能路由器.
 type routeTree struct {
 	router *bunrouter.VerboseRouter
 	app    *Application
@@ -55,14 +68,21 @@ type routeTree struct {
 	registered map[string]bool
 	// table 保存已注册路由的扁平快照, 仅供调试/路由表打印, 不参与匹配热路径.
 	table []tableEntry
+	// regexRoutes 存储无法被基数树表达的正则路由 (回退层).
+	// 注册阶段追加 (单线程), 运行阶段只读遍历 (多线程), 无并发问题.
+	regexRoutes []*regexRouteEntry
 }
 
-// newRouteTree 创建基数树路由器, 并接管 404 / 405 处理.
+// newRouteTree 创建混合路由器, 并接管 404 / 405 处理.
+// notFoundHandler 不写响应, 仅设置 regexFallbackKey 标志, 供 ServeHTTP 回退正则路由.
 func newRouteTree(app *Application) *routeTree {
 	tree := &routeTree{app: app, registered: map[string]bool{}}
 	tree.router = bunrouter.New(
 		bunrouter.WithNotFoundHandler(func(w http.ResponseWriter, req bunrouter.Request) error {
-			tree.notFound(w, req.Request)
+			// 不写 404 响应, 仅标记 "基数树未命中", 让 ServeHTTP 决定是否回退正则路由.
+			if nf, ok := req.Context().Value(regexFallbackKey{}).(*bool); ok {
+				*nf = true
+			}
 			return nil
 		}),
 		bunrouter.WithMethodNotAllowedHandler(func(w http.ResponseWriter, req bunrouter.Request) error {
@@ -73,13 +93,28 @@ func newRouteTree(app *Application) *routeTree {
 	return tree
 }
 
-// addRoute 翻译 pine 路径并注册到基数树.
-// 处理两类兼容性别名:
-//   - catch-all 基路径别名: /env/*action 额外注册 /env, 保留 pine "可选 catch-all" 语义
-//     (原正则 ^/env(/.*)?$ 允许 /env 命中且参数为空).
-//   - 静态路由 OPTIONS 别名: 无参路由默认响应 OPTIONS, 与原 map 路由行为一致.
+// addRoute 翻译 pine 路径并注册.
+// 先判断路径能否被基数树表达:
+//   - 可表达: 注册到基数树, 处理 catch-all 基路径别名与静态 OPTIONS 别名.
+//   - 不可表达 (段内混合参数): 编译为完整正则, 加入 regexRoutes 回退层.
 func (t *routeTree) addRoute(method, fullPath string, entry *RouteEntry) {
-	hrPath, constraints, paramNames := translatePath(normalizePath(fullPath))
+	normalized := normalizePath(fullPath)
+
+	// 段内混合参数路由回退正则 (如 :name:string / cms_:pid<\d+>_:uid.html).
+	if !canExpressInTree(normalized) {
+		regex, names := compileRegexRoute(normalized)
+		t.regexRoutes = append(t.regexRoutes, &regexRouteEntry{
+			method: method,
+			regex:  regex,
+			names:  names,
+			entry:  entry,
+		})
+		t.table = append(t.table, tableEntry{Method: method, Path: fullPath, Handler: entry.Handle})
+		return
+	}
+
+	// 基数树路由.
+	hrPath, constraints, paramNames := translatePath(normalized)
 	t.register(method, hrPath, entry, constraints, paramNames)
 
 	// catch-all 基路径别名 (静默注册, 不计入路由表).
@@ -113,7 +148,7 @@ func (t *routeTree) serve(method, hrPath string, entry *RouteEntry, constraints 
 	t.router.Handle(method, hrPath, handle)
 }
 
-// dispatch 执行命中的路由: 获取 Context、填充参数、校验约束、运行中间件链.
+// dispatch 执行命中的基数树路由: 获取 Context、填充参数、校验约束、运行中间件链.
 // 是否复用 sync.Pool 由请求是否处于超时上下文决定.
 // 参数填充使用 ps.ByName(name) 逐个获取, 0 内存分配 (bunrouter 内部通过路径切片返回, 无中间 map).
 func (t *routeTree) dispatch(w http.ResponseWriter, r *http.Request, ps bunrouter.Params, entry *RouteEntry, constraints []paramConstraint, paramNames []string) {
@@ -134,6 +169,24 @@ func (t *routeTree) dispatch(w http.ResponseWriter, r *http.Request, ps bunroute
 		}
 	}
 	c.setRoute(entry)
+	if c.sess != nil {
+		defer func() { _ = c.sess.Save() }()
+	}
+	c.Next()
+}
+
+// dispatchRegex 执行命中的正则路由: 获取 Context、从正则捕获组填充参数、运行中间件链.
+func (t *routeTree) dispatchRegex(w http.ResponseWriter, r *http.Request, rr *regexRouteEntry, matches []string) {
+	c := t.acquireContext(r)
+	defer t.releaseContext(r, c)
+	defer c.endRequest(t.app.recoverHandler)
+	c.beginRequest(w, r)
+
+	params := c.Params()
+	for i, name := range rr.names {
+		params.Set(name, matches[i+1])
+	}
+	c.setRoute(rr.entry)
 	if c.sess != nil {
 		defer func() { _ = c.sess.Save() }()
 	}
@@ -190,46 +243,99 @@ func (t *routeTree) methodNotAllowed(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// redirectBlockingWriter 拦截 bunrouter 的 301 尾部斜杠重定向.
-// pine 在 ServeHTTP 中已统一规整尾部斜杠, bunrouter 尝试补斜杠重定向会导致循环.
-// 被拦截的重定向转换为 404, 与原 map+正则路由的 "不匹配即 404" 语义一致.
-type redirectBlockingWriter struct {
+// dispatchWriter 追踪基数树是否已写出响应, 并拦截 301 尾部斜杠重定向.
+//   - wrote=true: 基数树已处理 (200/405 等), ServeHTTP 直接返回.
+//   - wrote=false: 基数树未写出响应 (404 或被拦截的 301), ServeHTTP 回退正则路由.
+type dispatchWriter struct {
 	http.ResponseWriter
-	blocked bool
+	wrote    bool
+	blocked  bool // 301 被拦截
 }
 
-func (w *redirectBlockingWriter) WriteHeader(code int) {
+func (w *dispatchWriter) WriteHeader(code int) {
 	if code == http.StatusMovedPermanently {
+		// 拦截 bunrouter 的尾部斜杠/路径清理重定向.
+		// pine 在 ServeHTTP 中已统一规整尾部斜杠, 补斜杠重定向会导致循环.
 		w.blocked = true
 		return
 	}
+	w.wrote = true
 	w.ResponseWriter.WriteHeader(code)
 }
 
-func (w *redirectBlockingWriter) Write(b []byte) (int, error) {
+func (w *dispatchWriter) Write(b []byte) (int, error) {
 	if w.blocked {
+		// 301 被拦截后, 吞掉 redirectHandler 写入的响应体.
 		return len(b), nil
 	}
+	w.wrote = true
 	return w.ResponseWriter.Write(b)
 }
 
-// ServeHTTP pine 主分发入口.
-// 规整请求路径尾部斜杠 (与原 matchRoute 的 TrimRight 行为一致), 再交由基数树匹配.
-// 根路径 "/" 保留; 直接命中而非 301 重定向, 避免额外往返.
+// ServeHTTP pine 主分发入口 (混合路由).
+// 流程:
+//  1. 规整请求路径尾部斜杠 (与原 matchRoute 的 TrimRight 行为一致), 根路径 "/" 保留.
+//  2. 基数树匹配 (热路径, 0 alloc). 通过 dispatchWriter 追踪是否已写出响应.
+//  3. 若基数树未写出响应 (404 或拦截的 301), 回退正则路由遍历.
+//  4. 正则也未命中, 走真正的 404.
 func (t *routeTree) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if p := r.URL.Path; len(p) > 1 {
 		if trimmed := strings.TrimRight(p, "/"); len(trimmed) > 0 {
 			r.URL.Path = trimmed
 		}
 	}
-	rbw := &redirectBlockingWriter{ResponseWriter: w}
-	t.router.ServeHTTP(rbw, r)
-	if rbw.blocked {
-		// bunrouter 尝试 301 重定向 (尾部斜杠/路径清理), 已拦截.
-		// 清除 Location 头后走 404, 与原 pine 行为一致.
-		w.Header().Del("Location")
-		t.notFound(w, r)
+
+	// 基数树匹配.
+	notFound := false
+	ctx := context.WithValue(r.Context(), regexFallbackKey{}, &notFound)
+	dw := &dispatchWriter{ResponseWriter: w}
+	t.router.ServeHTTP(dw, r.WithContext(ctx))
+
+	// 基数树已写出响应 (200/405 等), 直接返回.
+	if dw.wrote {
+		return
 	}
+
+	// 基数树未命中 (404 或拦截的 301), 回退正则路由.
+	if t.serveRegex(w, r) {
+		return
+	}
+
+	// 正则也未命中, 走真正的 404.
+	if dw.blocked {
+		w.Header().Del("Location")
+	}
+	t.notFound(w, r)
+}
+
+// serveRegex 遍历正则路由回退层, 尝试匹配请求路径.
+// 返回 true 表示已处理 (命中正则路由或 405); false 表示正则也未命中.
+func (t *routeTree) serveRegex(w http.ResponseWriter, r *http.Request) bool {
+	if len(t.regexRoutes) == 0 {
+		return false
+	}
+	path := r.URL.Path
+	pathMatched := false
+	for _, rr := range t.regexRoutes {
+		m := rr.regex.FindStringSubmatch(path)
+		if m == nil {
+			continue
+		}
+		// 路径匹配正则, 记录以便区分 404 与 405.
+		pathMatched = true
+		if rr.method != r.Method {
+			continue
+		}
+		// 方法也匹配, 执行正则路由.
+		t.dispatchRegex(w, r, rr, m)
+		return true
+	}
+	// 路径匹配但方法不匹配 -> 405.
+	if pathMatched {
+		t.methodNotAllowed(w, r)
+		return true
+	}
+	return false
 }
 
 // normalizePath 规整注册路径: 去除尾部斜杠 (根路径除外), 与原 AddRoute 的 TrimRight 一致.
@@ -260,7 +366,49 @@ func catchAllBase(hrPath string) (string, bool) {
 	return base, true
 }
 
+// canExpressInTree 判断 pine 路径能否被 bunrouter 基数树表达.
+// 基数树要求每个 "/" 分隔的段满足以下之一:
+//   - 纯静态 (不含 : 和 *)
+//   - 单个命名参数 :name / :name<regex> / :int / :string (段以 : 开头, 冒号后无冒号/星号)
+//   - 单个 catch-all *name (段以 * 开头)
+// 不可表达的情形 (回退正则):
+//   - :name:string / :name:int (命名参数 + 类型后缀)
+//   - cms_:pid<\d+>_:uid.html (段内混合静态文本与参数)
+func canExpressInTree(path string) bool {
+	segments := strings.Split(path, "/")
+	for _, seg := range segments {
+		if len(seg) == 0 {
+			continue
+		}
+		switch seg[0] {
+		case ':':
+			// 剥离 <regex> 后, 冒号后不应再有 : 或 *.
+			rest := seg[1:]
+			if lt := strings.Index(rest, "<"); lt >= 0 {
+				if gt := strings.LastIndex(rest, ">"); gt > lt {
+					rest = rest[:lt] + rest[gt+1:]
+				}
+			}
+			if strings.ContainsAny(rest, ":*") {
+				return false
+			}
+		case '*':
+			// catch-all 段, 星号后不应再有 : 或 *.
+			if strings.ContainsAny(seg[1:], ":*") {
+				return false
+			}
+		default:
+			// 静态段不应含 : 或 *.
+			if strings.ContainsAny(seg, ":*") {
+				return false
+			}
+		}
+	}
+	return true
+}
+
 // translatePath 将 pine 路径语法翻译为 bunrouter 路径语法, 并提取参数正则约束与参数名.
+// 仅处理可被基数树表达的路径 (调用前应通过 canExpressInTree 判定).
 //   :name<regex>  -> :name  + 约束 regex
 //   :name         -> :name  (无约束, bunrouter 默认匹配 [^/]+)
 //   :int          -> :int   + 约束 \d+
@@ -295,4 +443,95 @@ func translatePath(path string) (hrPath string, constraints []paramConstraint, p
 		}
 	}
 	return strings.Join(segments, "/"), constraints, paramNames
+}
+
+// compileRegexRoute 将 pine 路径编译为完整正则表达式, 并提取参数名列表.
+// 用于处理基数树无法表达的"段内混合参数"路由, 如:
+//   :name:string   -> (?P<name>.+)
+//   :name:int      -> (?P<name>\d+)
+//   :name<regex>   -> (?P<name>regex)
+//   :name          -> (?P<name>[^/]+)
+//   :int           -> (?P<int>\d+)
+//   :string        -> (?P<string>.+)
+//   *name          -> (?P<name>.*)   (catch-all, 匹配剩余含 /)
+//   静态文本        -> regexp.QuoteMeta(text)
+// 正则路由的约束已内嵌于正则本身 (如 \d+), 无需额外 constraints 校验.
+func compileRegexRoute(path string) (*regexp.Regexp, []string) {
+	var b strings.Builder
+	b.WriteByte('^')
+	var names []string
+	i := 0
+	n := len(path)
+	for i < n {
+		c := path[i]
+		switch c {
+		case ':':
+			i++ // 跳过 ':'
+			// 读取参数名 (直到 '<'、':'、'/'、'*' 或末尾).
+			nameStart := i
+			for i < n && path[i] != '<' && path[i] != ':' && path[i] != '/' && path[i] != '*' {
+				i++
+			}
+			name := path[nameStart:i]
+			pattern := "[^/]+"
+			if i < n && path[i] == '<' {
+				// :name<regex> 形式.
+				i++ // 跳过 '<'
+				reStart := i
+				for i < n && path[i] != '>' {
+					i++
+				}
+				pattern = path[reStart:i]
+				if i < n {
+					i++ // 跳过 '>'
+				}
+			} else if i < n && path[i] == ':' {
+				// :name:type 形式 (命名参数 + 类型后缀).
+				i++ // 跳过第二个 ':'
+				typeStart := i
+				for i < n && path[i] != '/' && path[i] != '*' && path[i] != ':' {
+					i++
+				}
+				switch path[typeStart:i] {
+				case "int":
+					pattern = `\d+`
+				case "string":
+					pattern = `.+`
+				}
+			} else if name == "int" {
+				// 裸 :int 形式.
+				pattern = `\d+`
+			} else if name == "string" {
+				// 裸 :string 形式.
+				pattern = `.+`
+			}
+			names = append(names, name)
+			b.WriteString("(?P<")
+			b.WriteString(name)
+			b.WriteByte('>')
+			b.WriteString(pattern)
+			b.WriteByte(')')
+		case '*':
+			i++ // 跳过 '*'
+			// 读取 catch-all 参数名 (直到 '/' 或末尾).
+			nameStart := i
+			for i < n && path[i] != '/' {
+				i++
+			}
+			name := path[nameStart:i]
+			names = append(names, name)
+			b.WriteString("(?P<")
+			b.WriteString(name)
+			b.WriteString(">.*)")
+		default:
+			// 静态文本, 连续收集后 QuoteMeta, 避免逐字符调用的开销.
+			staticStart := i
+			for i < n && path[i] != ':' && path[i] != '*' {
+				i++
+			}
+			b.WriteString(regexp.QuoteMeta(path[staticStart:i]))
+		}
+	}
+	b.WriteByte('$')
+	return regexp.MustCompile(b.String()), names
 }
