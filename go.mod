@@ -1,6 +1,6 @@
 module github.com/xiusin/pine
 
-go 1.20
+go 1.22
 
 require (
 	github.com/CloudyKit/jet v2.1.3-0.20180809161101-62edd43e4f88+incompatible
@@ -15,6 +15,7 @@ require (
 	github.com/landoop/tableprinter v0.0.0-20201125135848-89e81fc956e7
 	github.com/satori/go.uuid v1.2.0
 	github.com/syndtr/goleveldb v1.0.0
+	github.com/uptrace/bunrouter v1.0.23
 )
 
 require (

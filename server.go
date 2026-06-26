@@ -39,19 +39,18 @@ func (a *Application) setupInfo(addr string) {
 // 支持 gzip 压缩、超时控制、优雅关闭等能力, 平替 fasthttp.Server.
 func Addr(addr string) ServerHandler {
 	return func(a *Application) error {
-		handler := dispatchRequest(a)
+		// 主分发入口为基数树路由器 (http.Handler), 直接命中而非遍历匹配.
+		var handler http.Handler = a.tree
 
 		// gzip 压缩中间件
 		if a.configuration.compressGzip {
-			handler = gzipMiddleware(handler)
+			handler = gzipMiddleware(handler.ServeHTTP)
 		}
 
-		// 超时中间件: 使用独立的不复用 Context 的 dispatcher,
-		// 避免 http.TimeoutHandler 在 goroutine 中运行 handler 时
-		// 与 sync.Pool 复用 Context 产生数据竞争.
+		// 超时中间件: 内部为请求注入 timeoutCtxKey,
+		// 使 routeTree.dispatch 据此不复用 sync.Pool, 避免与超时 goroutine 数据竞争.
 		if conf := a.configuration.timeout; conf.Enable {
-			timeoutHandler := timeoutDispatcher(a, conf.Duration, conf.Msg)
-			handler = timeoutHandler
+			handler = timeoutDispatcher(a, conf.Duration, conf.Msg)
 		}
 
 		srv := &http.Server{
@@ -95,22 +94,18 @@ func (a *Application) gracefulShutdown(srv *http.Server, quit <-chan os.Signal) 
 }
 
 // timeoutDispatcher 超时中间件, 平替 fasthttp.TimeoutHandler.
-// 使用独立 dispatcher 不复用 sync.Pool 中的 Context,
-// 因为 http.TimeoutHandler 在独立 goroutine 中运行 handler, 超时后主请求返回 503,
+// 为请求注入 timeoutCtxKey, routeTree.dispatch 据此每次新建 Context 而不复用 sync.Pool:
+// http.TimeoutHandler 在独立 goroutine 中运行 handler, 超时后主请求返回 503,
 // 但 goroutine 中的 handler 仍可能在使用 Context, 复用会导致数据竞争.
 func timeoutDispatcher(a *Application, duration time.Duration, msg string) http.HandlerFunc {
 	if len(msg) == 0 {
 		msg = "Request timeout"
 	}
-	inner := func(w http.ResponseWriter, r *http.Request) {
-		// 每次请求新建 Context, 不放入池, 避免与超时 goroutine 数据竞争
-		c := newContext(a)
-		c.beginRequest(w, r)
-		// endRequest 自带 recover, 但这里不依赖池, 所以直接 defer endRequest
-		defer c.endRequest(a.recoverHandler)
-		a.handle(c)
-	}
-	return http.TimeoutHandler(http.HandlerFunc(inner), duration, msg).ServeHTTP
+	inner := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ctx := context.WithValue(r.Context(), timeoutCtxKey{}, true)
+		a.tree.ServeHTTP(w, r.WithContext(ctx))
+	})
+	return http.TimeoutHandler(inner, duration, msg).ServeHTTP
 }
 
 // gzipMiddleware gzip 压缩中间件, 平替 fasthttp.CompressHandler.

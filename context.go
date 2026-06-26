@@ -248,17 +248,6 @@ func (c *Context) Session(sessIns ...contracts.Session) contracts.Session {
 	return c.sess
 }
 
-// dispatchRequest 构造 net/http 的请求分发函数.
-func dispatchRequest(a *Application) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		c := a.pool.Get().(*Context)
-		defer a.pool.Put(c)
-		defer c.endRequest(a.recoverHandler)
-		c.beginRequest(w, r)
-		a.handle(c)
-	}
-}
-
 // Next 推进中间件迭代.
 // 使用预构建的 middlewareChain, 避免每次调用重复拼接切片.
 func (c *Context) Next() {

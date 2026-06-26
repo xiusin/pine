@@ -41,26 +41,6 @@ const FilePathParam = "filepath"
 var (
 	urlSeparator = "/"
 
-	// 记录匹配路由映射, 不管是分组还是非分组的正则路由均记录到此变量
-	patternRoutes = map[string][]*RouteEntry{}
-
-	// 按照注册顺序保存匹配路由内容, 防止 map 迭代出现随机匹配的情况
-	sortedPattern []string
-
-	// 正则路由特征匹配
-	patternRouteCompiler = regexp.MustCompile(`[:*](\w[A-Za-z0-9_/]+)(<.+?>)?`)
-
-	// 内置替换规则 (后面改写为拦截器)
-	patternMap = map[string]string{
-		":int":    "<\\d+>",
-		":string": "<.+>",
-		":any":    "<.*>",
-	}
-
-	// patternRegexpCache 缓存编译后的正则, 避免每次请求重新编译 (优化点).
-	patternRegexpCache = map[string]*regexp.Regexp{}
-	patternRegexpMu    sync.RWMutex
-
 	controllerDefaultAction = ""
 
 	_ AbstractRouter = (*Application)(nil)
@@ -103,23 +83,22 @@ type routeMaker func(path string, handle Handler, mws ...Handler)
 // Handler 请求处理函数签名.
 type Handler func(ctx *Context)
 
-type routerMap map[string]map[string]*RouteEntry
-
 // Router 路由器.
+// 所有路由最终注册到所属 Application 的 routeTree (基数树) 上;
+// app 为所属 Application 的回引, 使 Group/Subdomain 路由器也能委托到同一棵树.
 type Router struct {
-	prefix               string
-	methodRoutes         routerMap
-	middleWares          []Handler
-	groups               map[string]*Router
-	registeredSubdomains map[string]*Router
-	subdomain            string
-	hostname             string
+	app         *Application
+	prefix      string
+	middleWares []Handler
+	subdomain   string
+	hostname    string
 }
 
 // Application 应用实例.
 type Application struct {
 	*Router
 	pool                  sync.Pool
+	tree                  *routeTree
 	DI                    di.AbstractBuilder
 	quitCh                chan os.Signal
 	recoverHandler        Handler
@@ -134,16 +113,13 @@ func init() {
 // New 创建应用实例.
 func New() *Application {
 	app := &Application{
-		Router: &Router{
-			methodRoutes:         initRouteEntity(),
-			groups:               map[string]*Router{},
-			registeredSubdomains: map[string]*Router{},
-		},
 		configuration:  &Configuration{},
 		DI:             di.GetDefaultDI(),
 		recoverHandler: defaultRecoverHandler,
 	}
-
+	app.Router = &Router{app: app}
+	app.ReadonlyConfiguration = app.configuration
+	app.tree = newRouteTree(app)
 	app.pool.New = func() any { return newContext(app) }
 
 	app.SetNotFound(func(c *Context) {
@@ -215,18 +191,15 @@ func (r *Router) matchRegister(path, prefix string, handle Handler) {
 }
 
 // Subdomain 创建子域名路由.
+// 注: 原实现仅记录 subdomain 链并未在分发时按 host 路由, 此处保持该行为不变,
+// 仅作为带共享中间件的子路由器使用, 实际匹配仍基于路径基数树.
 func (r *Router) Subdomain(subdomain string) *Router {
 	s := &Router{
 		// 浅拷贝父级中间件, 避免子域 Use 影响父域 (与 Group 行为一致)
-		middleWares:          append([]Handler(nil), r.middleWares...),
-		groups:               map[string]*Router{},
-		registeredSubdomains: r.registeredSubdomains,
+		app:         r.app,
+		middleWares: append([]Handler(nil), r.middleWares...),
+		subdomain:   subdomain + r.subdomain,
 	}
-
-	s.methodRoutes = initRouteEntity()
-	s.subdomain = subdomain + r.subdomain
-	r.registeredSubdomains[s.subdomain] = s
-
 	return s
 }
 
@@ -251,31 +224,6 @@ func (a *Application) Close() {
 		select {
 		case a.quitCh <- os.Interrupt:
 		default:
-		}
-	}
-}
-
-// handle 处理请求.
-func (a *Application) handle(c *Context) {
-	if route := a.matchRoute(c); route != nil {
-		c.setRoute(route)
-		defer func() {
-			if c.sess != nil {
-				_ = c.sess.Save()
-			}
-		}()
-
-		c.Next()
-	} else {
-		if handler, ok := codeCallHandler[http.StatusNotFound]; ok {
-			c.SetStatus(http.StatusNotFound)
-
-			c.setRoute(&RouteEntry{
-				ExtendsMiddleWare: a.middleWares,
-				Handle:            handler,
-			}).Next()
-		} else {
-			panic(c.Msg)
 		}
 	}
 }
@@ -306,12 +254,8 @@ func (r *Router) Handle(c IController, prefix ...string) *Router {
 }
 
 // AddRoute 添加路由.
+// 路径语法翻译、参数约束、catch-all 基路径别名与静态 OPTIONS 别名均在 routeTree.addRoute 内处理.
 func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
-	var (
-		params  []string
-		pattern string
-	)
-
 	if len(path) == 0 {
 		panic(errors.New("path can not empty."))
 	}
@@ -320,165 +264,25 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 		panic(errors.New("optional parameters can only be one."))
 	}
 
-	for patternType, patternString := range patternMap {
-		path = strings.Replace(path, patternType, patternString, -1)
-	}
-	fullPath := strings.TrimRight(r.prefix+path, urlSeparator)
-	if isPattern, _ := regexp.MatchString("[:*]", fullPath); isPattern {
-		uriPartials := strings.Split(fullPath, urlSeparator)[1:]
-		for _, v := range uriPartials {
-			if strings.Contains(v, ":") {
-				pattern = pattern + urlSeparator + patternRouteCompiler.ReplaceAllStringFunc(v, func(s string) string {
-					param, patternStr := r.getPattern(s, false)
-					params = append(params, param)
-					return patternStr
-				})
-			} else if strings.HasPrefix(v, "*") {
-				param, patternStr := r.getPattern(v, true)
-				pattern = fmt.Sprintf("%s%s?%s?", pattern, urlSeparator, patternStr)
-				params = append(params, param)
-			} else {
-				pattern = pattern + urlSeparator + v
-			}
-		}
-		pattern = fmt.Sprintf("^%s$", pattern)
-	}
-
-	route := &RouteEntry{
+	fullPath := r.prefix + path
+	entry := &RouteEntry{
 		Method:            method,
 		Handle:            handle,
 		Middleware:        mws,
 		ExtendsMiddleWare: r.middleWares, // 注册时一次性设置, 避免运行时并发写入
-		Param:             params,
-		Pattern:           pattern,
+		Pattern:           fullPath,
 	}
-	if len(pattern) != 0 {
-		patternRoutes[pattern] = append(patternRoutes[pattern], route)
-		sortedPattern = append(sortedPattern, pattern)
-		// 预编译正则并缓存 (优化点: 避免每次请求重新编译)
-		compilePattern(pattern)
-	} else {
-		r.methodRoutes[method][path] = route
-		r.methodRoutes[http.MethodOptions][path] = route // 默认 options 方法
-	}
-}
-
-// compilePattern 编译并缓存正则.
-func compilePattern(pattern string) *regexp.Regexp {
-	patternRegexpMu.RLock()
-	if re, ok := patternRegexpCache[pattern]; ok {
-		patternRegexpMu.RUnlock()
-		return re
-	}
-	patternRegexpMu.RUnlock()
-
-	patternRegexpMu.Lock()
-	defer patternRegexpMu.Unlock()
-	if re, ok := patternRegexpCache[pattern]; ok {
-		return re
-	}
-	re := regexp.MustCompile(pattern)
-	patternRegexpCache[pattern] = re
-	return re
-}
-
-func (r *Router) getPattern(str string, any bool) (paramName, pattern string) {
-	params := patternRouteCompiler.FindAllStringSubmatch(str, 1)
-	if len(params[0][2]) == 0 {
-		if any {
-			params[0][2] = patternMap[":any"]
-		} else {
-			params[0][2] = patternMap[":string"]
-		}
-	}
-	pattern = strings.Trim(strings.Trim(params[0][2], "<"), ">")
-	if len(pattern) > 0 {
-		pattern = fmt.Sprintf("(%s)", pattern)
-	}
-	paramName = params[0][1]
-	return
-}
-
-// matchRoute 匹配路由.
-func (r *Router) matchRoute(ctx *Context) *RouteEntry {
-	method, fullPath := ctx.Method(), strings.TrimRight(ctx.Path(), urlSeparator)
-	if len(fullPath) == 0 {
-		fullPath = urlSeparator
-	}
-
-	if route, ok := r.methodRoutes[method][fullPath]; ok {
-		return route
-	}
-
-	pathInfo := strings.Split(fullPath, urlSeparator)
-
-	l := len(pathInfo)
-	for i := 1; i <= l; i++ {
-		p := strings.Join(pathInfo[:i], urlSeparator)
-		groupRouter, ok := r.groups[p]
-		if ok {
-			if route := groupRouter.lookupGroupRoute(i, method, pathInfo, fullPath); route != nil {
-				return route
-			}
-		}
-	}
-	// 使用缓存的正则进行匹配 (优化点: FindStringSubmatch 单次匹配, 避免全量遍历)
-	for _, pattern := range sortedPattern {
-		routes := patternRoutes[pattern]
-		reg := compilePattern(pattern)
-		matched := reg.FindStringSubmatch(ctx.Path())
-		if len(matched) == 0 {
-			continue
-		}
-		matchedValues := matched[1:]
-		for _, route := range routes {
-			if route.Method != method {
-				continue
-			}
-			for idx, paramKey := range route.Param {
-				ctx.Params().Set(paramKey, matchedValues[idx])
-			}
-			return route
-		}
-	}
-	return nil
-}
-
-func (r *Router) lookupGroupRoute(i int, method string, pathInfo []string, fullPath string) *RouteEntry {
-	p := urlSeparator + strings.Join(pathInfo[i:], urlSeparator)
-
-	for routePath, route := range r.methodRoutes[method] {
-		if routePath != p || route.Method != method {
-			continue
-		}
-		return route
-	}
-
-	if r.groups != nil {
-		for _, v := range r.groups {
-			if i+1 < len(pathInfo) && strings.Contains(fullPath, v.prefix) {
-				if route := v.lookupGroupRoute(i+1, method, pathInfo, fullPath); route != nil {
-					return route
-				}
-			}
-		}
-	}
-	return nil
+	r.app.tree.addRoute(method, fullPath, entry)
 }
 
 // Group 创建路由分组.
+// 继承父级中间件并附加分组中间件; 中间件切片使用全新底层数组, 避免共享父级切片导致的写覆盖.
 func (r *Router) Group(prefix string, middleWares ...Handler) *Router {
-	prefix = fmt.Sprintf("%s%s", r.prefix, prefix)
-
 	g := &Router{
-		prefix:      prefix,
-		groups:      map[string]*Router{},
-		middleWares: r.middleWares[:],
+		app:         r.app,
+		prefix:      r.prefix + prefix,
+		middleWares: append(append([]Handler(nil), r.middleWares...), middleWares...),
 	}
-
-	g.methodRoutes = initRouteEntity()
-	g.middleWares = append(g.middleWares, middleWares...)
-	r.groups[prefix] = g
 	return g
 }
 
@@ -551,16 +355,17 @@ func (r *Router) StaticFS(urlPath string, f fs.FS, filePrefix string, indexfile 
 }
 
 // Static 注册基于目录的静态文件服务, 平替 fasthttp.FSHandler.
-// 使用 http.FileServer + http.StripPrefix, 在注册时创建一次, 避免每次请求重建.
+// bunrouter catch-all 值无前导斜杠 (如 /assets/main.js -> filepath="main.js"),
+// 直接拼接为 "/main.js" 交给 FileServer, 无需 StripPrefix.
 func (r *Router) Static(urlPath, dir string) {
 	// 注册时创建一次 FileServer, 避免每次请求重建
-	fileServer := http.StripPrefix(urlPath, http.FileServer(http.Dir(dir)))
+	fileServer := http.FileServer(http.Dir(dir))
 	handler := func(c *Context) {
 		fName := c.Params().Get(FilePathParam)
 		if len(fName) == 0 {
 			fName = "index.html"
 		}
-		// 重写请求路径以匹配 strip prefix.
+		// catch-all 值无前导斜杠, 补齐 "/" 以匹配 FileServer 期望的路径格式.
 		// 使用 WithContext 浅拷贝 Request, 仅替换 URL, 避免深拷贝 header map 的开销.
 		req := c.Request.WithContext(c.Request.Context())
 		req.URL = &url.URL{Path: "/" + fName, RawQuery: c.Request.URL.RawQuery}
@@ -613,18 +418,6 @@ func (r *Router) HEAD(path string, handle Handler, mws ...Handler) {
 // DELETE 注册 DELETE 路由.
 func (r *Router) DELETE(path string, handle Handler, mws ...Handler) {
 	r.AddRoute(http.MethodDelete, path, handle, mws...)
-}
-
-// initRouteEntity 初始化路由 map.
-func initRouteEntity() routerMap {
-	return routerMap{
-		http.MethodGet:     {},
-		http.MethodPost:    {},
-		http.MethodPut:     {},
-		http.MethodHead:    {},
-		http.MethodDelete:  {},
-		http.MethodOptions: {},
-		http.MethodPatch:   {}}
 }
 
 // upperCharRegexp 预编译正则, 避免每次调用 upperCharToUnderLine 时重新编译.

@@ -29,30 +29,16 @@ func (r *Router) DumpRouteTable() {
 
 	var tables []RouterTableRow
 
-	for method, routers := range r.methodRoutes {
-		if len(routers) == 0 || method == http.MethodOptions {
+	// 遍历基数树路由表快照 (已排除静默注册的 catch-all 基路径与 OPTIONS 别名).
+	for _, e := range r.app.tree.table {
+		if e.Method == http.MethodOptions {
 			continue
 		}
-		for s, entry := range routers {
-			tables = append(tables, RouterTableRow{
-				Method:  method,
-				Path:    s,
-				Handler: runtime.FuncForPC(reflect.ValueOf(entry.Handle).Pointer()).Name(),
-			})
-		}
-	}
-
-	for _, routers := range patternRoutes {
-		if len(routers) == 0 {
-			continue
-		}
-		for _, entry := range routers {
-			tables = append(tables, RouterTableRow{
-				Method:  entry.Method,
-				Path:    entry.Pattern,
-				Handler: runtime.FuncForPC(reflect.ValueOf(entry.Handle).Pointer()).Name(),
-			})
-		}
+		tables = append(tables, RouterTableRow{
+			Method:  e.Method,
+			Path:    e.Path,
+			Handler: runtime.FuncForPC(reflect.ValueOf(e.Handler).Pointer()).Name(),
+		})
 	}
 
 	p.Print(tables)
