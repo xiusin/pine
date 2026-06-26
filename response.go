@@ -181,7 +181,11 @@ func (r *Response) BodyWriter() io.Writer {
 }
 
 // Body 返回响应体字节切片 (非流式模式, 只读视图).
+// 流式模式下返回 nil (数据已直接写入底层, 无法回读).
 func (r *Response) Body() []byte {
+	if r.streamed {
+		return nil
+	}
 	return r.body.Bytes()
 }
 
@@ -261,4 +265,63 @@ func (r *Response) FlushResponse() {
 		return
 	}
 	r.flushBuffered()
+}
+
+// --- 链式 API (参考 Laravel Response 链式调用) ---
+
+// WithStatus 链式设置响应状态码, 返回 Response 自身以支持链式调用.
+//   c.Response.WithStatus(201).WithHeader("X-Trace", "id").WithJSON(v)
+func (r *Response) WithStatus(code int) *Response {
+	r.SetStatusCode(code)
+	return r
+}
+
+// WithHeader 链式设置响应头, 返回 Response 自身.
+func (r *Response) WithHeader(key, value string) *Response {
+	r.writer.Header().Set(key, value)
+	return r
+}
+
+// WithAddedHeader 链式追加响应头 (支持多值), 返回 Response 自身.
+func (r *Response) WithAddedHeader(key, value string) *Response {
+	r.writer.Header().Add(key, value)
+	return r
+}
+
+// WithContentType 链式设置 Content-Type, 返回 Response 自身.
+func (r *Response) WithContentType(typ string) *Response {
+	r.writer.Header().Set(HeaderContentType, typ)
+	return r
+}
+
+// WithBody 链式设置响应体, 返回 Response 自身.
+// 流式模式下为 no-op 并返回自身 (不破坏链式调用).
+func (r *Response) WithBody(p []byte) *Response {
+	if !r.streamed {
+		r.SetBody(p)
+	}
+	return r
+}
+
+// WithBodyString 链式设置响应体 (字符串形式), 返回 Response 自身.
+// 流式模式下为 no-op 并返回自身.
+func (r *Response) WithBodyString(s string) *Response {
+	if !r.streamed {
+		r.SetBodyString(s)
+	}
+	return r
+}
+
+// WithJSON 链式写入 JSON 响应: 设置 Content-Type + 序列化 + 写入.
+// 这是 c.Render().JSON(v) 的链式快捷方式.
+func (r *Response) WithJSON(v any) error {
+	r.writer.Header().Set(HeaderContentType, ContentTypeJSON)
+	return responseJSON(r, v, "")
+}
+
+// WithText 链式写入文本响应.
+func (r *Response) WithText(s string) error {
+	r.writer.Header().Set(HeaderContentType, ContentTypeText)
+	_, err := r.Write([]byte(s))
+	return err
 }

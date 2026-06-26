@@ -183,6 +183,38 @@ func (c *Context) WriteHTMLBytes(data []byte) error {
 	return c.Render().Bytes(data)
 }
 
+// --- Laravel 风格便捷渲染别名 (委托 Render, 链式友好) ---
+
+// JSON 渲染 JSON 响应的便捷别名.
+func (c *Context) JSON(v any) error { return c.Render().JSON(v) }
+
+// Text 渲染文本响应的便捷别名.
+func (c *Context) Text(v string) error { return c.Render().Text(v) }
+
+// Textf 渲染格式化文本响应的便捷别名.
+func (c *Context) Textf(format string, args ...any) error { return c.Render().Textf(format, args...) }
+
+// HTML 渲染 HTML 模板响应的便捷别名.
+func (c *Context) HTML(viewPath string) error { return c.Render().HTML(viewPath) }
+
+// XML 渲染 XML 响应的便捷别名.
+func (c *Context) XML(v any) error { return c.Render().XML(v) }
+
+// YAML 渲染 YAML 响应的便捷别名.
+func (c *Context) YAML(v any) error { return c.Render().YAML(v) }
+
+// Bytes 渲染原始字节响应的便捷别名.
+func (c *Context) Bytes(b []byte) error { return c.Render().Bytes(b) }
+
+// Data 渲染指定 Content-Type 的原始数据响应的便捷别名.
+func (c *Context) Data(contentType string, data []byte) error { return c.Render().Data(contentType, data) }
+
+// JSONP 渲染 JSONP 响应的便捷别名.
+func (c *Context) JSONP(callback string, v any) error { return c.Render().JSONP(callback, v) }
+
+// SSE 启动 Server-Sent Events 流的便捷别名.
+func (c *Context) SSE() (SSEWriter, error) { return c.Render().SSE() }
+
 // Render 返回渲染器实例 (懒初始化).
 func (c *Context) Render() *Render {
 	if c.render == nil {

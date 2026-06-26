@@ -243,41 +243,13 @@ func (t *routeTree) methodNotAllowed(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// dispatchWriter 追踪基数树是否已写出响应, 并拦截 301 尾部斜杠重定向.
-//   - wrote=true: 基数树已处理 (200/405 等), ServeHTTP 直接返回.
-//   - wrote=false: 基数树未写出响应 (404 或被拦截的 301), ServeHTTP 回退正则路由.
-type dispatchWriter struct {
-	http.ResponseWriter
-	wrote    bool
-	blocked  bool // 301 被拦截
-}
-
-func (w *dispatchWriter) WriteHeader(code int) {
-	if code == http.StatusMovedPermanently {
-		// 拦截 bunrouter 的尾部斜杠/路径清理重定向.
-		// pine 在 ServeHTTP 中已统一规整尾部斜杠, 补斜杠重定向会导致循环.
-		w.blocked = true
-		return
-	}
-	w.wrote = true
-	w.ResponseWriter.WriteHeader(code)
-}
-
-func (w *dispatchWriter) Write(b []byte) (int, error) {
-	if w.blocked {
-		// 301 被拦截后, 吞掉 redirectHandler 写入的响应体.
-		return len(b), nil
-	}
-	w.wrote = true
-	return w.ResponseWriter.Write(b)
-}
-
 // ServeHTTP pine 主分发入口 (混合路由).
 // 流程:
 //  1. 规整请求路径尾部斜杠 (与原 matchRoute 的 TrimRight 行为一致), 根路径 "/" 保留.
-//  2. 基数树匹配 (热路径, 0 alloc). 通过 dispatchWriter 追踪是否已写出响应.
-//  3. 若基数树未写出响应 (404 或拦截的 301), 回退正则路由遍历.
-//  4. 正则也未命中, 走真正的 404.
+//  2. 基数树匹配 (热路径, 0 alloc). 通过 notFound 标志判断是否命中.
+//  3. 命中则直接返回 (缓冲的响应由 endRequest -> FlushResponse 统一输出).
+//  4. 未命中则回退正则路由遍历.
+//  5. 正则也未命中, 走真正的 404.
 func (t *routeTree) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if p := r.URL.Path; len(p) > 1 {
 		if trimmed := strings.TrimRight(p, "/"); len(trimmed) > 0 {
@@ -288,23 +260,20 @@ func (t *routeTree) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// 基数树匹配.
 	notFound := false
 	ctx := context.WithValue(r.Context(), regexFallbackKey{}, &notFound)
-	dw := &dispatchWriter{ResponseWriter: w}
-	t.router.ServeHTTP(dw, r.WithContext(ctx))
+	t.router.ServeHTTP(w, r.WithContext(ctx))
 
-	// 基数树已写出响应 (200/405 等), 直接返回.
-	if dw.wrote {
+	// 基数树命中 (含 200/405/redirect 等已处理响应), 直接返回.
+	// notFound 标志由 bunrouter 的 notFoundHandler 设置, 仅在基数树未命中时为 true.
+	if !notFound {
 		return
 	}
 
-	// 基数树未命中 (404 或拦截的 301), 回退正则路由.
+	// 基数树未命中, 回退正则路由.
 	if t.serveRegex(w, r) {
 		return
 	}
 
 	// 正则也未命中, 走真正的 404.
-	if dw.blocked {
-		w.Header().Del("Location")
-	}
 	t.notFound(w, r)
 }
 
@@ -467,9 +436,10 @@ func compileRegexRoute(path string) (*regexp.Regexp, []string) {
 		switch c {
 		case ':':
 			i++ // 跳过 ':'
-			// 读取参数名 (直到 '<'、':'、'/'、'*' 或末尾).
+			// 读取参数名 (仅接受标识符字符: 字母/数字/下划线).
+			// 遇到 '<' 进入正则约束, 遇到 ':' 进入类型后缀, 其余非标识符字符 (如 '.') 结束参数名.
 			nameStart := i
-			for i < n && path[i] != '<' && path[i] != ':' && path[i] != '/' && path[i] != '*' {
+			for i < n && isIdentChar(path[i]) {
 				i++
 			}
 			name := path[nameStart:i]
@@ -489,7 +459,7 @@ func compileRegexRoute(path string) (*regexp.Regexp, []string) {
 				// :name:type 形式 (命名参数 + 类型后缀).
 				i++ // 跳过第二个 ':'
 				typeStart := i
-				for i < n && path[i] != '/' && path[i] != '*' && path[i] != ':' {
+				for i < n && isIdentChar(path[i]) {
 					i++
 				}
 				switch path[typeStart:i] {
@@ -513,9 +483,9 @@ func compileRegexRoute(path string) (*regexp.Regexp, []string) {
 			b.WriteByte(')')
 		case '*':
 			i++ // 跳过 '*'
-			// 读取 catch-all 参数名 (直到 '/' 或末尾).
+			// 读取 catch-all 参数名 (仅接受标识符字符).
 			nameStart := i
-			for i < n && path[i] != '/' {
+			for i < n && isIdentChar(path[i]) {
 				i++
 			}
 			name := path[nameStart:i]
@@ -534,4 +504,10 @@ func compileRegexRoute(path string) (*regexp.Regexp, []string) {
 	}
 	b.WriteByte('$')
 	return regexp.MustCompile(b.String()), names
+}
+
+// isIdentChar 判断字节是否为标识符字符 (字母/数字/下划线).
+// 用于 compileRegexRoute 中参数名与类型名的读取, 确保捕获组名合法.
+func isIdentChar(c byte) bool {
+	return c == '_' || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
 }

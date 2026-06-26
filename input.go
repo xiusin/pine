@@ -24,11 +24,20 @@ const GoRawBody = "pine://input"
 var EmptyBytes = []byte("")
 
 // Input 请求输入解析器, 统一聚合 query / form / json body / multipart 数据.
+//
+// 设计哲学 (参考 Laravel Illuminate\Http\Concerns\InteractsWithInput):
+//   - 统一类型化读取: Get[T] / Must[T] 泛型方法替换 5 份 GetXxx 拷贝.
+//   - 统一 default 语义: 键缺失或解析失败均返回 default (与 Laravel 的 input(key, default) 一致).
+//   - 缓存聚合结果: PostForm 与 ResetFromContext 的聚合 map 在单次请求内只构建一次.
 type Input struct {
 	ctx  *Context
 	form *multipart.Form
 	err  error
 	data map[string]any
+
+	// postForm 缓存 PostForm() 的结果, 避免重复构建.
+	postForm      map[string][]string
+	postFormBuilt bool
 }
 
 func newInput(ctx *Context) *Input {
@@ -66,7 +75,7 @@ func (i *Input) Set(key string, value any) {
 	i.data[key] = value
 }
 
-// Get 获取数据.
+// Get 获取数据 (原始 any 类型).
 func (i *Input) Get(key string) any {
 	return i.data[key]
 }
@@ -101,6 +110,10 @@ func (i *Input) LastErr() error {
 
 // ResetFromContext 从当前请求上下文重置输入数据, 聚合 query / post form / multipart / json body.
 func (i *Input) ResetFromContext() {
+	// 重置缓存.
+	i.postForm = nil
+	i.postFormBuilt = false
+
 	data := map[string]any{}
 	bodyJsonData := map[string]any{}
 	postData := i.ctx.PostBody()
@@ -137,7 +150,7 @@ func (i *Input) ResetFromContext() {
 		i.err = err
 	}
 
-	// 合并 json body
+	// 合并 json body (JSON 优先级高于 form, 覆盖同名 form 字段)
 	for key, value := range bodyJsonData {
 		data[key] = value
 	}
@@ -153,9 +166,12 @@ func (i *Input) GetForm() *multipart.Form {
 	return i.form
 }
 
-// PostForm 合并 POST 表单与 query 参数.
+// PostForm 合并 POST 表单与 query 参数, 结果在单次请求内缓存.
 // 直接使用 url.Values, 避免 string/[]byte 来回转换.
 func (i *Input) PostForm() map[string][]string {
+	if i.postFormBuilt {
+		return i.postForm
+	}
 	data := map[string][]string{}
 	for key, values := range i.ctx.PostArgs() {
 		if len(values) > 0 {
@@ -167,6 +183,8 @@ func (i *Input) PostForm() map[string][]string {
 			data[key] = values
 		}
 	}
+	i.postForm = data
+	i.postFormBuilt = true
 	return data
 }
 
@@ -322,4 +340,153 @@ func (i *Input) GetString(key string, defaultVal ...string) (val string, err err
 // Files 获取指定 key 的上传文件.
 func (i *Input) Files(key string) (*multipart.FileHeader, error) {
 	return i.ctx.FormFile(key)
+}
+
+// --- 泛型 API (推荐用法, 参考 Laravel input(key, default)) ---
+
+// Get 泛型读取输入值, 统一 default 语义: 键缺失或解析失败均返回 default.
+// 支持的类型: string / bool / 所有数值类型.
+//   - 数值: 通过 strconv 解析 GetBytes 结果, 失败返回 default.
+//   - bool: 通过 strconv.ParseBool, 失败返回 default.
+//   - string: 直接 string(GetBytes), 空则返回 default.
+//
+// 用法:
+//
+//	id := c.Input().Get("id", 0)           // int, 缺失返回 0
+//	name := c.Input().Get("name", "anon")  // string, 缺失返回 "anon"
+//	flag := c.Input().Get("flag", false)   // bool, 缺失返回 false
+func Get[T any](i *Input, key string, defaultVal T) T {
+	byts, err := i.GetBytes(key)
+	if err != nil || len(byts) == 0 {
+		return defaultVal
+	}
+	return castInput[T](byts, defaultVal)
+}
+
+// Must 泛型读取输入值, 解析失败时 panic (用于确定键存在的场景).
+func Must[T any](i *Input, key string) T {
+	byts, err := i.GetBytes(key)
+	if err != nil {
+		panic(err)
+	}
+	var zero T
+	return castInput[T](byts, zero)
+}
+
+// castInput 将字节切片按目标类型解析, 解析失败返回 defaultVal.
+// 这是 Get[T] / Must[T] 的共享底层, 避免在每个具体类型方法中重复样板代码.
+// 通过类型断言分发到具体解析逻辑, 兼顾泛型易用性与编译期类型安全.
+func castInput[T any](byts []byte, defaultVal T) T {
+	var zero T
+	s := string(byts)
+	switch any(zero).(type) {
+	case string:
+		return any(string(byts)).(T)
+	case bool:
+		v, err := strconv.ParseBool(s)
+		if err != nil {
+			return defaultVal
+		}
+		return any(v).(T)
+	case int:
+		v, err := strconv.Atoi(s)
+		if err != nil {
+			return defaultVal
+		}
+		return any(v).(T)
+	case int8:
+		v, err := strconv.ParseInt(s, 10, 8)
+		if err != nil {
+			return defaultVal
+		}
+		return any(int8(v)).(T)
+	case int16:
+		v, err := strconv.ParseInt(s, 10, 16)
+		if err != nil {
+			return defaultVal
+		}
+		return any(int16(v)).(T)
+	case int32:
+		v, err := strconv.ParseInt(s, 10, 32)
+		if err != nil {
+			return defaultVal
+		}
+		return any(int32(v)).(T)
+	case int64:
+		v, err := strconv.ParseInt(s, 10, 64)
+		if err != nil {
+			return defaultVal
+		}
+		return any(v).(T)
+	case uint:
+		v, err := strconv.ParseUint(s, 10, 0)
+		if err != nil {
+			return defaultVal
+		}
+		return any(uint(v)).(T)
+	case uint8:
+		v, err := strconv.ParseUint(s, 10, 8)
+		if err != nil {
+			return defaultVal
+		}
+		return any(uint8(v)).(T)
+	case uint16:
+		v, err := strconv.ParseUint(s, 10, 16)
+		if err != nil {
+			return defaultVal
+		}
+		return any(uint16(v)).(T)
+	case uint32:
+		v, err := strconv.ParseUint(s, 10, 32)
+		if err != nil {
+			return defaultVal
+		}
+		return any(uint32(v)).(T)
+	case uint64:
+		v, err := strconv.ParseUint(s, 10, 64)
+		if err != nil {
+			return defaultVal
+		}
+		return any(v).(T)
+	case float32:
+		v, err := strconv.ParseFloat(s, 32)
+		if err != nil {
+			return defaultVal
+		}
+		return any(float32(v)).(T)
+	case float64:
+		v, err := strconv.ParseFloat(s, 64)
+		if err != nil {
+			return defaultVal
+		}
+		return any(v).(T)
+	default:
+		return defaultVal
+	}
+}
+
+// Bind 将请求体 (JSON) 或表单数据绑定到结构体.
+// JSON 请求: json.Unmarshal; 表单请求: gorilla/schema 解码.
+// 这是 Laravel FormRequest 理念的 Go 实现.
+func (i *Input) Bind(dst any) error {
+	if i.IsJson() {
+		return json.Unmarshal(i.ctx.PostBody(), dst)
+	}
+	if values := i.PostForm(); len(values) > 0 {
+		return schemaDecoder.Decode(dst, values)
+	}
+	return ErrNoPostData
+}
+
+// BindJSON 将请求体 JSON 绑定到结构体 (显式 JSON 绑定).
+func (i *Input) BindJSON(dst any) error {
+	return json.Unmarshal(i.ctx.PostBody(), dst)
+}
+
+// BindForm 将表单绑定到结构体 (显式表单绑定, 含 query).
+func (i *Input) BindForm(dst any) error {
+	if values := i.PostForm(); len(values) > 0 {
+		return schemaDecoder.Decode(dst, values)
+	}
+	return ErrNoPostData
 }
