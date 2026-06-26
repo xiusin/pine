@@ -28,19 +28,19 @@ func (c *RequestDataCollector) Collect() {
 }
 
 func (c RequestDataCollector) GetName() string {
-	panic("implement me")
+	return "request"
 }
 
 func (c RequestDataCollector) GetTitle() any {
-	panic("implement me")
+	return "Request Data"
 }
 
 func (c RequestDataCollector) GetRoute() string {
-	panic("implement me")
+	return ""
 }
 
 func (c RequestDataCollector) GetWidgets() any {
-	panic("implement me")
+	return nil
 }
 
 func NewRequestDataCollector() *RequestDataCollector {

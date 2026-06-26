@@ -2,23 +2,33 @@ package main
 
 import (
 	"fmt"
-
-	"github.com/valyala/fasthttp/pprofhandler"
-
-	// "strconv"
+	"net/http/pprof"
 	"strings"
-	// "sync/atomic"
 
 	"github.com/xiusin/pine"
 )
 
 func main() {
 	app := pine.New()
-	// var v uint32
 	app.Use(func(ctx *pine.Context) {
 		p := ctx.Path()
 		if strings.HasPrefix(p, "/debug") {
-			pprofhandler.PprofHandler(ctx.RequestCtx)
+			// 使用 net/http/pprof 替代 fasthttp/pprofhandler
+			w := ctx.Response.StreamFile()
+			switch p {
+			case "/debug/pprof":
+				pprof.Index(w, ctx.Request)
+			case "/debug/pprof/cmdline":
+				pprof.Cmdline(w, ctx.Request)
+			case "/debug/pprof/profile":
+				pprof.Profile(w, ctx.Request)
+			case "/debug/pprof/symbol":
+				pprof.Symbol(w, ctx.Request)
+			case "/debug/pprof/trace":
+				pprof.Trace(w, ctx.Request)
+			default:
+				pprof.Index(w, ctx.Request)
+			}
 			ctx.Stop()
 			return
 		}
@@ -28,9 +38,6 @@ func main() {
 	app.Static("/uploads", "./resources/uploads")
 	app.ANY("/get", func(ctx *pine.Context) {
 		pine.Logger().Info("get request")
-		// atomic.AddUint32(&v, 1)
-		// fmt.Println(v)
-		// ctx.WriteString("current req: " + strconv.Itoa(int(v)))
 	})
 	app.ANY("/json", func(ctx *pine.Context) {
 		if ctx.IsPost() {
@@ -67,7 +74,7 @@ func main() {
 					商品名称: <input type="text" name="name" value="">
 					 <input type="submit" value="查询">
 				</form>
-			
+
 				<h1>表单3</h1>
 				<form enctype="text/plain" method="post">
 					商品类型:<select name="typeid">
@@ -79,7 +86,7 @@ func main() {
 					商品名称: <input type="text" name="name" value="">
 					 <input type="submit" value="查询">
 				</form>
-			
+
 			</body>
 			</html>`))
 		}

@@ -1,10 +1,15 @@
+// Copyright 2014 Manu Martinez-Almeida.  All rights reserved.
+// Use of this source code is governed by a MIT style
+// license that can be found in the LICENSE file.
+
 package debug
 
 import (
 	"bytes"
 	"encoding/json"
 	"html/template"
-	"io/ioutil"
+	"net/http"
+	"os"
 	"path"
 	"runtime"
 	"runtime/debug"
@@ -30,8 +35,7 @@ type errHandler struct {
 	line          int
 }
 
-var defaultHandler = &errHandler{}
-
+// DebugBar 调试栏中间件.
 func DebugBar(enable bool) pine.Handler {
 	return func(ctx *pine.Context) {
 		collectorMgr := NewCollectorMgr(ctx, enable)
@@ -40,31 +44,34 @@ func DebugBar(enable bool) pine.Handler {
 
 		collectorMgr.RegisterCollector()
 
-		if ctx.Response.StatusCode() == 200 {
+		if ctx.Response.StatusCode() == http.StatusOK {
 			collectorMgr.BuildHtmlTag()
 		}
 		collectorMgr.Destroy()
 	}
 }
 
+// Recover 返回 panic 恢复中间件, 输出调试页面.
+// 每次请求创建独立的 errHandler 实例, 避免并发请求数据竞争.
 func Recover(r *pine.Application) pine.Handler {
 	once.Do(func() {
 		_, f, _, _ := runtime.Caller(0)
 		p := path.Dir(f)
 		debugTemplate, _ = template.ParseFiles(path.Join(p, "assets/debug.html"))
-		r.Static("/debug_static", path.Join(p, "assets"), 1)
+		r.Static("/debug_static", path.Join(p, "assets"))
 	})
 	return func(c *pine.Context) {
-		defaultHandler.init()
+		handler := &errHandler{}
+		handler.init()
 		stack := string(debug.Stack())
-		c.ResetBody()
+		c.Response.ResetBody()
 		c.Logger().Info("msg: %s  Method: %s  Path: %s", c.Msg, c.Method(), c.Path())
 		if c.IsAjax() {
-			c.Response.Header.Add("Content-Type", pine.ContentTypeJSON)
-			_ = c.Write(defaultHandler.showTraceInfo(c.Msg, stack, true))
+			c.Response.Header().Add("Content-Type", pine.ContentTypeJSON)
+			_ = c.Write(handler.showTraceInfo(c.Msg, stack, true))
 		} else {
-			c.Response.Header.Add("Content-Type", pine.ContentTypeHTML)
-			defaultHandler.errors(c, c.Msg, defaultHandler.showTraceInfo(c.Msg, stack, false))
+			c.Response.Header().Add("Content-Type", pine.ContentTypeHTML)
+			handler.errors(c, c.Msg, handler.showTraceInfo(c.Msg, stack, false))
 		}
 	}
 }
@@ -77,6 +84,12 @@ func (e *errHandler) init() {
 }
 
 func (e *errHandler) errors(c *pine.Context, errmsg string, trace []byte) {
+	if debugTemplate == nil {
+		// 模板解析失败, 降级输出纯文本错误
+		c.Response.Header().Set("Content-Type", pine.ContentTypeText)
+		_ = c.Write([]byte(errmsg + "\n\n" + string(trace)))
+		return
+	}
 	jsData, _ := json.Marshal(e.fileContent)
 	var buf bytes.Buffer
 	if err := debugTemplate.Execute(&buf, map[string]any{
@@ -88,7 +101,8 @@ func (e *errHandler) errors(c *pine.Context, errmsg string, trace []byte) {
 		"fistFile":  e.firstFile,
 		"line":      e.line,
 	}); err != nil {
-		panic(err.Error())
+		c.Logger().Error("debug template execute: " + err.Error())
+		return
 	}
 	c.Write(buf.Bytes())
 }
@@ -98,25 +112,36 @@ func (e *errHandler) showTraceInfo(errMsg, traceMsg string, isAjax bool) []byte 
 	var trace []map[string]string
 	var fileContentMap []string
 
+	// 确保 msgs 长度为偶数, 避免下方 i+1 越界
+	if len(msgs)%2 != 0 {
+		msgs = msgs[:len(msgs)-1]
+	}
 	l, idx, jsonRet, buf := len(msgs), 1, map[string]any{}, bytes.NewBuffer([]byte{})
 	for i := 0; i < l; i += 2 {
-		paths := strings.Split(msgs[i+1], ":")
+		paths := strings.SplitN(msgs[i+1], ":", 2)
+		if len(paths) < 2 {
+			continue
+		}
 		paths[0] = strings.Trim(paths[0], "\t")
 
 		if strings.Contains(msgs[i], "debug.Stack()") ||
 			strings.Contains(msgs[i], "endRequest") ||
 			strings.Contains(paths[0], "panic.go") ||
-			strings.Contains(paths[0], "valyala/fasthttp") ||
+			strings.Contains(paths[0], "net/http") ||
 			strings.Contains(paths[0], "debug.go") {
 			continue
 		}
 
 		// 读取文件内容
-		codeContent, _ := ioutil.ReadFile(paths[0])
+		codeContent, _ := os.ReadFile(paths[0])
 		line := strings.Split(paths[1], " ")
 		lineNum, _ := strconv.Atoi(line[0])
 		codes := strings.Split(string(codeContent), "\n")
 		ln, _ := strconv.Atoi(line[0])
+		// 边界检查: 行号必须在有效范围内
+		if ln < 1 || ln > len(codes) {
+			continue
+		}
 		codes[ln-1] = codes[ln-1] + "	  			//	 <-----   Here"
 		count := len(codes)
 		var firstLine int
@@ -173,9 +198,7 @@ func (e *errHandler) showTraceInfo(errMsg, traceMsg string, isAjax bool) []byte 
 		jsonRet["message"] = errMsg
 		s, _ := json.Marshal(jsonRet)
 		return s
-	} else {
-		e.fileContent = fileContentMap
-		return buf.Bytes()
 	}
-
+	e.fileContent = fileContentMap
+	return buf.Bytes()
 }

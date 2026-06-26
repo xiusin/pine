@@ -7,15 +7,16 @@ package pine
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"reflect"
 	"strings"
 	"sync"
 	"unsafe"
 
-	"github.com/valyala/fasthttp"
 	"github.com/xiusin/pine/di"
 )
 
+// IRouterWrapper 路由包装器接口, 用于控制器方法映射到路由.
 type IRouterWrapper interface {
 	warpHandler(string, IController) Handler
 
@@ -27,7 +28,7 @@ type IRouterWrapper interface {
 	DELETE(path string, handle string, mws ...Handler)
 }
 
-// 控制器映射路由
+// routerWrapper 控制器映射路由包装器.
 type routerWrapper struct {
 	sync.Mutex
 	reflectMethod map[string][]reflect.Value
@@ -46,8 +47,8 @@ func newRouterWrapper(router AbstractRouter, controller IController) *routerWrap
 	}
 }
 
-// warpHandler 用于包装controller方法为Handler
-// 通过反射传入controller实例用于每次请求构建或新的实例
+// warpHandler 用于包装 controller 方法为 Handler.
+// 通过反射传入 controller 实例用于每次请求构建或新的实例.
 func (cmr *routerWrapper) warpHandler(method string, controller IController) Handler {
 	rvCtrl, rtCtrl := reflect.ValueOf(controller), reflect.TypeOf(controller)
 
@@ -65,7 +66,6 @@ func (cmr *routerWrapper) warpHandler(method string, controller IController) Han
 					// 自动构建指针对应的类型
 					autoConstructValue := reflect.New(rtCtrl.Elem().Field(i).Type.Elem())
 					rvCtrl.Elem().Field(i).Set(autoConstructValue)
-					// fmt.Println(rtCtrl.Elem().Field(i).Name, rtCtrl.Elem().Field(i).Type.Elem())
 					cmr.share.Store(field.Name, rvCtrl.Elem().Field(i))
 				}()
 			}
@@ -74,7 +74,6 @@ func (cmr *routerWrapper) warpHandler(method string, controller IController) Han
 		}
 	}
 	return func(context *Context) {
-		// TODO 为controller提供一个clone方法, 这样可以直接赋值复制对象而不反射
 		// 使用反射类型构建一个新的控制器实例
 		c := reflect.New(rvCtrl.Elem().Type())
 		rf := reflect.Indirect(c).FieldByName("context")
@@ -84,14 +83,12 @@ func (cmr *routerWrapper) warpHandler(method string, controller IController) Han
 	}
 }
 
-// handlerResult 处理返回值
-// c是控制器一个反射值
-// ctrlName 控制器名称
-// method 方法名称
+// result 处理控制器方法返回值.
+// c 是控制器一个反射值, ctrlName 控制器名称, method 方法名称.
 func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 	var err error
 	var ins []reflect.Value
-	// 转换为context实体实例
+	// 转换为 context 实体实例
 	ctx := c.MethodByName("Ctx").Call(nil)[0].Interface().(*Context)
 
 	if cmr.hasShareField {
@@ -122,7 +119,7 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 			if numIn := mt.NumIn(); numIn > 0 {
 				for i := 0; i < numIn; i++ {
 					if in := mt.In(i); in.Kind() == reflect.Ptr || in.Kind() == reflect.Interface {
-						if in.Kind() == reflect.Interface { // 解析interface类型的服务, 如cache.AbstractCache
+						if in.Kind() == reflect.Interface { // 解析 interface 类型的服务, 如 cache.AbstractCache
 							if di.Exists(in.String()) {
 								ins = append(ins, reflect.ValueOf(di.MustGet(in.String())))
 							} else {
@@ -152,7 +149,7 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 	}
 
 	// 查看是否设置了解析返回值
-	// 只接收返回值  error, interface, string , int , map struct 等.
+	// 只接收返回值 error, interface, string, int, map struct 等.
 	// 具体查看函数: parseValue
 	if ctx.autoParseValue && len(values) == 1 {
 		var body []byte
@@ -173,8 +170,8 @@ func (cmr *routerWrapper) result(c reflect.Value, ctrlName, method string) {
 			ctx.Render().ContentType(ctx.app.ReadonlyConfiguration.GetDefaultResponseType())
 			_ = ctx.Render().Bytes(body)
 		} else {
-			ctx.ResetBody()
-			ctx.Response.SetStatusCode(fasthttp.StatusInternalServerError)
+			ctx.Response.ResetBody()
+			ctx.Response.SetStatusCode(http.StatusInternalServerError)
 			panic(err)
 		}
 	}
@@ -191,16 +188,16 @@ func (cmr *routerWrapper) parseValue(val reflect.Value) ([]byte, error) {
 
 	// 如果返回的为切片
 	case reflect.Slice:
-		//字节切片直接返回, 其他切片进行json转换
+		// 字节切片直接返回, 其他切片进行 json 转换
 		if val, ok := valInterface.([]byte); ok {
 			value = val
 		} else if value, err = json.Marshal(valInterface); err != nil {
 			return nil, err
 		}
 
-	// 如果是interface
+	// 如果是 interface
 	case reflect.Interface:
-		// 判断是不是err类型
+		// 判断是不是 err 类型
 		if errVal, ok := val.Interface().(error); ok {
 			err = errVal
 		} else {

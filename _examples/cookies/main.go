@@ -12,9 +12,9 @@ func main() {
 	app.GET("/", func(ctx *pine.Context) {
 		if val := ctx.GetCookie("myname"); val == "" {
 			ctx.SetCookie("myname", "xiusin", 30)
-			ctx.Writer().Write([]byte("设置cookie"))
+			_ = ctx.Write([]byte("设置cookie"))
 		} else {
-			ctx.Writer().Write([]byte("获取cookie: myname => " + val))
+			_ = ctx.Write([]byte("获取cookie: myname => " + val))
 		}
 	})
 
@@ -22,10 +22,10 @@ func main() {
 	app.GET("/delete/:name:string", func(ctx *pine.Context) {
 		val := ctx.Params().Get("name")
 		if val == "" {
-			ctx.Writer().Write([]byte("请输入要删除的cookie名称"))
+			_ = ctx.Write([]byte("请输入要删除的cookie名称"))
 		} else {
 			ctx.RemoveCookie(val)
-			ctx.Writer().Write([]byte("deleted => " + val))
+			_ = ctx.Write([]byte("deleted => " + val))
 		}
 	})
 	app.Run(pine.Addr(""))

@@ -29,6 +29,10 @@ type Configuration struct {
 	timeout                   TimeoutConf
 	tlsSecretFile             string
 	tlsKeyFile                string
+	// net/http.Server 超时配置, 防 Slowloris 攻击
+	readTimeout  time.Duration
+	writeTimeout time.Duration
+	idleTimeout  time.Duration
 }
 
 type ReadonlyConfiguration interface {
@@ -40,6 +44,9 @@ type ReadonlyConfiguration interface {
 	GetDefaultResponseType() string
 	GetCompressGzip() bool
 	GetTimeout() TimeoutConf
+	GetReadTimeout() time.Duration
+	GetWriteTimeout() time.Duration
+	GetIdleTimeout() time.Duration
 }
 
 type Configurator func(o *Configuration)
@@ -111,6 +118,16 @@ func WithTlsFile(key, secret string) Configurator {
 	}
 }
 
+// WithServerTimeouts 设置 net/http.Server 的超时配置, 防 Slowloris 攻击.
+// 0 表示不限制 (不推荐).
+func WithServerTimeouts(read, write, idle time.Duration) Configurator {
+	return func(o *Configuration) {
+		o.readTimeout = read
+		o.writeTimeout = write
+		o.idleTimeout = idle
+	}
+}
+
 func (c *Configuration) GetServerName() string {
 	return c.serverName
 }
@@ -141,4 +158,16 @@ func (c *Configuration) GetCompressGzip() bool {
 
 func (c *Configuration) GetTimeout() TimeoutConf {
 	return c.timeout
+}
+
+func (c *Configuration) GetReadTimeout() time.Duration {
+	return c.readTimeout
+}
+
+func (c *Configuration) GetWriteTimeout() time.Duration {
+	return c.writeTimeout
+}
+
+func (c *Configuration) GetIdleTimeout() time.Duration {
+	return c.idleTimeout
 }

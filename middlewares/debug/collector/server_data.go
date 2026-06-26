@@ -38,7 +38,7 @@ func (r *ServerDataCollector) GetRoute() string {
 }
 
 func (r *ServerDataCollector) GetWidgets() any {
-	panic("implement me")
+	return nil
 }
 
 func NewServerDataCollector() *ServerDataCollector {

@@ -41,8 +41,9 @@ func (c *Controller) Render() *Render {
 	return c.context.Render()
 }
 
-func (c *Controller) View(name string) {
-	c.Render().HTML(name)
+// View 渲染 HTML 模板响应, 返回 error 与 Render.HTML 保持一致.
+func (c *Controller) View(name string) error {
+	return c.Render().HTML(name)
 }
 
 func (c *Controller) Logger() contracts.Logger {

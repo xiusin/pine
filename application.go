@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
+	"io/fs"
+	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -17,15 +19,15 @@ import (
 	"strings"
 	"sync"
 
-	"io/fs"
-
 	gomime "github.com/cubewise-code/go-mime"
-	"github.com/valyala/fasthttp"
 	"github.com/xiusin/pine/di"
+	"log/slog"
 )
 
+// Version 框架版本号.
 const Version = "dev-master"
 
+// logo 启动 logo.
 const logo = `
   ____  _
  |  _ \(_)_ __   ___
@@ -33,15 +35,16 @@ const logo = `
  |  __/| | | | |  __/
  |_|   |_|_| |_|\___|`
 
+// FilePathParam 静态路由 filepath 参数名.
 const FilePathParam = "filepath"
 
 var (
 	urlSeparator = "/"
 
-	// 记录匹配路由映射， 不管是分组还是非分组的正则路由均记录到此变量
+	// 记录匹配路由映射, 不管是分组还是非分组的正则路由均记录到此变量
 	patternRoutes = map[string][]*RouteEntry{}
 
-	// 按照注册顺序保存匹配路由内容, 防止map迭代出现随机匹配的情况
+	// 按照注册顺序保存匹配路由内容, 防止 map 迭代出现随机匹配的情况
 	sortedPattern []string
 
 	// 正则路由特征匹配
@@ -54,22 +57,28 @@ var (
 		":any":    "<.*>",
 	}
 
+	// patternRegexpCache 缓存编译后的正则, 避免每次请求重新编译 (优化点).
+	patternRegexpCache = map[string]*regexp.Regexp{}
+	patternRegexpMu    sync.RWMutex
+
 	controllerDefaultAction = ""
 
 	_ AbstractRouter = (*Application)(nil)
 )
 
+// RouteEntry 路由条目.
+// ExtendsMiddleWare 在注册时一次性设置, 避免运行时并发写入 (resolved 字段已移除).
 type RouteEntry struct {
 	Method            string
 	Middleware        []Handler
 	ExtendsMiddleWare []Handler
 	Handle            Handler
 	HandlerName       string
-	resolved          bool
 	Param             []string
 	Pattern           string
 }
 
+// AbstractRouter 路由抽象接口.
 type AbstractRouter interface {
 	AddRoute(method, path string, handle Handler, mws ...Handler)
 
@@ -81,30 +90,33 @@ type AbstractRouter interface {
 	DELETE(path string, handle Handler, mws ...Handler)
 
 	StaticFile(string, string, ...Handler)
-	Static(string, string, ...int)
+	Static(string, string)
 }
 
+// IRegisterHandler 可注册路由的控制器接口.
 type IRegisterHandler interface {
 	RegisterRoute(IRouterWrapper)
 }
 
 type routeMaker func(path string, handle Handler, mws ...Handler)
 
+// Handler 请求处理函数签名.
 type Handler func(ctx *Context)
 
 type routerMap map[string]map[string]*RouteEntry
 
+// Router 路由器.
 type Router struct {
-	prefix       string
-	methodRoutes routerMap
-	middleWares  []Handler
-
+	prefix               string
+	methodRoutes         routerMap
+	middleWares          []Handler
 	groups               map[string]*Router
 	registeredSubdomains map[string]*Router
 	subdomain            string
 	hostname             string
 }
 
+// Application 应用实例.
 type Application struct {
 	*Router
 	pool                  sync.Pool
@@ -119,6 +131,7 @@ func init() {
 	di.Instance(slog.Default())
 }
 
+// New 创建应用实例.
 func New() *Application {
 	app := &Application{
 		Router: &Router{
@@ -135,18 +148,18 @@ func New() *Application {
 
 	app.SetNotFound(func(c *Context) {
 		if len(c.Msg) == 0 {
-			c.Msg = fasthttp.StatusMessage(fasthttp.StatusNotFound)
+			c.Msg = http.StatusText(http.StatusNotFound)
 		}
-		c.Response.Header.SetContentType(ContentTypeHTML)
-		_ = DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": fasthttp.StatusNotFound})
+		c.Response.Header().Set(HeaderContentType, ContentTypeHTML)
+		_ = DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": http.StatusNotFound})
 	})
 
 	app.NotAllowMethod(func(c *Context) {
 		if len(c.Msg) == 0 {
-			c.Msg = fasthttp.StatusMessage(fasthttp.StatusForbidden)
+			c.Msg = http.StatusText(http.StatusForbidden)
 		}
-		c.Response.Header.SetContentType(ContentTypeHTML)
-		_ = DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": fasthttp.StatusMethodNotAllowed})
+		c.Response.Header().Set(HeaderContentType, ContentTypeHTML)
+		_ = DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": http.StatusMethodNotAllowed})
 	})
 
 	di.Instance(app)
@@ -180,7 +193,7 @@ func (r *Router) register(controller IController, prefix ...string) {
 			}
 
 		}
-		reflectingNeedIgnoreMethods = nil
+		// 不再置 nil reflectingNeedIgnoreMethods, 允许多个 controller 注册时复用忽略列表
 	}
 }
 
@@ -201,9 +214,11 @@ func (r *Router) matchRegister(path, prefix string, handle Handler) {
 	}
 }
 
+// Subdomain 创建子域名路由.
 func (r *Router) Subdomain(subdomain string) *Router {
 	s := &Router{
-		middleWares:          r.middleWares,
+		// 浅拷贝父级中间件, 避免子域 Use 影响父域 (与 Group 行为一致)
+		middleWares:          append([]Handler(nil), r.middleWares...),
 		groups:               map[string]*Router{},
 		registeredSubdomains: r.registeredSubdomains,
 	}
@@ -215,33 +230,32 @@ func (r *Router) Subdomain(subdomain string) *Router {
 	return s
 }
 
+// SetRecoverHandler 设置 panic 恢复处理器.
 func (a *Application) SetRecoverHandler(handler Handler) {
 	a.recoverHandler = handler
 }
 
+// SetNotFound 设置 404 处理器.
 func (a *Application) SetNotFound(handler Handler) {
-	codeCallHandler[fasthttp.StatusNotFound] = handler
+	codeCallHandler[http.StatusNotFound] = handler
 }
 
+// NotAllowMethod 设置不允许方法处理器.
 func (a *Application) NotAllowMethod(handler Handler) {
-	codeCallHandler[fasthttp.StatusMethodNotAllowed] = handler
+	codeCallHandler[http.StatusMethodNotAllowed] = handler
 }
 
+// Close 关闭应用, 发送中断信号触发优雅关闭.
 func (a *Application) Close() {
-	a.quitCh <- os.Interrupt
-}
-
-func (a *Application) gracefulShutdown(srv *fasthttp.Server, quit <-chan os.Signal) {
-	<-quit
-	for _, beforeHandler := range shutdownBeforeHandler {
-		beforeHandler()
-	}
-
-	if err := srv.Shutdown(); err != nil {
-		panic(fmt.Errorf("could not gracefully shutdown the server: %s", err.Error()))
+	if a.quitCh != nil {
+		select {
+		case a.quitCh <- os.Interrupt:
+		default:
+		}
 	}
 }
 
+// handle 处理请求.
 func (a *Application) handle(c *Context) {
 	if route := a.matchRoute(c); route != nil {
 		c.setRoute(route)
@@ -253,8 +267,8 @@ func (a *Application) handle(c *Context) {
 
 		c.Next()
 	} else {
-		if handler, ok := codeCallHandler[fasthttp.StatusNotFound]; ok {
-			c.SetStatus(fasthttp.StatusNotFound)
+		if handler, ok := codeCallHandler[http.StatusNotFound]; ok {
+			c.SetStatus(http.StatusNotFound)
 
 			c.setRoute(&RouteEntry{
 				ExtendsMiddleWare: a.middleWares,
@@ -266,6 +280,7 @@ func (a *Application) handle(c *Context) {
 	}
 }
 
+// Run 启动应用.
 func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 	if srv == nil {
 		panic(errors.New("server handler can't nil."))
@@ -278,16 +293,19 @@ func (a *Application) Run(srv ServerHandler, opts ...Configurator) {
 
 	a.ReadonlyConfiguration = a.configuration
 
-	if err := srv(a); err != nil {
+	if err := srv(a); err != nil && err != http.ErrServerClosed {
+		// http.ErrServerClosed 是优雅关闭的正常返回, 不应 panic
 		panic(err)
 	}
 }
 
+// Handle 注册控制器路由.
 func (r *Router) Handle(c IController, prefix ...string) *Router {
 	r.register(c, prefix...)
 	return r
 }
 
+// AddRoute 添加路由.
 func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 	var (
 		params  []string
@@ -327,19 +345,41 @@ func (r *Router) AddRoute(method, path string, handle Handler, mws ...Handler) {
 	}
 
 	route := &RouteEntry{
-		Method:     method,
-		Handle:     handle,
-		Middleware: mws,
-		Param:      params,
-		Pattern:    pattern,
+		Method:            method,
+		Handle:            handle,
+		Middleware:        mws,
+		ExtendsMiddleWare: r.middleWares, // 注册时一次性设置, 避免运行时并发写入
+		Param:             params,
+		Pattern:           pattern,
 	}
 	if len(pattern) != 0 {
 		patternRoutes[pattern] = append(patternRoutes[pattern], route)
 		sortedPattern = append(sortedPattern, pattern)
+		// 预编译正则并缓存 (优化点: 避免每次请求重新编译)
+		compilePattern(pattern)
 	} else {
 		r.methodRoutes[method][path] = route
-		r.methodRoutes[fasthttp.MethodOptions][path] = route // 默认options方法
+		r.methodRoutes[http.MethodOptions][path] = route // 默认 options 方法
 	}
+}
+
+// compilePattern 编译并缓存正则.
+func compilePattern(pattern string) *regexp.Regexp {
+	patternRegexpMu.RLock()
+	if re, ok := patternRegexpCache[pattern]; ok {
+		patternRegexpMu.RUnlock()
+		return re
+	}
+	patternRegexpMu.RUnlock()
+
+	patternRegexpMu.Lock()
+	defer patternRegexpMu.Unlock()
+	if re, ok := patternRegexpCache[pattern]; ok {
+		return re
+	}
+	re := regexp.MustCompile(pattern)
+	patternRegexpCache[pattern] = re
+	return re
 }
 
 func (r *Router) getPattern(str string, any bool) (paramName, pattern string) {
@@ -359,25 +399,14 @@ func (r *Router) getPattern(str string, any bool) (paramName, pattern string) {
 	return
 }
 
+// matchRoute 匹配路由.
 func (r *Router) matchRoute(ctx *Context) *RouteEntry {
-	//ok, host := false, strings.Replace(strings.Split(string(ctx.Host()), ":")[0], r.hostname, "", 1)
-	//fmt.Println(localServer, r.registeredSubdomains)
-	//// 查看是否有注册域名路由
-	//if _, exist := localServer[host]; !exist {
-	//	if r, ok = r.registeredSubdomains[host]; !ok {
-	//		return nil
-	//	}
-	//}
-	method, fullPath := string(ctx.Method()), strings.TrimRight(ctx.Path(), urlSeparator)
+	method, fullPath := ctx.Method(), strings.TrimRight(ctx.Path(), urlSeparator)
 	if len(fullPath) == 0 {
 		fullPath = urlSeparator
 	}
 
 	if route, ok := r.methodRoutes[method][fullPath]; ok {
-		if !route.resolved {
-			route.ExtendsMiddleWare = r.middleWares
-			route.resolved = true
-		}
 		return route
 	}
 
@@ -393,21 +422,21 @@ func (r *Router) matchRoute(ctx *Context) *RouteEntry {
 			}
 		}
 	}
+	// 使用缓存的正则进行匹配 (优化点: FindStringSubmatch 单次匹配, 避免全量遍历)
 	for _, pattern := range sortedPattern {
 		routes := patternRoutes[pattern]
-		reg := regexp.MustCompile(pattern)
-		matchedStrings := reg.FindAllStringSubmatch(ctx.Path(), -1)
+		reg := compilePattern(pattern)
+		matched := reg.FindStringSubmatch(ctx.Path())
+		if len(matched) == 0 {
+			continue
+		}
+		matchedValues := matched[1:]
 		for _, route := range routes {
-			if len(matchedStrings) == 0 || len(matchedStrings[0]) == 0 || route.Method != method {
+			if route.Method != method {
 				continue
 			}
-			matchedValues := matchedStrings[0][1:]
 			for idx, paramKey := range route.Param {
 				ctx.Params().Set(paramKey, matchedValues[idx])
-			}
-			if !route.resolved {
-				route.ExtendsMiddleWare = r.middleWares
-				route.resolved = true
 			}
 			return route
 		}
@@ -421,10 +450,6 @@ func (r *Router) lookupGroupRoute(i int, method string, pathInfo []string, fullP
 	for routePath, route := range r.methodRoutes[method] {
 		if routePath != p || route.Method != method {
 			continue
-		}
-		if !route.resolved {
-			route.ExtendsMiddleWare = r.middleWares
-			route.resolved = true
 		}
 		return route
 	}
@@ -441,13 +466,15 @@ func (r *Router) lookupGroupRoute(i int, method string, pathInfo []string, fullP
 	return nil
 }
 
+// Group 创建路由分组.
 func (r *Router) Group(prefix string, middleWares ...Handler) *Router {
 	prefix = fmt.Sprintf("%s%s", r.prefix, prefix)
 
 	g := &Router{
 		prefix:      prefix,
 		groups:      map[string]*Router{},
-		middleWares: r.middleWares[:]}
+		middleWares: r.middleWares[:],
+	}
 
 	g.methodRoutes = initRouteEntity()
 	g.middleWares = append(g.middleWares, middleWares...)
@@ -455,98 +482,116 @@ func (r *Router) Group(prefix string, middleWares ...Handler) *Router {
 	return g
 }
 
+// Use 注册中间件.
 func (r *Router) Use(middleWares ...Handler) {
 	r.middleWares = append(r.middleWares, middleWares...)
 }
 
+// Favicon 注册 favicon 路由.
 func (r *Router) Favicon(file any) {
 	r.GET("/favicon.ico", func(c *Context) {
 		if filename, ok := file.(string); ok {
 			if mimeType := gomime.TypeByExtension(filepath.Ext(filename)); len(mimeType) > 0 {
-				c.Response.Header.Set(HeaderContentType, mimeType)
+				c.Response.Header().Set(HeaderContentType, mimeType)
 			}
-			if err := c.Response.SendFile(filename); err != nil {
-				c.Abort(fasthttp.StatusInternalServerError, err.Error())
-			}
+			c.Response.SendFile(filename, c.Request)
 		} else if file, ok := file.(fs.File); ok {
+			defer file.Close()
 			info, _ := file.Stat()
 			if mimeType := gomime.TypeByExtension(filepath.Ext(info.Name())); len(mimeType) > 0 {
-				c.Response.Header.Set(HeaderContentType, mimeType)
+				c.Response.Header().Set(HeaderContentType, mimeType)
 			}
-			c.Response.SetBodyStream(file, -1)
+			if err := c.Response.ReadAll(file, -1); err != nil {
+				c.Abort(http.StatusInternalServerError, err.Error())
+			}
 		} else {
 			panic(errors.New("unsupported type"))
 		}
 	})
 }
 
+// StaticFS 注册基于 fs.FS 的静态文件服务.
+// 使用流式传输, 避免大文件全量读取导致 OOM.
 func (r *Router) StaticFS(urlPath string, f fs.FS, filePrefix string, indexfile ...string) {
 	handler := func(c *Context) {
-		filename := c.params.Get(FilePathParam)
+		filename := c.Params().Get(FilePathParam)
 
 		if len(filename) == 0 {
 			if len(indexfile) == 0 {
-				c.Abort(fasthttp.StatusNotFound)
+				c.Abort(http.StatusNotFound)
 				return
 			}
 			filename = indexfile[0]
-
 		}
 
 		file, err := f.Open(strings.Replace(filepath.Join(filePrefix, filename), "\\", urlSeparator, -1))
-		var content []byte
-		if err == nil {
-			content, err = io.ReadAll(file)
-			file.Close()
-		}
 		if err != nil {
 			if os.IsNotExist(err) {
-				c.Abort(fasthttp.StatusNotFound)
+				c.Abort(http.StatusNotFound)
 			} else {
-				c.Abort(fasthttp.StatusInternalServerError, err.Error())
+				c.Abort(http.StatusInternalServerError, err.Error())
 			}
 			return
 		}
+		defer file.Close()
+
 		mimeType := gomime.TypeByExtension(filepath.Ext(filename))
 		if len(mimeType) > 0 {
-			c.Response.Header.Set(HeaderContentType, mimeType)
+			c.Response.Header().Set(HeaderContentType, mimeType)
 		}
-		c.Response.SetBodyRaw(content)
+		// 流式传输: 标记 streamed, 直接写入底层 ResponseWriter
+		w := c.Response.StreamFile()
+		if _, err := io.Copy(w, file); err != nil {
+			c.Logger().Warn("static fs copy: " + err.Error())
+		}
 	}
 	routePath := path.Join(urlPath, "*"+FilePathParam)
 	r.GET(routePath, handler)
 	r.HEAD(routePath, handler)
 }
 
-func (r *Router) Static(urlPath, dir string, stripSlashes ...int) {
-	if len(stripSlashes) == 0 {
-		stripSlashes = []int{0}
-	}
-	fileServer := fasthttp.FSHandler(dir, stripSlashes[0])
+// Static 注册基于目录的静态文件服务, 平替 fasthttp.FSHandler.
+// 使用 http.FileServer + http.StripPrefix, 在注册时创建一次, 避免每次请求重建.
+func (r *Router) Static(urlPath, dir string) {
+	// 注册时创建一次 FileServer, 避免每次请求重建
+	fileServer := http.StripPrefix(urlPath, http.FileServer(http.Dir(dir)))
 	handler := func(c *Context) {
-		fName := c.params.Get(FilePathParam)
+		fName := c.Params().Get(FilePathParam)
 		if len(fName) == 0 {
 			fName = "index.html"
 		}
-		fileServer(c.RequestCtx)
+		// 重写请求路径以匹配 strip prefix.
+		// 使用 WithContext 浅拷贝 Request, 仅替换 URL, 避免深拷贝 header map 的开销.
+		req := c.Request.WithContext(c.Request.Context())
+		req.URL = &url.URL{Path: "/" + fName, RawQuery: c.Request.URL.RawQuery}
+		// 标记流式响应, 跳过缓冲
+		w := c.Response.StreamFile()
+		fileServer.ServeHTTP(w, req)
 	}
 	routePath := path.Join(urlPath, "*"+FilePathParam)
 	r.GET(routePath, handler)
-	//r.HEAD(routePath, handler)
+	r.HEAD(routePath, handler)
 }
 
+// StaticFile 注册单文件服务.
 func (r *Router) StaticFile(path, file string, mws ...Handler) {
-	r.GET(path, func(c *Context) { fasthttp.ServeFile(c.RequestCtx, file) }, mws...)
+	r.GET(path, func(c *Context) {
+		w := c.Response.StreamFile()
+		http.ServeFile(w, c.Request, file)
+	}, mws...)
 }
 
+// GET 注册 GET 路由.
 func (r *Router) GET(path string, handle Handler, mws ...Handler) {
-	r.AddRoute(fasthttp.MethodGet, path, handle, mws...)
+	r.AddRoute(http.MethodGet, path, handle, mws...)
 }
 
+// PUT 注册 PUT 路由.
 func (r *Router) PUT(path string, handle Handler, mws ...Handler) {
-	r.AddRoute(fasthttp.MethodPut, path, handle, mws...)
+	r.AddRoute(http.MethodPut, path, handle, mws...)
 }
 
+// ANY 注册所有方法路由.
 func (r *Router) ANY(path string, handle Handler, mws ...Handler) {
 	r.GET(path, handle, mws...)
 	r.PUT(path, handle, mws...)
@@ -555,39 +600,49 @@ func (r *Router) ANY(path string, handle Handler, mws ...Handler) {
 	r.DELETE(path, handle, mws...)
 }
 
+// POST 注册 POST 路由.
 func (r *Router) POST(path string, handle Handler, mws ...Handler) {
-	r.AddRoute(fasthttp.MethodPost, path, handle, mws...)
+	r.AddRoute(http.MethodPost, path, handle, mws...)
 }
 
+// HEAD 注册 HEAD 路由.
 func (r *Router) HEAD(path string, handle Handler, mws ...Handler) {
-	r.AddRoute(fasthttp.MethodHead, path, handle, mws...)
+	r.AddRoute(http.MethodHead, path, handle, mws...)
 }
 
+// DELETE 注册 DELETE 路由.
 func (r *Router) DELETE(path string, handle Handler, mws ...Handler) {
-	r.AddRoute(fasthttp.MethodDelete, path, handle, mws...)
+	r.AddRoute(http.MethodDelete, path, handle, mws...)
 }
 
+// initRouteEntity 初始化路由 map.
 func initRouteEntity() routerMap {
 	return routerMap{
-		fasthttp.MethodGet:     {},
-		fasthttp.MethodPost:    {},
-		fasthttp.MethodPut:     {},
-		fasthttp.MethodHead:    {},
-		fasthttp.MethodDelete:  {},
-		fasthttp.MethodOptions: {},
-		fasthttp.MethodPatch:   {}}
+		http.MethodGet:     {},
+		http.MethodPost:    {},
+		http.MethodPut:     {},
+		http.MethodHead:    {},
+		http.MethodDelete:  {},
+		http.MethodOptions: {},
+		http.MethodPatch:   {}}
 }
 
+// upperCharRegexp 预编译正则, 避免每次调用 upperCharToUnderLine 时重新编译.
+var upperCharRegexp = regexp.MustCompile("([A-Z])")
+
+// upperCharToUnderLine 大写字符转下划线.
 func upperCharToUnderLine(path string) string {
-	return strings.TrimLeft(regexp.MustCompile("([A-Z])").ReplaceAllStringFunc(path, func(s string) string {
-		return strings.ToLower("_" + strings.ToLower(s))
+	return strings.TrimLeft(upperCharRegexp.ReplaceAllStringFunc(path, func(s string) string {
+		return strings.ToLower("_" + s)
 	}), "_")
 }
 
+// RegisterOnInterrupt 注册中断时回调.
 func RegisterOnInterrupt(handler func()) {
 	shutdownBeforeHandler = append(shutdownBeforeHandler, handler)
 }
 
+// SetControllerDefaultAction 设置控制器默认方法.
 func SetControllerDefaultAction(str string) {
 	controllerDefaultAction = str
 }
