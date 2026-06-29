@@ -13,11 +13,16 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 
 	"github.com/gorilla/schema"
 	"github.com/xiusin/pine/contracts"
+	"github.com/xiusin/pine/di"
 	"github.com/xiusin/pine/sessions"
 )
 
@@ -25,6 +30,92 @@ var (
 	schemaDecoder = schema.NewDecoder()
 	ErrNoPostData = errors.New("no post data")
 )
+
+// trustedProxiesConfig 控制信任代理 IP 列表, ClientIP 据此判断是否信任 X-Forwarded-For / X-Real-Ip.
+// 默认仅信任本地回环 (127.0.0.1, ::1), 避免被任意客户端伪造.
+var (
+	trustedProxies     = []string{"127.0.0.1/8", "::1/128"}
+	trustedProxiesMu   sync.RWMutex
+	trustedParsedCIDRs []*net.IPNet
+	trustedParsedIPs   = map[string]struct{}{}
+	trustedProxiesOnce sync.Once
+)
+
+// initTrustedProxies 解析 trustedProxies 为 net.IPNet 与单 IP 集合, 供 ClientIP 高频调用使用.
+func initTrustedProxies() {
+	parsedCIDRs := make([]*net.IPNet, 0, len(trustedProxies))
+	parsedIPs := map[string]struct{}{}
+	for _, entry := range trustedProxies {
+		if _, network, err := net.ParseCIDR(entry); err == nil {
+			parsedCIDRs = append(parsedCIDRs, network)
+			continue
+		}
+		if ip := net.ParseIP(entry); ip != nil {
+			parsedIPs[ip.String()] = struct{}{}
+		}
+	}
+	trustedParsedCIDRs = parsedCIDRs
+	trustedParsedIPs = parsedIPs
+}
+
+// SetTrustedProxies 配置信任代理 IP / CIDR 列表, 用于 ClientIP 解析 XFF / X-Real-Ip.
+// 传入 nil 或空切片表示不信任任何代理, 此时 ClientIP 始终返回 RemoteAddr.
+// 非法条目 (非 IP 也非 CIDR) 会被静默跳过并返回错误.
+func SetTrustedProxies(proxies []string) error {
+	parsedCIDRs := make([]*net.IPNet, 0, len(proxies))
+	parsedIPs := map[string]struct{}{}
+	var invalid []string
+	for _, entry := range proxies {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+		if _, network, err := net.ParseCIDR(entry); err == nil {
+			parsedCIDRs = append(parsedCIDRs, network)
+			continue
+		}
+		if ip := net.ParseIP(entry); ip != nil {
+			parsedIPs[ip.String()] = struct{}{}
+			continue
+		}
+		invalid = append(invalid, entry)
+	}
+	trustedProxiesMu.Lock()
+	trustedProxies = proxies
+	trustedParsedCIDRs = parsedCIDRs
+	trustedParsedIPs = parsedIPs
+	trustedProxiesMu.Unlock()
+	if len(invalid) > 0 {
+		return fmt.Errorf("invalid proxy entries: %s", strings.Join(invalid, ", "))
+	}
+	return nil
+}
+
+// isTrustedProxy 判断 IP 是否在信任代理列表内.
+// 调用方持有 trustedProxiesMu 的读锁.
+func isTrustedProxyLocked(ip string) bool {
+	if _, ok := trustedParsedIPs[ip]; ok {
+		return true
+	}
+	parsed := net.ParseIP(ip)
+	if parsed == nil {
+		return false
+	}
+	for _, network := range trustedParsedCIDRs {
+		if network.Contains(parsed) {
+			return true
+		}
+	}
+	return false
+}
+
+// isTrustedProxy 线程安全地判断 IP 是否在信任代理列表内.
+func isTrustedProxy(ip string) bool {
+	trustedProxiesOnce.Do(initTrustedProxies)
+	trustedProxiesMu.RLock()
+	defer trustedProxiesMu.RUnlock()
+	return isTrustedProxyLocked(ip)
+}
 
 // Context 封装单次 HTTP 请求的上下文, 平替 fasthttp.RequestCtx.
 // 持有 net/http 的 Response / Request, 并提供框架层中间件、参数、渲染等能力.
@@ -132,34 +223,57 @@ func (c *Context) reset() {
 }
 
 // endRequest 请求结束清理, 包含 panic 恢复与响应 flush.
-// 加固: recoverHandler 自身 panic 不会阻止 FlushResponse 与 reset,
+//
+// recover 必须直接在 endRequest 函数体中调用才能捕获路由 handler 抛出的 panic:
+// endRequest 经由 dispatch 的 `defer c.endRequest(...)` 调用, 属于 "panic 机制调用的 deferred 函数",
+// 此时直接调用 recover() 才能拿到 panic 值; 若把 recover 放进嵌套 defer (defer 套 defer),
+// 内层 defer 属于外层 deferred 函数的正常返回路径调用, 不再由 panic 机制触发, recover 返回 nil.
+//
+// 执行顺序: recover (直接调用) -> 异常分发 / 500 处理 -> FlushResponse -> reset (deferred).
+// 加固: recoverHandler / 异常处理器自身 panic 由内层 defer 捕获, 不阻止 FlushResponse 与 reset,
 // 避免脏 Context 入池导致下个请求串数据.
 // 恢复时先重置 body, 避免 handler 写入的部分响应体与错误页拼接.
+// panic 分支优先交给 HandleRecovery 处理: 若 recovered 实现 Exception 接口,
+// 则按异常类型分发到 ExceptionHandler (参考 Spring @ExceptionHandler / Laravel Handler::render),
+// 未命中类型处理器时回退到该状态码的 codeCallHandler; 非 Exception 值回退到原有逻辑:
+// 优先查 codeCallHandler[500] (用户通过 RegisterCodeHandler 注册的 500 处理器),
+// 找不到再回退到传入的 recoverHandler, 与 404 / 405 路径行为一致.
 func (c *Context) endRequest(recoverHandler Handler) {
-	func() {
-		defer func() {
-			if e := recover(); e != nil {
-				// recoverHandler 自身 panic, 记录但不向上传播
-				Logger().Error(fmt.Sprintf("recoverHandler panic: %s", e))
+	// reset 最后执行 (deferred), 保证 FlushResponse 完成后再清理 Context 入池.
+	defer c.reset()
+	// recover 直接在 endRequest 函数体中调用 (endRequest 即被 panic 机制调用的 deferred 函数).
+	err := recover()
+	if err != nil {
+		// 包裹 handler 调用以捕获其自身 panic, 确保 FlushResponse 与 reset 仍能执行.
+		func() {
+			defer func() {
+				if e := recover(); e != nil {
+					Logger().Error(fmt.Sprintf("recoverHandler panic: %s", e))
+				}
+			}()
+			// 优先检查是否为 Exception, 命中则按类型分发并完成渲染
+			if HandleRecovery(c, err) {
+				// 已由异常处理器或状态码处理器渲染
+			} else {
+				c.SetStatus(http.StatusInternalServerError)
+				c.Msg = fmt.Sprintf("%s", err)
+				// 重置已缓冲的部分响应体, 让错误处理器从干净状态重写
+				if c.Response != nil {
+					c.Response.ResetBody()
+				}
+				// 优先查 500 处理器 (与 notFoundWithCtx / methodNotAllowed 行为对齐)
+				if handler, ok := codeCallHandler[http.StatusInternalServerError]; ok {
+					c.setRoute(&RouteEntry{Handle: handler}).Next()
+				} else if recoverHandler != nil {
+					recoverHandler(c)
+				}
 			}
 		}()
-		if err := recover(); err != nil {
-			c.SetStatus(http.StatusInternalServerError)
-			c.Msg = fmt.Sprintf("%s", err)
-			// 重置已缓冲的部分响应体, 让 recoverHandler 从干净状态重写
-			if c.Response != nil {
-				c.Response.ResetBody()
-			}
-			if recoverHandler != nil {
-				recoverHandler(c)
-			}
-		}
-	}()
-	// 统一 flush 响应到底层 ResponseWriter
+	}
+	// 统一 flush 响应到底层 ResponseWriter (在 panic 处理之后, 让错误处理器的渲染被输出).
 	if c.Response != nil {
 		c.Response.FlushResponse()
 	}
-	c.reset()
 }
 
 // WriteString 以文本形式写入响应.
@@ -207,7 +321,9 @@ func (c *Context) YAML(v any) error { return c.Render().YAML(v) }
 func (c *Context) Bytes(b []byte) error { return c.Render().Bytes(b) }
 
 // Data 渲染指定 Content-Type 的原始数据响应的便捷别名.
-func (c *Context) Data(contentType string, data []byte) error { return c.Render().Data(contentType, data) }
+func (c *Context) Data(contentType string, data []byte) error {
+	return c.Render().Data(contentType, data)
+}
 
 // JSONP 渲染 JSONP 响应的便捷别名.
 func (c *Context) JSONP(callback string, v any) error { return c.Render().JSONP(callback, v) }
@@ -260,19 +376,49 @@ func (c *Context) Redirect(url string, statusHeader ...int) {
 }
 
 // sessions 获取 session 管理器实例.
-func (c *Context) sessions() *sessions.Sessions {
-	return Make(&sessions.Sessions{}).(*sessions.Sessions)
+// 若 DI 未注册 sessions.Sessions, 返回错误而非 panic, 由调用方决定如何降级.
+func (c *Context) sessions() (*sessions.Sessions, error) {
+	s, err := di.Get(&sessions.Sessions{})
+	if err != nil {
+		return nil, err
+	}
+	sess, ok := s.(*sessions.Sessions)
+	if !ok {
+		return nil, fmt.Errorf("invalid sessions type: %T", s)
+	}
+	return sess, nil
 }
 
 // Session 获取或初始化 session.
+// 保持签名兼容 (返回 contracts.Session), 失败时返回 nil 并将错误写入 c.Msg 与日志.
+// 调用方需判 nil: tree.go dispatch 已用 `if c.sess != nil` 兜底, 不会因 nil panic.
 func (c *Context) Session(sessIns ...contracts.Session) contracts.Session {
 	if c.sess == nil {
 		if len(sessIns) > 0 {
 			c.sess = sessIns[0]
 		} else {
-			sess, err := c.sessions().Session(c.cookie)
+			if c.cookie == nil {
+				c.Msg = "session unavailable: cookie store not initialized, call SetCookie first"
+				if l := c.Logger(); l != nil {
+					l.Error(c.Msg)
+				}
+				return nil
+			}
+			mgr, err := c.sessions()
 			if err != nil {
-				panic(fmt.Sprintf("Get sessionInstance failed: %s", err.Error()))
+				c.Msg = fmt.Sprintf("session unavailable: sessions manager not registered: %s", err)
+				if l := c.Logger(); l != nil {
+					l.Error(c.Msg)
+				}
+				return nil
+			}
+			sess, err := mgr.Session(c.cookie)
+			if err != nil {
+				c.Msg = fmt.Sprintf("session unavailable: %s", err)
+				if l := c.Logger(); l != nil {
+					l.Error(c.Msg)
+				}
+				return nil
 			}
 			c.sess = sess
 		}
@@ -311,6 +457,7 @@ func (c *Context) IsStopped() bool {
 }
 
 // setRoute 设置匹配到的路由条目, 并预构建中间件链.
+// 同时预计算 handler 函数名 (基于 route.Handle 而非 runtime.Caller), 保证 HandlerName() 返回稳定的路由名.
 func (c *Context) setRoute(route *RouteEntry) *Context {
 	c.route = route
 	// 预构建完整中间件链, 避免 Next() 中重复 append 分配
@@ -319,7 +466,20 @@ func (c *Context) setRoute(route *RouteEntry) *Context {
 	chain = append(chain, route.Middleware...)
 	c.middlewareChain = chain
 	c.middlewareIndex = -1
+	c.handlerName = computeHandlerName(route.Handle)
 	return c
+}
+
+// computeHandlerName 通过 reflect + runtime 提取 handler 函数名.
+// route.Handle 为 nil (理论上不会出现, 防御性兜底) 时返回空串.
+func computeHandlerName(handle Handler) string {
+	if handle == nil {
+		return ""
+	}
+	if fn := runtime.FuncForPC(reflect.ValueOf(handle).Pointer()); fn != nil {
+		return fn.Name()
+	}
+	return ""
 }
 
 // Abort 中止请求并设置状态码与消息.
@@ -368,20 +528,46 @@ func (c *Context) IsAjax() bool {
 	return c.Header("X-Requested-With") == "XMLHttpRequest"
 }
 
-// ClientIP 获取客户端真实 IP, 依次解析 X-Forwarded-For / X-Real-Ip / RemoteAddr.
+// ClientIP 获取客户端真实 IP.
+// 仅当 RemoteAddr 命中信任代理列表 (默认 127.0.0.1/8, ::1/128, 可通过 SetTrustedProxies 配置) 时,
+// 才解析 X-Forwarded-For / X-Real-Ip, 避免被任意客户端伪造 IP.
+// XFF 解析: 从右向左跳过信任代理, 取首个非信任 IP 作为客户端真实 IP.
 func (c *Context) ClientIP() string {
-	clientIP := c.Header("X-Forwarded-For")
-	clientIP = strings.TrimSpace(strings.Split(clientIP, ",")[0])
-	if clientIP == "" {
-		clientIP = strings.TrimSpace(c.Header("X-Real-Ip"))
+	if c.Request == nil {
+		return ""
 	}
-	if clientIP != "" {
-		return clientIP
+	remoteIP := c.Request.RemoteAddr
+	if host, _, err := net.SplitHostPort(remoteIP); err == nil {
+		remoteIP = host
 	}
-	if ip, _, err := net.SplitHostPort(c.RemoteAddr()); err == nil {
-		return ip
+	remoteIP = strings.TrimSpace(remoteIP)
+	if !isTrustedProxy(remoteIP) {
+		// 直连或非信任代理, 直接返回 RemoteAddr, 不信任 XFF.
+		return remoteIP
 	}
-	return c.RemoteAddr()
+	// 信任的代理链, 解析 XFF.
+	if xff := c.Request.Header.Get("X-Forwarded-For"); xff != "" {
+		ips := strings.Split(xff, ",")
+		for i := len(ips) - 1; i >= 0; i-- {
+			ip := strings.TrimSpace(ips[i])
+			if ip == "" {
+				continue
+			}
+			if !isTrustedProxy(ip) {
+				return ip
+			}
+		}
+		// XFF 全是信任代理, 回退到 RemoteAddr.
+		if len(ips) > 0 {
+			if first := strings.TrimSpace(ips[0]); first != "" {
+				return first
+			}
+		}
+	}
+	if xri := strings.TrimSpace(c.Request.Header.Get("X-Real-Ip")); xri != "" {
+		return xri
+	}
+	return remoteIP
 }
 
 // Path 返回请求路径.
@@ -424,17 +610,24 @@ func (c *Context) URI() *url.URL {
 
 // PostBody 返回 POST 请求体字节.
 // 内部通过 bodyBuffer 缓存, 支持多次读取.
+// 读取失败时记录到日志与 c.Msg, 而非静默吞错 (避免上层 BindJSON 拿到空字节却无法定位原因).
 func (c *Context) PostBody() []byte {
-	if c.Request.Body == nil {
+	if c.Request == nil || c.Request.Body == nil {
 		return nil
 	}
 	if b, ok := c.Request.Body.(*bodyBuffer); ok {
 		return b.bytes()
 	}
-	// 兜底: 读取并回填
+	// 兜底: 读取并回填.
 	b, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		return nil
+		c.Msg = fmt.Sprintf("read post body failed: %s", err)
+		if l := c.Logger(); l != nil {
+			l.Error(c.Msg)
+		}
+		// 已读部分仍可能包含数据, 缓存以支持后续重读.
+		c.Request.Body = &bodyBuffer{data: b}
+		return b
 	}
 	c.Request.Body = &bodyBuffer{data: b}
 	return b
@@ -489,13 +682,10 @@ func (c *Context) BindForm(rev any) error {
 	return ErrNoPostData
 }
 
-// HandlerName 返回当前处理器函数名.
-// 存储在 Context 而非 RouteEntry, 避免并发请求的数据竞争.
+// HandlerName 返回当前路由处理器的函数名.
+// 名字在 setRoute 时基于 route.Handle 预计算并缓存到 Context,
+// 避免旧实现 runtime.Caller(1) 取调用者导致返回值随调用位置变化的问题.
 func (c *Context) HandlerName() string {
-	if len(c.handlerName) == 0 {
-		pc, _, _, _ := runtime.Caller(1)
-		c.handlerName = runtime.FuncForPC(pc).Name()
-	}
 	return c.handlerName
 }
 
@@ -523,6 +713,87 @@ func (c *Context) ensureCookie() {
 	if c.cookie == nil {
 		c.cookie = sessions.NewCookie(c.Response.writer, c.Request, c.app.configuration.CookieTranscoder)
 	}
+}
+
+// --- 请求侧便捷方法 (参考 Laravel Illuminate\Http\Request / Symfony Request) ---
+
+// WantsJson 基于 Accept 头判断客户端是否期望 JSON 响应.
+// 匹配 application/json 或任何 +json 后缀 (如 application/vnd.api+json).
+func (c *Context) WantsJson() bool {
+	accept := c.Header("Accept")
+	return strings.Contains(accept, "application/json") || strings.Contains(accept, "+json")
+}
+
+// BearerToken 从 Authorization 头解析 Bearer 令牌.
+// 头形如 "Bearer xxx.yyy.zzz", 返回 "xxx.yyy.zzz"; 缺失或格式不符返回空串.
+func (c *Context) BearerToken() string {
+	auth := c.Header("Authorization")
+	if strings.HasPrefix(auth, "Bearer ") {
+		return strings.TrimPrefix(auth, "Bearer ")
+	}
+	return ""
+}
+
+// UserAgent 返回 User-Agent 请求头.
+func (c *Context) UserAgent() string {
+	return c.Header("User-Agent")
+}
+
+// IsMethod 判断当前请求方法是否与给定 method 相同 (大小写不敏感).
+func (c *Context) IsMethod(method string) bool {
+	return strings.EqualFold(c.Method(), method)
+}
+
+// HasCookie 判断指定名称的 Cookie 是否存在于请求中.
+func (c *Context) HasCookie(name string) bool {
+	_, err := c.Request.Cookie(name)
+	return err == nil
+}
+
+// Headers 返回全部请求头.
+func (c *Context) Headers() http.Header {
+	return c.Request.Header
+}
+
+// Back 基于 Referer 头回跳到来源页; Referer 缺失时回退到 "/".
+// 返回 error 仅为未来扩展保留, 当前始终为 nil.
+func (c *Context) Back() error {
+	referer := c.Header("Referer")
+	if referer == "" {
+		referer = "/"
+	}
+	c.Redirect(referer, http.StatusFound)
+	return nil
+}
+
+// SaveFile 将上传的文件保存到目标路径.
+// fileHeader 通常来自 c.FormFile(key) 或 c.MultipartForm().File[key][0].
+func (c *Context) SaveFile(fileHeader *multipart.FileHeader, dst string) error {
+	src, err := fileHeader.Open()
+	if err != nil {
+		return err
+	}
+	defer src.Close()
+	out, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer out.Close()
+	_, err = io.Copy(out, src)
+	return err
+}
+
+// Download 强制浏览器下载指定文件.
+// srcPath 为服务器端文件路径; name 为空时取 srcPath 的 base 名称.
+// 设置 Content-Disposition 后委托 SendFile 输出.
+// 返回 error 仅为未来扩展保留, 当前始终为 nil (SendFile 无返回值).
+func (c *Context) Download(srcPath, name string) error {
+	if name == "" {
+		name = filepath.Base(srcPath)
+	}
+	c.Response.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
+	c.SendFile(srcPath)
+	return nil
 }
 
 // bodyBuffer 包装已读 body, 支持多次读取与 Seek (用于 http.ServeContent 等需要 io.ReadSeeker 的场景).

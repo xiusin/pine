@@ -35,6 +35,15 @@ func (a *Application) setupInfo(addr string) {
 	}
 }
 
+// ServeHTTP 实现 http.Handler 接口, 委托到路由树.
+// 暴露公开分发入口, 使 *Application 可直接作为 http.Server.Handler 使用,
+// 同时供外部包 (如 middlewares/actuator) 进行集成测试.
+// 注意: 此入口不包含 Run/Addr 路径上的 gzip 压缩与超时中间件,
+// 生产环境推荐通过 Run(Addr(...)) 启动以获得完整能力.
+func (a *Application) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	a.tree.ServeHTTP(w, r)
+}
+
 // Addr 返回一个基于 net/http 的 ServerHandler, 监听指定地址.
 // 支持 gzip 压缩、超时控制、优雅关闭等能力, 平替 fasthttp.Server.
 func Addr(addr string) ServerHandler {

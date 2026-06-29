@@ -2,17 +2,14 @@ package main
 
 import (
 	"github.com/xiusin/pine"
-	"github.com/xiusin/pine/di"
-	"github.com/xiusin/pine/render/engine/template"
+	"github.com/xiusin/pine/render/engine/ptemplate"
 )
 
 func main() {
 	app := pine.New()
 
-	di.Set("render", func(builder di.AbstractBuilder) (i any, e error) {
-		// reload = true 每次都会重载模板
-		return ptemplate.New("views", ".html", false), nil
-	}, true)
+	// 通过框架入口注册视图引擎, reload=true 每次都会重载模板
+	pine.RegisterViewEngine(ptemplate.New("views", ".html", false))
 
 	app.GET("/", func(ctx *pine.Context) {
 		ctx.Render().ViewData("name", "xiusin")

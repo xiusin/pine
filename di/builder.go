@@ -13,6 +13,9 @@ import (
 
 var ErrNotSupportedType = fmt.Errorf("unsupported type")
 
+// ErrInvalidDefinition 表示 Definition 的 factory 或 paramsFactory 为 nil，无法解析
+var ErrInvalidDefinition = errors.New("invalid definition: factory is nil")
+
 type AbstractBuilder interface {
 	Bind(any, BuildHandler) *Definition
 	Singleton(any, BuildHandler) *Definition
@@ -27,10 +30,19 @@ type AbstractBuilder interface {
 	MustGet(any, ...any) any
 	GetDefinition(any) (*Definition, error)
 	Exists(any) bool
+
+	// 生命周期能力
+	RegisterPostProcessor(BeanPostProcessor) // 注册 bean 后置处理器（须在 Get 之前注册）
+	Boot() error                              // 启动所有单例 bean，触发懒加载与 Boot 回调
+	Shutdown() error                          // 关闭容器，调用所有 Shutdownable bean 的 Shutdown
 }
 type builder struct {
 	// alias    map[string]string
-	services sync.Map
+	services       sync.Map
+	postProcessors []BeanPostProcessor // bean 后置处理器（须在 Get 前注册）
+	shutdownables  []Shutdownable      // 已创建的 Shutdownable 单例 bean，关闭时调用
+	mu             sync.Mutex          // 保护 shutdownables
+	bootOnce       sync.Once
 }
 type BuildHandler func(builder AbstractBuilder) (any, error)
 type BuildWithHandler func(builder AbstractBuilder, params ...any) (any, error)
@@ -163,19 +175,66 @@ func (b *builder) MustGet(serviceAny any, params ...any) any {
 }
 
 func (b *builder) Exists(serviceAny any) bool {
-	var exists = false
 	serviceName := ResolveServiceName(serviceAny)
-	b.services.Range(func(key, value any) bool {
-		if key.(string) == serviceName {
-			exists = true
-			return false
-		}
-		return true
+	_, ok := b.services.Load(serviceName)
+	return ok
+}
+
+// RegisterPostProcessor 注册 bean 后置处理器（必须在 Get 之前注册）。
+// 后置处理器会对后续创建的所有单例 bean 调用 BeforeInit/AfterInit。
+func (b *builder) RegisterPostProcessor(p BeanPostProcessor) {
+	b.postProcessors = append(b.postProcessors, p)
+}
+
+// addShutdownable 注册已创建的 Shutdownable bean，容器关闭时统一调用（内部使用）。
+func (b *builder) addShutdownable(s Shutdownable) {
+	b.mu.Lock()
+	b.shutdownables = append(b.shutdownables, s)
+	b.mu.Unlock()
+}
+
+// Boot 启动所有单例 bean：触发懒加载创建并执行 Boot 回调。
+// 通过 bootOnce 保证仅执行一次；已解析的单例不会重复创建。
+func (b *builder) Boot() error {
+	var err error
+	b.bootOnce.Do(func() {
+		b.services.Range(func(key, value any) bool {
+			def := value.(*Definition)
+			// 跳过参数型 Definition（factory 为 nil，无法 resolve）
+			if def.IsSingleton() && !def.IsResolved() && def.factory != nil {
+				if _, e := b.Get(key.(string)); e != nil && err == nil {
+					err = e
+				}
+			}
+			return true
+		})
 	})
-	return exists
+	return err
+}
+
+// Shutdown 关闭容器，按注册顺序调用所有 Shutdownable bean 的 Shutdown。
+// 调用后清空 shutdownables，保证幂等（多次调用不会重复触发 @PreDestroy）。
+// 返回第一个遇到的错误，其余 bean 仍会被尝试关闭。
+func (b *builder) Shutdown() error {
+	b.mu.Lock()
+	shutdownables := b.shutdownables
+	b.shutdownables = nil
+	b.mu.Unlock()
+	var firstErr error
+	for _, s := range shutdownables {
+		if err := s.Shutdown(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	return firstErr
 }
 
 var di = &builder{}
+
+// NewBuilder 创建一个新的 DI 容器实例，便于隔离使用（如测试场景）。
+func NewBuilder() AbstractBuilder {
+	return &builder{}
+}
 
 func GetDefaultDI() AbstractBuilder {
 	return di
@@ -206,11 +265,12 @@ func Bound(serviceAny any) bool {
 }
 
 func IsShare(serviceAny any) bool {
-	if Bound(serviceAny) {
-		return (di.MustGet(serviceAny).(*Definition)).IsSingleton()
-	} else {
+	// 直接从 services map 取 Definition，避免 MustGet 解析出业务对象导致类型断言 panic
+	def, err := di.GetDefinition(serviceAny)
+	if err != nil {
 		return false
 	}
+	return def.IsSingleton()
 }
 
 func Set(serviceAny any, handler BuildHandler, singleton bool) *Definition {
@@ -245,7 +305,8 @@ func Register(providers ...AbstractServiceProvider) {
 // object 需要被注入的对象, 仅注入为nil的属性字段
 func InjectOn(ptr any) {
 	value := reflect.ValueOf(ptr)
-	if value.Kind() != reflect.Ptr && value.Elem().Kind() != reflect.Struct {
+	// 非指针 OR 指针指向非 struct 则 panic；原 && 写法会在非 Ptr 时错误调用 value.Elem() 触发 reflect panic
+	if value.Kind() != reflect.Ptr || value.Elem().Kind() != reflect.Struct {
 		panic(ErrNotSupportedType)
 	}
 
@@ -266,4 +327,19 @@ func List() []string {
 		return true
 	})
 	return names
+}
+
+// RegisterPostProcessor 在默认 DI 容器注册 bean 后置处理器（须在 Get 之前注册）。
+func RegisterPostProcessor(p BeanPostProcessor) {
+	di.RegisterPostProcessor(p)
+}
+
+// Boot 启动默认 DI 容器的所有单例 bean，触发懒加载与 Boot 回调。
+func Boot() error {
+	return di.Boot()
+}
+
+// Shutdown 关闭默认 DI 容器，调用所有 Shutdownable bean 的 Shutdown。
+func Shutdown() error {
+	return di.Shutdown()
 }

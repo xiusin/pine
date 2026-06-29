@@ -5,10 +5,12 @@
 package pbigcache
 
 import (
+	"fmt"
+	"reflect"
+
 	"github.com/allegro/bigcache/v3"
 	"github.com/xiusin/pine/cache"
 	"github.com/xiusin/pine/contracts"
-	"reflect"
 )
 
 type pBigCache struct{ *bigcache.BigCache }
@@ -55,16 +57,21 @@ func (r *pBigCache) Delete(key string) error { return r.BigCache.Delete(key) }
 
 func (r *pBigCache) Remember(key string, receiver any, call contracts.RememberCallback, ttl ...int) (err error) {
 	defer func() {
+		// Bug 7: 用 ok 模式做类型断言，避免 recover 到非 error 类型时二次 panic
 		if recoverErr := recover(); recoverErr != nil {
-			err = recoverErr.(error)
+			if e, ok := recoverErr.(error); ok {
+				err = e
+			} else {
+				err = fmt.Errorf("%v", recoverErr)
+			}
 		}
 	}()
 	if err = r.GetWithUnmarshal(key, receiver); cache.IsErrKeyNotFound(err) {
 		var value any
 		if value, err = call(); err == nil {
-			if err = r.SetWithMarshal(key, receiver, ttl...); err == nil {
-				reflect.ValueOf(receiver).Elem().Set(reflect.ValueOf(value).Elem())
-			}
+			// Bug 3: 先把 value 赋给 receiver，再写入缓存，避免缓存存入空值
+			reflect.ValueOf(receiver).Elem().Set(reflect.ValueOf(value).Elem())
+			err = r.SetWithMarshal(key, receiver, ttl...)
 		}
 	}
 	return
@@ -73,9 +80,10 @@ func (r *pBigCache) Remember(key string, receiver any, call contracts.RememberCa
 func (r *pBigCache) GetProvider() any { return r.BigCache }
 
 func (r *pBigCache) Exists(key string) bool {
-	var err error
-	if cache.BloomCacheKeyCheck(key) {
-		_, err = r.BigCache.Get(key)
+	// Bug 6: 布隆过滤器判定一定不存在时直接返回 false，原实现因 err 保持零值 nil 而误报存在
+	if !cache.BloomCacheKeyCheck(key) {
+		return false
 	}
+	_, err := r.BigCache.Get(key)
 	return err == nil
 }

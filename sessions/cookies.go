@@ -47,9 +47,15 @@ func (c *Cookie) Get(name string) string {
 	return value
 }
 
-// Set 设置 cookie, 支持通过 transcoder 加密.
-// transcoder 失败时记录日志并使用原始值, 不 panic 以避免请求崩溃.
+// Set 设置 cookie, 使用默认 CookieOptions, 保持向后兼容.
 func (c *Cookie) Set(name string, value string, maxAge int) {
+	c.SetWithOptions(name, value, contracts.DefaultCookieOptions(), maxAge)
+}
+
+// SetWithOptions 使用指定 CookieOptions 设置 cookie.
+// transcoder 失败时记录日志并使用原始值, 不 panic 以避免请求崩溃.
+// Secure 选项: 若未显式开启, 则按当前请求是否 TLS 自动判断 (保留旧行为).
+func (c *Cookie) SetWithOptions(name string, value string, opts contracts.CookieOptions, maxAge int) {
 	if c.transcoder != nil {
 		encoded, err := c.transcoder.Encode(name, value)
 		if err == nil {
@@ -62,11 +68,12 @@ func (c *Cookie) Set(name string, value string, maxAge int) {
 	cookie := &http.Cookie{
 		Name:     name,
 		Value:    value,
-		Path:     "/",
+		Path:     opts.Path,
+		Domain:   opts.Domain,
 		MaxAge:   maxAge,
-		HttpOnly: true,
-		Secure:   c.isTLS(),
-		SameSite: http.SameSiteDefaultMode,
+		HttpOnly: opts.HttpOnly,
+		Secure:   opts.Secure || c.isTLS(),
+		SameSite: opts.SameSite,
 	}
 	http.SetCookie(c.writer, cookie)
 }

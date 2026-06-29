@@ -18,6 +18,7 @@ import (
 	"sync"
 
 	"github.com/xiusin/pine"
+	"github.com/xiusin/pine/middlewares/debug/collector"
 )
 
 var (
@@ -36,23 +37,44 @@ type errHandler struct {
 }
 
 // DebugBar 调试栏中间件.
+// 流程: 注册 collector -> 广播 ctx -> Next() -> 采集 -> 构建 HTML -> 注入响应 -> 销毁.
 func DebugBar(enable bool) pine.Handler {
 	return func(ctx *pine.Context) {
 		collectorMgr := NewCollectorMgr(ctx, enable)
 		ctx.Set("collectorMgr", collectorMgr)
+		// 显式注册 collector (NewCollectorMgr 不再预注册, 避免重复)
+		collectorMgr.RegisterCollector(
+			collector.NewServerDataCollector(),
+			collector.NewRequestDataCollector(),
+		)
+		// 将 ctx 广播给所有 collector, Collect 才能读取请求数据
+		collectorMgr.SetContext(ctx)
 		ctx.Next()
-
-		collectorMgr.RegisterCollector()
+		// 在 Next() 之后采集, 可捕获 handler 中对 session 等的修改
+		collectorMgr.Collect()
 
 		if ctx.Response.StatusCode() == http.StatusOK {
-			collectorMgr.BuildHtmlTag()
+			// 构建 debug 栏 HTML 并注入响应; 仅对 HTML 响应追加, 避免破坏 JSON / 文件流等
+			if html, err := collectorMgr.BuildHtmlTag(); err == nil && html != "" {
+				ct := ctx.Response.Header().Get(pine.HeaderContentType)
+				if strings.HasPrefix(ct, pine.ContentTypeHTML) {
+					ctx.Response.SetBodyString(string(ctx.Response.Body()) + html)
+				}
+			}
 		}
 		collectorMgr.Destroy()
 	}
 }
 
-// Recover 返回 panic 恢复中间件, 输出调试页面.
+// Recover 返回 panic 恢复处理器, 输出调试页面.
 // 每次请求创建独立的 errHandler 实例, 避免并发请求数据竞争.
+//
+// 注意: 本 Handler 通常通过 app.SetRecoverHandler 注册, 由 endRequest 在
+// recover() 之后调用. 此时原始 panic 堆栈已被 endRequest 消费, debug.Stack()
+// 只能拿到当前 (recoverHandler) 调用栈, 并非触发 panic 的原始栈.
+// 这里至少记录 "panic 已发生" (c.Msg) 与当前调用栈, 便于定位问题.
+// 若需捕获原始 panic 栈, 应改用 app.Use() 注册的中间件模式 (defer recover()),
+// 但会改变与 SetRecoverHandler 的兼容用法, 暂未采用.
 func Recover(r *pine.Application) pine.Handler {
 	once.Do(func() {
 		_, f, _, _ := runtime.Caller(0)
@@ -63,6 +85,7 @@ func Recover(r *pine.Application) pine.Handler {
 	return func(c *pine.Context) {
 		handler := &errHandler{}
 		handler.init()
+		// 此时 panic 已被 endRequest recover, 这里获取的是 recoverHandler 调用栈
 		stack := string(debug.Stack())
 		c.Response.ResetBody()
 		c.Logger().Info("msg: %s  Method: %s  Path: %s", c.Msg, c.Method(), c.Path())

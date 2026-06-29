@@ -5,6 +5,7 @@
 package pine
 
 import (
+	"fmt"
 	"net/http"
 	"text/template"
 )
@@ -23,8 +24,66 @@ func RegisterCodeHandler(status int, handler Handler) {
 	codeCallHandler[status] = handler
 }
 
+// GetCodeHandler 返回指定状态码注册的处理器.
+// 供 panic 恢复路径 (context.endRequest) 查询业务自定义的 500 处理器:
+// 若注册了 500 处理器, panic 时优先调用它而非默认 recoverHandler.
+func GetCodeHandler(code int) (Handler, bool) {
+	h, ok := codeCallHandler[code]
+	return h, ok
+}
+
+// IsPanicHandlerRegistered 返回是否注册了 500 (Internal Server Error) 处理器.
+// 供 context.endRequest 在 panic 恢复时决定是否优先调用业务自定义 500 处理器.
+func IsPanicHandlerRegistered() bool {
+	_, ok := codeCallHandler[http.StatusInternalServerError]
+	return ok
+}
+
 // defaultRecoverHandler 默认 panic 恢复处理器.
 func defaultRecoverHandler(c *Context) {
 	c.Response.Header().Set(HeaderContentType, ContentTypeHTML)
 	_ = DefaultErrTemplate.Execute(c.Response.BodyWriter(), H{"Message": c.Msg, "Code": http.StatusInternalServerError})
+}
+
+// HandleRecovery 处理 panic 恢复值, 实现 report 与 render 分层 (参考 Laravel Handler::report/render).
+//
+// 若 recovered 实现了 Exception 接口:
+//  1. report 阶段: Report() 返回 true 时通过 Logger 上报异常;
+//  2. render 阶段: 优先按异常类型分发到 RegisterExceptionHandler 注册的处理器,
+//     未命中则回退到该状态码对应的 RegisterCodeHandler 处理器.
+//
+// 命中 Exception 路径并完成渲染时返回 true; 调用方 (context.endRequest) 在返回 false 时
+// 应回退到原有 panic 恢复逻辑 (500 处理器 / recoverHandler).
+//
+// 内部会重置已缓冲响应体, 让错误处理器从干净状态重写, 避免 handler 写入的部分响应体与错误页拼接.
+func HandleRecovery(c *Context, recovered any) bool {
+	exc, ok := recovered.(Exception)
+	if !ok {
+		return false
+	}
+	// report 阶段: 上报异常 (与 render 分离, 参考 Laravel Handler::report)
+	if exc.Report() {
+		Logger().Error(fmt.Sprintf("exception recovered: %s", exc.Error()))
+	}
+	c.Msg = exc.Error()
+	// 重置已缓冲的部分响应体, 让错误处理器从干净状态重写
+	if c.Response != nil {
+		c.Response.ResetBody()
+	}
+	// render 阶段: 优先按异常类型分发 (参考 Spring @ExceptionHandler / Laravel Handler::render)
+	if handler, found := resolveExceptionHandler(exc); found {
+		c.SetStatus(exc.Status())
+		c.setRoute(&RouteEntry{Handle: func(ctx *Context) {
+			_ = handler(ctx, exc)
+		}}).Next()
+		return true
+	}
+	// 未注册类型处理器, 回退到状态码处理器 (与 404 / 405 路径行为对齐)
+	if handler, ok := GetCodeHandler(exc.Status()); ok {
+		c.SetStatus(exc.Status())
+		c.setRoute(&RouteEntry{Handle: handler}).Next()
+		return true
+	}
+	// Exception 但无任何已注册渲染器: 返回 false, 由 endRequest 回退到 500 处理路径
+	return false
 }

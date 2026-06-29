@@ -17,7 +17,7 @@ type RouterTableRow struct {
 	Method string `header:"METHOD"`
 	Path   string `header:"PATH"`
 	// Alias   string `header:"ALIASES"`
-	// Name    string `header:"NAME"`
+	Name    string `header:"NAME"`
 	Handler string `header:"HANDLER"`
 }
 
@@ -29,16 +29,26 @@ func (r *Router) DumpRouteTable() {
 
 	var tables []RouterTableRow
 
-	// 遍历基数树路由表快照 (已排除静默注册的 catch-all 基路径与 OPTIONS 别名).
-	for _, e := range r.app.tree.table {
-		if e.Method == http.MethodOptions {
-			continue
+	// appendRows 将一份路由表快照追加到 tables, 跳过静默注册的 OPTIONS 别名.
+	appendRows := func(tbl []tableEntry) {
+		for _, e := range tbl {
+			if e.Method == http.MethodOptions {
+				continue
+			}
+			tables = append(tables, RouterTableRow{
+				Method:  e.Method,
+				Path:    e.Path,
+				Name:    e.Name,
+				Handler: runtime.FuncForPC(reflect.ValueOf(e.Handler).Pointer()).Name(),
+			})
 		}
-		tables = append(tables, RouterTableRow{
-			Method:  e.Method,
-			Path:    e.Path,
-			Handler: runtime.FuncForPC(reflect.ValueOf(e.Handler).Pointer()).Name(),
-		})
+	}
+
+	// 主树路由表.
+	appendRows(r.app.tree.table)
+	// 子域路由表 (按 host 前缀注册的路由位于各子树).
+	for _, sub := range r.app.tree.hostTrees {
+		appendRows(sub.table)
 	}
 
 	p.Print(tables)

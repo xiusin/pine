@@ -49,6 +49,8 @@ type tableEntry struct {
 	Method  string
 	Path    string
 	Handler Handler
+	// Name 命名路由名称, 供 Name() 设置与 RouteURL() 反向生成 URL.
+	Name string
 }
 
 // regexRouteEntry 正则路由条目 (回退层).
@@ -71,12 +73,40 @@ type routeTree struct {
 	// regexRoutes 存储无法被基数树表达的正则路由 (回退层).
 	// 注册阶段追加 (单线程), 运行阶段只读遍历 (多线程), 无并发问题.
 	regexRoutes []*regexRouteEntry
+	// hostTrees 子域路由: host 前缀 (如 "user.") -> 子树.
+	// 仅主树持有, 子域 Router 注册的路由写入对应子树; 注册阶段写入 (单线程),
+	// 运行阶段只读遍历 (多线程), 无并发问题.
+	hostTrees map[string]*routeTree
+	// namedRoutes 命名路由: name -> tableEntry, 供 RouteURL 反向生成 URL.
+	// 注册阶段写入 (单线程), 运行阶段只读 (多线程), 无并发问题.
+	// 仅主树的 namedRoutes 参与查询; Name() 始终写入主树 (r.app.tree).
+	namedRoutes map[string]*tableEntry
+	// interceptors 全局拦截器注册表 (参考 Spring HandlerInterceptor).
+	// 注册阶段追加 (单线程), 运行阶段只读遍历 (多线程), 无并发问题.
+	// 仅主树持有; 子域子树不持有独立拦截器, 子域请求经主树 ServeHTTP 委托后,
+	// 仍在子树的 dispatch 中通过 t.app.tree.interceptors 取主树拦截器执行.
+	interceptors []InterceptorRegistration
+}
+
+// addRouteHost 将路由注册到指定 host 前缀的子树 (用于 Subdomain).
+// 子树复用 newRouteTree 的全部能力 (基数树 + 正则回退 + OPTIONS 别名 + 404/405),
+// 分发时由主树 ServeHTTP 按 r.Host 前缀匹配后委托.
+func (t *routeTree) addRouteHost(hostPrefix, method, fullPath string, entry *RouteEntry) {
+	if t.hostTrees == nil {
+		t.hostTrees = map[string]*routeTree{}
+	}
+	sub, ok := t.hostTrees[hostPrefix]
+	if !ok {
+		sub = newRouteTree(t.app)
+		t.hostTrees[hostPrefix] = sub
+	}
+	sub.addRoute(method, fullPath, entry)
 }
 
 // newRouteTree 创建混合路由器, 并接管 404 / 405 处理.
 // notFoundHandler 不写响应, 仅设置 regexFallbackKey 标志, 供 ServeHTTP 回退正则路由.
 func newRouteTree(app *Application) *routeTree {
-	tree := &routeTree{app: app, registered: map[string]bool{}}
+	tree := &routeTree{app: app, registered: map[string]bool{}, namedRoutes: map[string]*tableEntry{}}
 	tree.router = bunrouter.New(
 		bunrouter.WithNotFoundHandler(func(w http.ResponseWriter, req bunrouter.Request) error {
 			// 不写 404 响应, 仅标记 "基数树未命中", 让 ServeHTTP 决定是否回退正则路由.
@@ -148,6 +178,61 @@ func (t *routeTree) serve(method, hrPath string, entry *RouteEntry, constraints 
 	t.router.Handle(method, hrPath, handle)
 }
 
+// addInterceptor 追加一条拦截器注册 (注册阶段, 单线程).
+// 拦截器仅注册到主树; 子域子树通过 t.app.tree.interceptors 共享主树拦截器.
+func (t *routeTree) addInterceptor(reg InterceptorRegistration) {
+	t.interceptors = append(t.interceptors, reg)
+}
+
+// runInterceptorChain 围绕 handler 执行拦截器链 (参考 Spring HandlerInterceptor).
+//
+// 流程:
+//  1. PreHandle 顺序执行 (跳过 shouldIntercept=false 的拦截器); 任一返回 false 中断,
+//     已 PreHandle 成功的拦截器仍会通过 defer 调用 AfterCompletion.
+//  2. handler() 执行 (通常为 c.Next 推进中间件链 + 路由 handler).
+//  3. PostHandle 逆序执行 (仅 handler 正常返回时; panic 时跳过, 直接走 AfterCompletion).
+//  4. AfterCompletion 逆序执行 (通过 defer 总执行, 含 panic; err 为 recover 出的 panic 值).
+//
+// 拦截器来源固定为 t.app.tree.interceptors (主树), 保证 Group / Subdomain 路由器
+// 注册的拦截器对子域路由同样生效.
+func (t *routeTree) runInterceptorChain(c *Context, requestPath string, handler func()) {
+	interceptors := t.app.tree.interceptors
+	if len(interceptors) == 0 {
+		handler()
+		return
+	}
+	var completed []InterceptorRegistration
+	// AfterCompletion: 总执行 (含 panic), 逆序; 自身 panic 不传播, 避免污染 endRequest.
+	defer func() {
+		err := recover()
+		for i := len(completed) - 1; i >= 0; i-- {
+			func() {
+				defer func() { _ = recover() }()
+				completed[i].Interceptor.AfterCompletion(c, err)
+			}()
+		}
+		if err != nil {
+			panic(err) // 重新抛出, 交由 endRequest 的 recoverHandler 处理
+		}
+	}()
+	// PreHandle 顺序
+	for _, reg := range interceptors {
+		if !reg.shouldIntercept(requestPath) {
+			continue
+		}
+		if !reg.Interceptor.PreHandle(c) {
+			return // 中断: 不执行 handler / PostHandle; defer 调 AfterCompletion
+		}
+		completed = append(completed, reg)
+	}
+	// handler + 中间件链
+	handler()
+	// PostHandle 逆序 (仅正常返回时; panic 时由 defer 跳过此处, 直接走 AfterCompletion)
+	for i := len(completed) - 1; i >= 0; i-- {
+		completed[i].Interceptor.PostHandle(c)
+	}
+}
+
 // dispatch 执行命中的基数树路由: 获取 Context、填充参数、校验约束、运行中间件链.
 // 是否复用 sync.Pool 由请求是否处于超时上下文决定.
 // 参数填充使用 ps.ByName(name) 逐个获取, 0 内存分配 (bunrouter 内部通过路径切片返回, 无中间 map).
@@ -172,7 +257,8 @@ func (t *routeTree) dispatch(w http.ResponseWriter, r *http.Request, ps bunroute
 	if c.sess != nil {
 		defer func() { _ = c.sess.Save() }()
 	}
-	c.Next()
+	// 拦截器链围绕 c.Next 执行; 无拦截器时直接 c.Next (零开销).
+	t.runInterceptorChain(c, r.URL.Path, c.Next)
 }
 
 // dispatchRegex 执行命中的正则路由: 获取 Context、从正则捕获组填充参数、运行中间件链.
@@ -190,7 +276,7 @@ func (t *routeTree) dispatchRegex(w http.ResponseWriter, r *http.Request, rr *re
 	if c.sess != nil {
 		defer func() { _ = c.sess.Save() }()
 	}
-	c.Next()
+	t.runInterceptorChain(c, r.URL.Path, c.Next)
 }
 
 // acquireContext 根据是否处于超时上下文, 选择复用池或新建 Context.
@@ -251,6 +337,30 @@ func (t *routeTree) methodNotAllowed(w http.ResponseWriter, r *http.Request) {
 //  4. 未命中则回退正则路由遍历.
 //  5. 正则也未命中, 走真正的 404.
 func (t *routeTree) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// 按 Host 前缀匹配子域路由: 命中则委托子树处理.
+	// 取最长匹配前缀, 保证嵌套子域 (如 "center.user." 优先于 "user.") 正确路由.
+	// 未注册任何子域时 hostTrees 为 nil, 此分支零开销跳过.
+	if len(t.hostTrees) > 0 {
+		host := r.Host
+		if idx := strings.IndexByte(host, ':'); idx > 0 {
+			host = host[:idx] // 去端口
+		}
+		if len(host) > 0 {
+			var bestPrefix string
+			var bestSub *routeTree
+			for prefix, sub := range t.hostTrees {
+				if strings.HasPrefix(host, prefix) && len(prefix) > len(bestPrefix) {
+					bestPrefix = prefix
+					bestSub = sub
+				}
+			}
+			if bestSub != nil {
+				bestSub.ServeHTTP(w, r)
+				return
+			}
+		}
+	}
+
 	if p := r.URL.Path; len(p) > 1 {
 		if trimmed := strings.TrimRight(p, "/"); len(trimmed) > 0 {
 			r.URL.Path = trimmed

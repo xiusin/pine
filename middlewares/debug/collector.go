@@ -5,8 +5,8 @@
 package debug
 
 import (
-	"errors"
 	"fmt"
+	"strings"
 	"sync/atomic"
 
 	"github.com/xiusin/pine"
@@ -38,14 +38,14 @@ type CollectorMgr struct {
 }
 
 // NewCollectorMgr 创建收集器管理器.
+// 不在此处预注册 collector, 由调用方通过 RegisterCollector 显式注册,
+// 避免与 RegisterCollector 重复注册导致 collector 翻倍.
 func NewCollectorMgr(ctx *pine.Context, enable bool) *CollectorMgr {
 	return &CollectorMgr{
-		enable:    enable,
-		contextID: nextContextID(),
-		collectors: []AbstractCollector{
-			collector.NewServerDataCollector(),
-			collector.NewRequestDataCollector(),
-		},
+		enable:     enable,
+		ctx:        ctx,
+		contextID:  nextContextID(),
+		collectors: []AbstractCollector{},
 	}
 }
 
@@ -68,7 +68,7 @@ func (mgr *CollectorMgr) Disable() {
 }
 
 // RegisterCollector 注册收集器.
-// 仅在未启用时注册 (修复原版逻辑反转: 原版在启用时 return 不注册).
+// 仅在启用时注册 (修复原版逻辑反转: 原版在启用时 return 不注册).
 func (mgr *CollectorMgr) RegisterCollector(collectors ...AbstractCollector) {
 	if !mgr.IsEnable() {
 		return
@@ -76,16 +76,44 @@ func (mgr *CollectorMgr) RegisterCollector(collectors ...AbstractCollector) {
 	mgr.collectors = append(mgr.collectors, collectors...)
 }
 
-// BuildHtmlTag 构建 HTML 标签.
-// 仅在启用时构建 (修复原版逻辑反转: 原版在启用时返回 error "禁用").
+// SetContext 将上下文广播给所有已注册 collector, 并保存到 mgr.ctx.
+func (mgr *CollectorMgr) SetContext(ctx *pine.Context) {
+	mgr.ctx = ctx
+	for _, c := range mgr.collectors {
+		c.SetContext(ctx)
+	}
+}
+
+// Collect 触发所有 collector 采集数据.
+func (mgr *CollectorMgr) Collect() {
+	for _, c := range mgr.collectors {
+		c.Collect()
+	}
+}
+
+// BuildHtmlTag 构建 debug 栏 HTML 片段.
+// 仅在启用时构建; 遍历所有 collector 的 widget, 拼接为带样式的 div 块.
 func (mgr *CollectorMgr) BuildHtmlTag() (string, error) {
 	if !mgr.IsEnable() {
-		return "", errors.New("debug collector is disabled")
+		return "", nil
 	}
-	for name, collector := range mgr.collectors {
-		fmt.Println(name, collector.GetWidgets())
+	var b strings.Builder
+	b.WriteString(`<div id="pine-debug-bar" style="position:fixed;bottom:0;left:0;right:0;background:#1a1a1a;color:#ddd;font-family:monospace;font-size:12px;padding:8px;max-height:300px;overflow:auto;z-index:99999;border-top:1px solid #444;">`)
+	for _, c := range mgr.collectors {
+		widgets, ok := c.GetWidgets().([]collector.Widget)
+		if !ok {
+			continue
+		}
+		name := c.GetName()
+		for _, w := range widgets {
+			b.WriteString(fmt.Sprintf(
+				`<div style="display:inline-block;margin-right:16px;vertical-align:top;"><h4 style="color:#4CAF50;margin:2px 0;">%s: %s</h4><pre style="background:#2a2a2a;padding:4px;margin:2px 0;max-height:200px;overflow:auto;white-space:pre-wrap;word-break:break-all;">%s</pre></div>`,
+				name, w.Title, w.Content,
+			))
+		}
 	}
-	return "", nil
+	b.WriteString(`</div>`)
+	return b.String(), nil
 }
 
 // Destroy 销毁收集器.

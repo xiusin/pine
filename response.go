@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"time"
 )
 
 // maxBodyBufferSize 单个响应缓冲的最大容量, 超过后释放以避免大响应污染对象池.
@@ -324,4 +325,39 @@ func (r *Response) WithText(s string) error {
 	r.writer.Header().Set(HeaderContentType, ContentTypeText)
 	_, err := r.Write([]byte(s))
 	return err
+}
+
+// WithCookie 链式设置 Set-Cookie 响应头, 返回 Response 自身.
+// 通过 http.SetCookie 写入底层 writer 的 Header, 缓冲模式与流式模式均生效
+// (两者共享同一份 http.Header, 与 net/http 语义一致: 需在 WriteHeader 之前调用).
+func (r *Response) WithCookie(cookie *http.Cookie) *Response {
+	http.SetCookie(r.writer, cookie)
+	return r
+}
+
+// WithHeaders 批量链式设置响应头, 返回 Response 自身.
+func (r *Response) WithHeaders(headers map[string]string) *Response {
+	for k, v := range headers {
+		r.writer.Header().Set(k, v)
+	}
+	return r
+}
+
+// WithETag 链式设置 ETag 响应头, 返回 Response 自身.
+func (r *Response) WithETag(etag string) *Response {
+	r.writer.Header().Set("ETag", etag)
+	return r
+}
+
+// WithCacheControl 链式设置 Cache-Control 响应头, 返回 Response 自身.
+func (r *Response) WithCacheControl(value string) *Response {
+	r.writer.Header().Set("Cache-Control", value)
+	return r
+}
+
+// WithLastModified 链式设置 Last-Modified 响应头, 返回 Response 自身.
+// 时间按 RFC1123 (http.TimeFormat) 格式化为 UTC 字符串.
+func (r *Response) WithLastModified(t time.Time) *Response {
+	r.writer.Header().Set("Last-Modified", t.UTC().Format(http.TimeFormat))
+	return r
 }
