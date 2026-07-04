@@ -11,7 +11,7 @@ require (
 	github.com/fatih/color v1.17.0
 	github.com/gomodule/redigo v1.9.2
 	github.com/gookit/color v1.5.4
-	github.com/gorilla/schema v1.2.0
+	github.com/gorilla/schema v1.4.1
 	github.com/landoop/tableprinter v0.0.0-20201125135848-89e81fc956e7
 	github.com/satori/go.uuid v1.2.0
 	github.com/syndtr/goleveldb v1.0.0
